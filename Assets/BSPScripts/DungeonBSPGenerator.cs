@@ -87,7 +87,8 @@ public class DungeonBSPGenerator : MonoBehaviour
     /// <summary>
     /// Removes previously generated dungeon objects.
     /// </summary>
-    void ClearDungeon()
+    [ContextMenu("Remove Dungeon")]
+    public void ClearDungeon()
     {
         if (dungeonParent == null) return;
 

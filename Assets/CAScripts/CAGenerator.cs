@@ -40,7 +40,6 @@ public class CAGenerator : MonoBehaviour
         map = new int[mapHeight, mapWidth];
 
         MakeNoiseGrid(randomFillPercent);
-        Debug.Log(randomFillPercent);
     }
 
     void MakeNoiseGrid(int density)
