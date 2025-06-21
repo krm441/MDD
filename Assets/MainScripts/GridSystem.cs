@@ -14,11 +14,11 @@ namespace Pathfinding
             aStar.SetGrid(grid);
         }
 
-        public void MarkWalkable(Vector2Int gridPos, bool isWalkable)
+        public void MarkWalkable(Vector2Int gridPos, bool isWalkable_)
         {
             if (gridPos.x >= 0 && gridPos.y >= 0 && gridPos.x < grid.GetLength(0) && gridPos.y < grid.GetLength(1))
             {
-                grid[gridPos.x, gridPos.y].isWalkable = isWalkable;
+                grid[gridPos.x, gridPos.y].isWalkable = isWalkable_;
             }
         }
 
@@ -32,7 +32,7 @@ namespace Pathfinding
 
         public PartyManagement.PartyManager partyManager;
 
-        private AStar aStar;
+        public AStar aStar;
 
         public LayerMask clickableLayer;
 
@@ -104,7 +104,7 @@ namespace Pathfinding
             }
         }
 
-        Node GetNodeFromWorldPosition(Vector3 worldPos)
+        public Node GetNodeFromWorldPosition(Vector3 worldPos)
         {
             if (grid == null)
             {
