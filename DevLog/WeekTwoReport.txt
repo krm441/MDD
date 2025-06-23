@@ -1,0 +1,14 @@
+By the end of last Week I have a working dungeon generator using cellular automata.
+
+Test results:
+best options in CA generator:
+Fill percent: 60
+Itérations: 4
+width/height 64
+
+TODO now:
+1) figure out what meshes to use in cellular automata dungeon.
+2) test if marching squares could be used to find unique shapes drawn by CA and fit unique congruent meshes there.
+
+Problems to solve:
+1) Coupling issue between A* and CAGenerator. exposing internal A* state is not a good idea, better to create a facade Inside the PathfindingSystem

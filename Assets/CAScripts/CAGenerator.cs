@@ -23,6 +23,8 @@ public class CAGenerator : MonoBehaviour
     // path
     public Pathfinding.GridSystem pathFinder;
 
+    [SerializeField] private CAMeshing caMeshing;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -59,12 +61,20 @@ public class CAGenerator : MonoBehaviour
             var start = pathFinder.GetNodeFromWorldPosition(new Vector3(0, 0));
             var finish = pathFinder.GetNodeFromWorldPosition(new Vector3(30, 30));
 
-            
+
 
             ConnectRegionsWithAStar(pathFinder);
         }
 
         UnityEditor.SceneView.RepaintAll(); // Editor mode only
+        
+        caMeshing?.GenerateMeshes(map);
+    }
+
+    [ContextMenu("Remove Dungeon")]
+    public void ClearDungeon()
+    {
+        caMeshing?.ClearPrevious();
     }
 
     void MakeNoiseGrid(int density)
@@ -205,16 +215,16 @@ public class CAGenerator : MonoBehaviour
                 Vector2Int bestA = Vector2Int.zero, bestB = Vector2Int.zero;
 
                 foreach (var a in regions[i])
-                foreach (var b in regions[j])
-                {
-                    float dist = Vector2Int.Distance(a, b);
-                    if (dist < bestDist)
+                    foreach (var b in regions[j])
                     {
-                        bestDist = dist;
-                        bestA = a;
-                        bestB = b;
+                        float dist = Vector2Int.Distance(a, b);
+                        if (dist < bestDist)
+                        {
+                            bestDist = dist;
+                            bestA = a;
+                            bestB = b;
+                        }
                     }
-                }
 
                 if (bestDist > connectionThreshold) continue;
                 if (connectedPairs.Contains((i, j)) || connectedPairs.Contains((j, i))) continue;
@@ -230,15 +240,15 @@ public class CAGenerator : MonoBehaviour
                         foreach (var node in path)
                         {
                             for (int dx = -1; dx <= 1; dx++)
-                            for (int dy = -1; dy <= 1; dy++)
-                            {
-                                var p = node.gridPos + new Vector2Int(dx, dy);
-                                if (IsWithinMapBounds(p.x, p.y))
+                                for (int dy = -1; dy <= 1; dy++)
                                 {
-                                    map[p.y, p.x] = floor;
-                                    gridSystem.MarkWalkable(p, true);
+                                    var p = node.gridPos + new Vector2Int(dx, dy);
+                                    if (IsWithinMapBounds(p.x, p.y))
+                                    {
+                                        map[p.y, p.x] = floor;
+                                        gridSystem.MarkWalkable(p, true);
+                                    }
                                 }
-                            }
                         }
                         connectedPairs.Add((i, j));
                     }
