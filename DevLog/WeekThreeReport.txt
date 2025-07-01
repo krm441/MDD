@@ -1,0 +1,7 @@
+Complete:
+
+Theta* was designed based on the existing A* system and proved to be highly efficient and optimised
+
+TODO:
+
+- add: u-shaped, t-shaped, l-shaped rooms generator

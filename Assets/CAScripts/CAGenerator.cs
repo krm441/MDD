@@ -28,7 +28,7 @@ public class CAGenerator : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
+        //GenerateDungeon();
     }
 
     // Update is called once per frame
@@ -58,11 +58,11 @@ public class CAGenerator : MonoBehaviour
             Debug.Log("generating a*");
             pathFinder.GeneratePathfinder(mapWidth, mapHeight);
 
-            var start = pathFinder.GetNodeFromWorldPosition(new Vector3(0, 0));
-            var finish = pathFinder.GetNodeFromWorldPosition(new Vector3(30, 30));
+            //var start = pathFinder.GetNodeFromWorldPosition(new Vector3(0, 0));
+            //var finish = pathFinder.GetNodeFromWorldPosition(new Vector3(30, 30));
 
 
-
+            // this is ussed to conenct the separated corridors to one another. this is not the pathfinder for walking of the party
             ConnectRegionsWithAStar(pathFinder);
         }
 

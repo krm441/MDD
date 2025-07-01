@@ -12,3 +12,4 @@ TODO now:
 
 Problems to solve:
 1) Coupling issue between A* and CAGenerator. exposing internal A* state is not a good idea, better to create a facade Inside the PathfindingSystem
+

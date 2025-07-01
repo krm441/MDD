@@ -1,0 +1,7 @@
+TODO:
+
+	-Plan maximum: get game ready for the first play test:
+		- Implement basic combat AI
+		- Increase party limit to 4, and ensure the party can move
+		- Make starting location
+		- Make player characters interact with environment

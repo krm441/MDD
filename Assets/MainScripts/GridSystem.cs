@@ -12,6 +12,9 @@ namespace Pathfinding
             aStar = new AStar();
             GenerateGrid(width, height);
             aStar.SetGrid(grid);
+
+            thetaStar = new ThetaStar();
+            thetaStar.SetGrid(grid);
         }
 
         public void MarkWalkable(Vector2Int gridPos, bool isWalkable_)
@@ -33,6 +36,7 @@ namespace Pathfinding
         public PartyManagement.PartyManager partyManager;
 
         public AStar aStar;
+        public ThetaStar thetaStar;
 
         public LayerMask clickableLayer;
 
@@ -66,9 +70,9 @@ namespace Pathfinding
                 if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
                 {        
                     Vector3 worldPos = hit.point;
+                    Debug.Log("RaycastHit "  + worldPos);
                     Node clickedNode = GetNodeFromWorldPosition(worldPos);
 
-                    Debug.Log("RaycastHit "  + worldPos);
 
                     if (clickedNode != null && clickedNode.isWalkable)
                     {
@@ -77,7 +81,8 @@ namespace Pathfinding
                         Node startNode = GetNodeFromWorldPosition(partyManager.CurrentSelected.transform.position);
                         Node endNode = GetNodeFromWorldPosition(hit.point);
 
-                        List<Node> path = aStar.FindPath(startNode, endNode);
+                        //List<Node> path = aStar.FindPath(startNode, endNode);
+                        List<Node> path = thetaStar.FindPath(startNode, endNode);
                         partyManager.CurrentSelected.MoveAlongPath(path);
 
                         // Visual marker
