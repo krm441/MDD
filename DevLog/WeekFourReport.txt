@@ -5,3 +5,13 @@ TODO:
 		- Increase party limit to 4, and ensure the party can move
 		- Make starting location
 		- Make player characters interact with environment
+
+log one(tuesday - 1/7/25): scripts that are responsible for scene change are ready. now i have:
+	- intro script with simple UI to go to debug scènes
+	- scene for BSP trees debugging and tests
+	- scene for CA generator tests
+	- scene for AI testing
+
+at this point i suddenly realised that i can implement Behavours Tree or utility ai or any other ai system only after i implement the combat scripts
+and for combat scripts i have to finalize the classes in game, and adjust the lore. at least a basic class system. and decide on the basic spells, and rotations. so now i commit and change the plan.
+

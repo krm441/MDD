@@ -4,8 +4,25 @@ using UnityEngine;
 
 namespace PartyManagement
 {
+    // singleton
     public class PartyManager : MonoBehaviour
     {
+        public static PartyManager Instance;
+
+        private void Awake()
+        {
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject); // Keep this object across scenes
+            }
+            else
+            {
+                Destroy(gameObject); // Enforce singleton
+                Debug.Log("PartyManager destroyed");
+            }
+        }
+
         public void AddMember(CharacterUnit newMember)
         {
             if (!partyMembers.Contains(newMember))

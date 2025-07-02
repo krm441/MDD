@@ -7,11 +7,26 @@ namespace Pathfinding
     [ExecuteInEditMode]
     public class GridSystem : MonoBehaviour
     {
+
+        void Awake()
+        {
+            partyManager = PartyManagement.PartyManager.Instance;
+            Debug.Log("awake: GridSystem");
+        }
+
         public void GeneratePathfinder(int width, int height)
         {
             aStar = new AStar();
             GenerateGrid(width, height);
             aStar.SetGrid(grid);
+
+            thetaStar = new ThetaStar();
+            thetaStar.SetGrid(grid);
+        }
+
+        public void GeneratePathThetta(int width, int height, bool walkable)
+        {
+            GenerateGrid(width, height, walkable);
 
             thetaStar = new ThetaStar();
             thetaStar.SetGrid(grid);
@@ -33,7 +48,7 @@ namespace Pathfinding
             DetectClick();
         }
 
-        public PartyManagement.PartyManager partyManager;
+        public PartyManagement.PartyManager partyManager;// = PartyManagement.PartyManager.Instance;
 
         public AStar aStar;
         public ThetaStar thetaStar;
@@ -43,7 +58,7 @@ namespace Pathfinding
         Node[,] grid;
         float tileSize = 1f;
 
-        void GenerateGrid(int width, int height)//, float tileSize)
+        void GenerateGrid(int width, int height, bool walkable = false)
         {
             grid = new Node[width, height];
 
@@ -52,7 +67,8 @@ namespace Pathfinding
                 for (int y = 0; y < height; y++)
                 {
                     Vector3 worldPos = new Vector3(x * tileSize, 0, y * tileSize);
-                    grid[x, y] = new Node(new Vector2Int(x, y), worldPos, false);
+                    //grid[x, y] = new Node(new Vector2Int(x, y), worldPos, false);
+                    grid[x, y] = new Node(new Vector2Int(x, y), worldPos, walkable);
                 }
             }
         }

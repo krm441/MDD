@@ -28,7 +28,7 @@ public class CAGenerator : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        //GenerateDungeon();
+        GenerateDungeon();
     }
 
     // Update is called once per frame
@@ -65,6 +65,9 @@ public class CAGenerator : MonoBehaviour
             // this is ussed to conenct the separated corridors to one another. this is not the pathfinder for walking of the party
             ConnectRegionsWithAStar(pathFinder);
         }
+
+        // now regenerate grid of pathfinder using the theta*
+        
 
         UnityEditor.SceneView.RepaintAll(); // Editor mode only
         

@@ -68,7 +68,8 @@ public class DungeonBSPGenerator : MonoBehaviour
         if (pathFinder != null)
         {
             Debug.Log("Initializing pathfinder...");
-            pathFinder.GeneratePathfinder(dungeonSize.x * 4, dungeonSize.y * 4);
+            //pathFinder.GeneratePathfinder(dungeonSize.x * 4, dungeonSize.y * 4);
+            pathFinder.GeneratePathThetta(dungeonSize.x * 4, dungeonSize.y * 4, true);
         }
         else
         {
