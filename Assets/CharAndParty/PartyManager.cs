@@ -10,6 +10,8 @@ namespace PartyManagement
         public static int selectedIndex = 0;
         public static CharacterUnit CurrentSelected => partyMembers.Count > 0 ? partyMembers[selectedIndex] : null;
 
+        public static bool IsEmpty() => partyMembers.Count == 0;
+
         public static void AddMember(CharacterUnit newMember)
         {
             if (!partyMembers.Contains(newMember))
