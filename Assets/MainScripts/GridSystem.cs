@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.EventSystems; // this should be moved out
 using UnityEngine;
 
 namespace Pathfinding
@@ -10,8 +11,12 @@ namespace Pathfinding
 
         void Awake()
         {
-            partyManager = PartyManagement.PartyManager.Instance;
-            Debug.Log("awake: GridSystem");
+            //if(partyManager == null)
+            //{
+            //    Debug.LogError("Party manager is at null - ")
+            //}
+            //partyManager = PartyManagement.PartyManager.Instance;
+            //Debug.Log("awake: GridSystem");
         }
 
         public void GeneratePathfinder(int width, int height)
@@ -41,11 +46,12 @@ namespace Pathfinding
         }
 
         public GameObject clickMarkerPrefab;
+        public Vector3 LastClickPosition;
 
         // Update is called once per frame
         void Update()
         {
-            DetectClick();
+            //DetectClick();
         }
 
         public PartyManagement.PartyManager partyManager;// = PartyManagement.PartyManager.Instance;
@@ -75,8 +81,40 @@ namespace Pathfinding
 
         private GameObject currentClickMarker; // marker prefab reference
 
+        // better method for path construction on click
+        // from point 'from' to the point where ray hit the clickable layer
+        // TODO: fix, and research the event syste,
+        public List<Node> FindPathToClick(Transform from)
+        {
+            
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+                if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
+                {
+                    Node startNode = GetNodeFromWorldPosition(from.position);
+                    Node endNode = GetNodeFromWorldPosition(hit.point);
+
+                    // click position
+                    LastClickPosition = hit.point;
+                    
+                    if (startNode != null && endNode != null && endNode.isWalkable)
+                    {
+                        return thetaStar.FindPath(startNode, endNode);
+                    }
+
+                    
+                }
+            //}
+
+            return null;
+        }
+
+
         void DetectClick()
         {
+            if (EventSystem.current.IsPointerOverGameObject()) // ui event consume
+                return;
+
             if (Input.GetMouseButtonDown(0))
             {
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -94,12 +132,12 @@ namespace Pathfinding
                     {
                         Debug.Log("Clicked node: " + clickedNode.gridPos);
 
-                        Node startNode = GetNodeFromWorldPosition(partyManager.CurrentSelected.transform.position);
+                        Node startNode = GetNodeFromWorldPosition(PartyManagement.PartyManager.CurrentSelected.transform.position);
                         Node endNode = GetNodeFromWorldPosition(hit.point);
 
                         //List<Node> path = aStar.FindPath(startNode, endNode);
                         List<Node> path = thetaStar.FindPath(startNode, endNode);
-                        partyManager.CurrentSelected.MoveAlongPath(path);
+                        PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path);
 
                         // Visual marker
                         if (clickMarkerPrefab != null)

@@ -2,21 +2,62 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
+public class StatBlock
+{
+    public int Intelligence;
+    public int Willpower;
+    public int Devotion;
+    public int Initiative;
+    public int HP;
+    public int MaxHP;
+}
+
+[System.Serializable]
+public class ArmorStat
+{
+    public int physicalArmor;
+    public int magicArmor;
+    public int moraleLevel; // this one will be about Crowd Control (CC) spells like charm or madness
+}
+
 namespace PartyManagement
 {
     public class CharacterUnit : MonoBehaviour
     {
-        private Coroutine movementCoroutine;
+        public StatBlock stats;
+        public ArmorStat armorStat;
+        public Sprite portraitSprite;
+        public string unitName;
 
-        // For animation FSM
-        public bool IsMoving => movementCoroutine != null;
-
+        public MovementController movementController;
 
         void Start()
         {
-            FindObjectOfType<PartyManager>().AddMember(this);
+            //FindObjectOfType<PartyManager>().AddMember(this);
+
+            // Auto-fetch if not set - need revision
+            if (movementController == null)
+                movementController = GetComponent<MovementController>();
         }
 
+        public void MoveAlongPath(List<Pathfinding.Node> path)
+        {
+            movementController?.MoveAlongPath(path);
+        }
+
+        //private Coroutine movementCoroutine;
+
+        // For animation FSM
+        //public bool IsMoving => movementCoroutine != null;
+
+
+        //void Start()
+        //{
+            //FindObjectOfType<PartyManager>().AddMember(this);
+        //}
+
+/*
         public void MoveAlongPath(List<Pathfinding.Node> path)
         {
             // Cancel current movement, if any
@@ -53,6 +94,6 @@ namespace PartyManagement
             }
 
             movementCoroutine = null; // Reset after movement ends
-        }
+        }*/
     }
 }

@@ -15,3 +15,6 @@ log one(tuesday - 1/7/25): scripts that are responsible for scene change are rea
 at this point i suddenly realised that i can implement Behavours Tree or utility ai or any other ai system only after i implement the combat scripts
 and for combat scripts i have to finalize the classes in game, and adjust the lore. at least a basic class system. and decide on the basic spells, and rotations. so now i commit and change the plan.
 
+log two(wednesday - 2/7/25): i realised that i made a mistake trying to recreate c++ static singletons. its not a good practice to have it in Unity. instead for persistence of information (variables) accross scenes i can use static variables, and each scene will have its own prefab of GameManagerMDD prefab, that holds all important scripts with static variables. 
+
+log three(thursday - 3/7/25): it is clear that even though Unity doesnt support ECS system innately, i need to do one myself (or at least something that resembles it). this will help in construction of different classes of player controlled characters or NPCs. right now developing the combat manager.
