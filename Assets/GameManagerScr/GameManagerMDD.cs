@@ -116,13 +116,18 @@ public class ExplorationState : GameStateBase
     private GameObject clickMarkerPrefab;
     public override void Update()
     {
+        ClickLogic();
+    }
+
+    void ClickLogic()
+    {
         if (EventSystem.current.IsPointerOverGameObject())
             return;
 
         if (Input.GetMouseButtonDown(0)) // this needs to be changed to event system unity
         {
             if(PartyManagement.PartyManager.IsEmpty()) return; // party not assembled yet
-            
+
             var path = grid.FindPathToClick(PartyManagement.PartyManager.CurrentSelected.transform);
             if (path != null)
             {
