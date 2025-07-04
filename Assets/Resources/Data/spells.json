@@ -1,0 +1,24 @@
+{
+    "spells": [
+        {
+            "id": 0,
+            "name": "BasicAttackMagic",
+            "description": "Basic ranged magic attack",
+            "iconPath": "SpellIcons\\FireballIcn",
+            "shotcutKey": "F",
+            "manaCost": 10,
+            "range": 10,
+            "radius": 0
+        },
+        {
+            "id": 1,
+            "name": "BasicAttackMelee",
+            "description": "Basic attack melee",
+            "iconPath": "SpellIcons\\MeleeAttack",
+            "shotcutKey": "R",
+            "manaCost": 0,
+            "range": 0,
+            "radius": 0
+        }
+    ]
+}

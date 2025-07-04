@@ -27,14 +27,18 @@ public class SpellBook
     private List<Spell> spells = new List<Spell>();
 }
 
+[System.Serializable]
 public class Spell
 {
     public int id;
     public string name;
     public string description;
     public string iconPath;
-    public char shotcutKey;
+    public string shotcutKey;
     //public Animation??
+    public int manaCost;
+    public int range;
+    public int radius;
 
     public void PlayAnimation()
     {
@@ -42,25 +46,28 @@ public class Spell
     }
 }
 
+/// <summary>
+/// Simple data structure as a wrapper for JSON serialisation
+/// </summary>
+[System.Serializable]
+public class SpellListWrapper
+{
+    public List<Spell> spells;
+}
+
 // Container that contains spells
 public class SpellMap : MonoBehaviour
 {
     [SerializeField] private Transform iconBarParent;
 
+    private static bool isInitialized = false;
     private void Start()
     {
-        // add to map based on id
-        idSpellPairs.Add(0, new Spell
+        if (!isInitialized)
         {
-            id = 0,
-            name = "FireBall",
-            description = "Summon and hurl a huge fireball with area of effect",
-            iconPath = "SpellIcons/FireballIcn",
-            shotcutKey = 'f',
-        });
-
-        // add to map based on name
-        nameIdPairs.Add(idSpellPairs[0].name, idSpellPairs[0].id);
+            InitializeSpells();
+            isInitialized = true;
+        }
     }
 
     public void BuildIconBar(PartyManagement.CharacterUnit unit)
@@ -92,11 +99,28 @@ public class SpellMap : MonoBehaviour
             button.onClick.AddListener(() =>
             {
                 unit.SelectSpell(spell);
+                GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
                 Debug.Log("Selected spell: " + spell.name);
             });
         }
     }
 
+
+    public static void InitializeSpells()
+    {
+        // add to map based on id
+        idSpellPairs.Add(0, new Spell
+        {
+            id = 0,
+            name = "FireBall",
+            description = "Summon and hurl a huge fireball with area of effect",
+            iconPath = "SpellIcons/FireballIcn",
+            shotcutKey = "f",
+        });
+
+        // add to map based on name
+        nameIdPairs.Add(idSpellPairs[0].name, idSpellPairs[0].id);
+    }
     public static Dictionary<int, Spell> idSpellPairs = new Dictionary<int, Spell>();
     public static Dictionary<string, int> nameIdPairs = new Dictionary<string, int>();
 }

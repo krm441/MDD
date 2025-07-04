@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using static UnityEditorInternal.ReorderableList;
 
 public enum GameStateEnum
 {
@@ -10,6 +11,13 @@ public enum GameStateEnum
     Paused,
     Exploration,
     Combat,
+}
+
+public enum InteractionSubstate
+{
+    Default,           // exploration
+    Interaction,    // with objects
+    Casting,        // spellcasting - including non combat state
 }
 
 // singleton - persistent
@@ -30,6 +38,9 @@ public class GameManagerMDD : MonoBehaviour
     public GameStateEnum GetCurrentState() => currentStateEnum;
     private Dictionary<GameStateEnum, IGameState> states;
     private IGameState currentState;
+
+    public static InteractionSubstate interactionSubstate = InteractionSubstate.Default; // exploration mode, click yields pathfinder movement of selected party
+    public static InteractionSubstate GetInteraction() => interactionSubstate;
 
     // Start is called before the first frame update
     void Start()
@@ -132,11 +143,27 @@ public class ExplorationState : GameStateBase
     {
         if (EventSystem.current.IsPointerOverGameObject())
             return;
+        
+        if(PartyManagement.PartyManager.IsEmpty()) return; // party not assembled yet - early return
 
+        // HERE: managing the substate interaction
+        var subState = GameManagerMDD.GetInteraction();
+        switch (subState)
+        {
+            case InteractionSubstate.Default:
+                HandleMovementClick();
+                break;
+
+            case InteractionSubstate.Casting:
+                HandleSpellCastClick();
+                break;
+        }
+    }
+
+    private void HandleMovementClick()
+    {
         if (Input.GetMouseButtonDown(0)) // this needs to be changed to event system unity
         {
-            if(PartyManagement.PartyManager.IsEmpty()) return; // party not assembled yet
-
             var path = grid.FindPathToClick(PartyManagement.PartyManager.CurrentSelected.transform);
             if (path != null)
             {
@@ -144,6 +171,11 @@ public class ExplorationState : GameStateBase
                 SpawnClickMarker(grid.LastClickPosition);
             }
         }
+    }
+
+    private void HandleSpellCastClick()
+    {
+        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; Debug.Log("cast cancelled"); }
     }
 
     private void SpawnClickMarker(Vector3 position)
