@@ -8,8 +8,10 @@ public class SpellBook
 {
     public void AddSpell(Spell spell)
     {
-        if(!spells.Contains(spell))
+        if (!spells.Contains(spell))
             spells.Add(spell);
+        else
+            Debug.Log(spell.name + " Not found");
     }
 
     public void RemoveSpell(Spell spell)
@@ -93,7 +95,8 @@ public class SpellMap : MonoBehaviour
             Sprite icon = Resources.Load<Sprite>(spell.iconPath);
             if (icon != null)
                 img.sprite = icon;
-
+            else
+                Debug.Log("Icon not loaded: " + spell.iconPath);
             
             Button button = btn.GetComponent<Button>();
             button.onClick.AddListener(() =>
@@ -108,19 +111,34 @@ public class SpellMap : MonoBehaviour
 
     public static void InitializeSpells()
     {
-        // add to map based on id
-        idSpellPairs.Add(0, new Spell
-        {
-            id = 0,
-            name = "FireBall",
-            description = "Summon and hurl a huge fireball with area of effect",
-            iconPath = "SpellIcons/FireballIcn",
-            shotcutKey = "f",
-        });
+        if (idSpellPairs.Count > 0) return;
 
-        // add to map based on name
-        nameIdPairs.Add(idSpellPairs[0].name, idSpellPairs[0].id);
+        TextAsset jsonText = Resources.Load<TextAsset>("Data/spells");
+        if (jsonText == null)
+        {
+            Debug.LogError("Spell JSON not found at Resources/Data/spells.json");
+            return;
+        }
+
+        SpellListWrapper wrapper = JsonUtility.FromJson<SpellListWrapper>(jsonText.text);
+        if (wrapper == null || wrapper.spells == null)
+        {
+            Debug.LogError("Failed to parse spell JSON.");
+            return;
+        }
+
+        foreach (Spell spell in wrapper.spells)
+        {
+            if (!idSpellPairs.ContainsKey(spell.id))
+            {
+                idSpellPairs[spell.id] = spell;
+                nameIdPairs[spell.name] = spell.id;
+            }
+        }
+
+        Debug.Log($"Loaded {wrapper.spells.Count} spells from JSON.");
     }
+
     public static Dictionary<int, Spell> idSpellPairs = new Dictionary<int, Spell>();
     public static Dictionary<string, int> nameIdPairs = new Dictionary<string, int>();
 }

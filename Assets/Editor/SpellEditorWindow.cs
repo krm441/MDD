@@ -6,7 +6,7 @@ using System.IO;
 
 public class SpellEditorWindow : EditorWindow
 {
-    private SpellListWrapper spellData = new SpellListWrapper();
+    private SpellListWrapper spellData;// = new SpellListWrapper();
     private Vector2 scroll;
     private string jsonPath = "Assets/Resources/Data/spells.json";
 

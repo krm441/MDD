@@ -86,7 +86,7 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 100
         };
 
-        unit.spellBook.AddSpell(SpellMap.idSpellPairs[0]); // add fireball
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[0]); // basic magic cast
 
         if (capsuleBlue != null)
         {
@@ -117,7 +117,8 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 200
         };
 
-        
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[1]); // basic melee cast
+
         // init body
         if (capsuleRed != null)
         {
