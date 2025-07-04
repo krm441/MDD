@@ -29,16 +29,35 @@ namespace PartyManagement
         public ArmorStat armorStat;
         public Sprite portraitSprite;
         public string unitName;
+        public SpellBook spellBook = new SpellBook();
+        private Spell currentlySelectedSpell = null;
+
+        public void SelectSpell(Spell spell)
+        {
+            currentlySelectedSpell = spell;
+        }
+
+        public void DeselectSpell()
+        {
+            currentlySelectedSpell = null;
+        }
 
         public MovementController movementController;
 
         void Start()
         {
-            //FindObjectOfType<PartyManager>().AddMember(this);
-
             // Auto-fetch if not set - need revision
             if (movementController == null)
                 movementController = GetComponent<MovementController>();
+        }
+
+        private void Update()
+        {
+            if(currentlySelectedSpell != null)
+            {
+                // play animation
+                currentlySelectedSpell.PlayAnimation();
+            }
         }
 
         public void MoveAlongPath(List<Pathfinding.Node> path)

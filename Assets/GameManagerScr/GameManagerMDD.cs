@@ -52,14 +52,23 @@ public class GameManagerMDD : MonoBehaviour
 
     public void ChangeState(GameStateEnum newState)
     {
-        if (currentState != null)
-            currentState.Exit();
+        currentState?.Exit();
 
         currentStateEnum = newState;
         currentState = states.ContainsKey(newState) ? states[newState] : null;
         currentState?.Enter();
     }
     
+    // public methods for button logic
+    public void EnterCombat()
+    {
+        ChangeState(GameStateEnum.Combat);
+    }
+
+    public void ExitCombat()
+    {
+        ChangeState(GameStateEnum.Exploration);
+    }
 }
 
 
@@ -164,19 +173,17 @@ public class CombatState : GameStateBase
 {
     public CombatState(GameManagerMDD manager) : base(manager) { }
 
+    private CombatManager combatManager = new CombatManager();
+
     public override void Enter()
     {
         Debug.Log("Entering Combat");
-        // Initialize turn order, UI, etc.
+        combatManager.EnterCombat();
     }
 
     public override void Update()
     {
-        // Combat turn logic
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            gameManager.ChangeState(GameStateEnum.Exploration);
-        }
+        combatManager.Update();
     }
 
     public override void Exit()

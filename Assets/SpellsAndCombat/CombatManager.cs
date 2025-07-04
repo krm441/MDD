@@ -19,7 +19,7 @@ public class SpellData
 public enum SpellType { Damage, Heal, Buff }
 public enum DamageType { Fire, Ice, Lightning, Physical }
 
-public class CombatManager : MonoBehaviour
+public class CombatManager //: MonoBehaviour
 {
     public void CastSpell(SpellData spell, PartyManagement.CharacterUnit caster, Vector3 targetPosition)
     {
@@ -30,6 +30,8 @@ public class CombatManager : MonoBehaviour
     {
 
     }
+
+    public void Update() { }
 
     void DeduceCombatQueue()
     {

@@ -86,6 +86,8 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 100
         };
 
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[0]); // add fireball
+
         if (capsuleBlue != null)
         {
             GameObject visual = Instantiate(capsuleBlue, obj.transform);

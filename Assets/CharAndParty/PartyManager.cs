@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace PartyManagement
@@ -19,6 +20,13 @@ namespace PartyManagement
                 partyMembers.Add(newMember);
                 Debug.Log("Party member added: " + newMember.name);
             }
+        }
+
+
+
+        public static void SelectMember(int index)
+        {
+            selectedIndex = index;            
         }
     }
 }

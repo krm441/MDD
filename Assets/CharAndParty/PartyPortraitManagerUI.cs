@@ -8,6 +8,7 @@ public class PartyPortraitManagerUI : MonoBehaviour
 {
     [SerializeField] private GameObject portraitButtonPrefab;
     [SerializeField] private Transform portraitParent;
+    [SerializeField] private SpellMap spellMap;
 
     public void BuildPortraitBar()
     {
@@ -24,7 +25,12 @@ public class PartyPortraitManagerUI : MonoBehaviour
 
             btn.GetComponent<Button>().onClick.AddListener(() =>
             {
-                PartyManager.selectedIndex = index;
+                // set member selected
+                PartyManager.SelectMember(index);
+
+                // populate spells
+                if (spellMap != null)
+                    spellMap.BuildIconBar(PartyManager.partyMembers[index]);
                 Debug.Log($"Selected: {unit.unitName}");
             });
         }
