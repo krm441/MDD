@@ -37,15 +37,11 @@ public class Spell
     public string description;
     public string iconPath;
     public string shotcutKey;
+    public string prefabMeshEffect; // mesh or effect prefab path
     //public Animation??
     public int manaCost;
     public int range;
     public int radius;
-
-    public void PlayAnimation()
-    {
-        // todo - animation play fsm
-    }
 }
 
 /// <summary>
@@ -101,6 +97,8 @@ public class SpellMap : MonoBehaviour
             Button button = btn.GetComponent<Button>();
             button.onClick.AddListener(() =>
             {
+                // Stop movement - should be extrapolated to whole party ? 
+                unit.StopMovement();
                 unit.SelectSpell(spell);
                 GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
                 Debug.Log("Selected spell: " + spell.name);

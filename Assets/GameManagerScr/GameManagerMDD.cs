@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using PartyManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using static UnityEditorInternal.ReorderableList;
@@ -10,7 +11,7 @@ public enum GameStateEnum
     Loading,
     Paused,
     Exploration,
-    Combat,
+    TurnBasedMode,
 }
 
 public enum InteractionSubstate
@@ -48,7 +49,7 @@ public class GameManagerMDD : MonoBehaviour
         states = new Dictionary<GameStateEnum, IGameState>
         {
             { GameStateEnum.Exploration, new ExplorationState(this, gridSystem) },
-            { GameStateEnum.Combat, new CombatState(this) },
+            { GameStateEnum.TurnBasedMode, new TurnBasedState(this) },
             
         };
 
@@ -73,7 +74,7 @@ public class GameManagerMDD : MonoBehaviour
     // public methods for button logic
     public void EnterCombat()
     {
-        ChangeState(GameStateEnum.Combat);
+        ChangeState(GameStateEnum.TurnBasedMode);
     }
 
     public void ExitCombat()
@@ -175,7 +176,37 @@ public class ExplorationState : GameStateBase
 
     private void HandleSpellCastClick()
     {
-        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; Debug.Log("cast cancelled"); }
+        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; Debug.Log("Cast cancelled"); }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                CharacterUnit caster = PartyManager.CurrentSelected;
+                Spell spell = caster.GetSelectedSpell();
+
+                if (spell == null)
+                {
+                    Debug.LogWarning("No spell selected.");
+                    return;
+                }
+
+                float dist = Vector3.Distance(caster.transform.position, hit.point);
+                if (dist > spell.range)
+                {
+                    Debug.Log("Target out of range.");
+                    return;
+                }
+
+                CombatManager.ApplySpell(caster, spell, hit.point);
+
+                // Reset casting state
+                caster.DeselectSpell();
+                GameManagerMDD.interactionSubstate = InteractionSubstate.Default;
+            }
+        }
+
     }
 
     private void SpawnClickMarker(Vector3 position)
@@ -201,9 +232,9 @@ public class ExplorationState : GameStateBase
     }
 }
 
-public class CombatState : GameStateBase
+public class TurnBasedState : GameStateBase
 {
-    public CombatState(GameManagerMDD manager) : base(manager) { }
+    public TurnBasedState(GameManagerMDD manager) : base(manager) { }
 
     private CombatManager combatManager = new CombatManager();
 

@@ -31,6 +31,9 @@ namespace PartyManagement
         public string unitName;
         public SpellBook spellBook = new SpellBook();
         private Spell currentlySelectedSpell = null;
+        public int LignOfSight = 10;
+
+        public Spell GetSelectedSpell() => currentlySelectedSpell;
 
         public void SelectSpell(Spell spell)
         {
@@ -56,13 +59,18 @@ namespace PartyManagement
             if(currentlySelectedSpell != null)
             {
                 // play animation
-                currentlySelectedSpell.PlayAnimation();
+                //currentlySelectedSpell.PlayAnimation();
             }
         }
 
         public void MoveAlongPath(List<Pathfinding.Node> path)
         {
             movementController?.MoveAlongPath(path);
+        }
+
+        public void StopMovement()
+        {
+            movementController?.StopMovement();
         }
 
         //private Coroutine movementCoroutine;

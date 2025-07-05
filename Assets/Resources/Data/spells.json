@@ -6,9 +6,10 @@
             "description": "Basic ranged magic attack",
             "iconPath": "SpellIcons\\FireballIcn",
             "shotcutKey": "F",
+            "prefabMeshEffect": "",
             "manaCost": 10,
             "range": 10,
-            "radius": 0
+            "radius": 3
         },
         {
             "id": 1,
@@ -16,9 +17,10 @@
             "description": "Basic attack melee",
             "iconPath": "SpellIcons\\MeleeAttack",
             "shotcutKey": "R",
+            "prefabMeshEffect": "",
             "manaCost": 0,
             "range": 0,
-            "radius": 0
+            "radius": 1
         }
     ]
 }

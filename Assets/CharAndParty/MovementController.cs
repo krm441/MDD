@@ -19,6 +19,14 @@ public class MovementController : MonoBehaviour
         movementCoroutine = StartCoroutine(FollowPath(path, speed));
     }
 
+    public void StopMovement()
+    {
+        if (movementCoroutine != null)
+        {
+            StopCoroutine(movementCoroutine);
+        }
+    }
+
     private IEnumerator FollowPath(List<Node> path, float speed)
     {
         foreach (Node node in path)
