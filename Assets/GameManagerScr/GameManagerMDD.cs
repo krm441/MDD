@@ -16,7 +16,7 @@ public enum GameStateEnum
 
 public enum InteractionSubstate
 {
-    Default,           // exploration
+    Default,        // exploration
     Interaction,    // with objects
     Casting,        // spellcasting - including non combat state
 }

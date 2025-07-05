@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine.UI;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class SpellBook
 {
@@ -103,6 +104,35 @@ public class SpellMap : MonoBehaviour
                 GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
                 Debug.Log("Selected spell: " + spell.name);
             });
+
+            // tool tip:
+            EventTrigger trigger = button.GetComponent<EventTrigger>();
+            // initialize = since it returns null
+            if (trigger == null)
+                trigger = btn.AddComponent<EventTrigger>();
+            // PointerEnter → Show tooltip
+            EventTrigger.Entry entryEnter = new EventTrigger.Entry
+            {
+                eventID = EventTriggerType.PointerEnter
+            };
+            entryEnter.callback.AddListener((eventData) =>
+            {
+                UITooltip.Instance.Show(spell.description, Input.mousePosition);
+                Debug.Log("entry");
+            });
+            trigger.triggers.Add(entryEnter);
+
+            // PointerExit → Hide tooltip
+            EventTrigger.Entry entryExit = new EventTrigger.Entry
+            {
+                eventID = EventTriggerType.PointerExit
+            };
+            entryExit.callback.AddListener((eventData) =>
+            {
+                UITooltip.Instance.Hide();
+                Debug.Log("Exit");
+            });
+            trigger.triggers.Add(entryExit);
         }
     }
 
