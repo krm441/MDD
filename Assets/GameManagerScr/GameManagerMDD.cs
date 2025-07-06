@@ -178,7 +178,7 @@ public class ExplorationState : GameStateBase
 
     private void HandleSpellCastClick()
     {
-        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; HideAimingCircle(); Debug.Log("Cast cancelled"); return; }
+        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); return; }
 
         CharacterUnit caster = PartyManager.CurrentSelected;
         Spell spell = caster.GetSelectedSpell();
@@ -187,14 +187,13 @@ public class ExplorationState : GameStateBase
         if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
         {
             Vector3 hoverPoint = hit_b.point;
-            UpdateAimingCircle(hoverPoint, spell.radius);
-
-            ShowAimingCircle(hoverPoint, spell.radius); // if not shown yet
+            AimingVisualizer.Show(hoverPoint, spell.radius);
+            AimingVisualizer.HighlightTargets(hoverPoint, spell.radius);
         }
 
         if (Input.GetMouseButtonDown(0))
         {
-            HideAimingCircle();
+            AimingVisualizer.Hide();
 
             if (Physics.Raycast(ray, out RaycastHit hit))
             {
@@ -260,80 +259,6 @@ public class ExplorationState : GameStateBase
         GameObject.Destroy(circleObj, 1.5f); // destroy after 1.5 sec
     }
 
-    private static GameObject aimCircle;
-
-    private static List<Renderer> currentlyHighlighted = new List<Renderer>();
-    private static Color highlightEmission = Color.white * 0.2f; // mild glow
-
-    public static void ShowAimingCircle(Vector3 center, float radius, int segments = 32)
-    {
-        if (aimCircle != null) return;
-        
-        aimCircle = new GameObject("AimCircle");
-        var lr = aimCircle.AddComponent<LineRenderer>();
-
-        lr.positionCount = segments + 1;
-        lr.loop = true;
-        lr.widthMultiplier = 0.05f;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.startColor = Color.yellow;
-        lr.endColor = Color.yellow;
-
-        UpdateAimingCircle(center, radius, segments);
-    }
-    public static void UpdateAimingCircle(Vector3 center, float radius, int segments = 32)
-    {
-        ClearHighlight();
-
-        if (aimCircle == null) return;
-
-        // Highlight new objects
-        Collider[] hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("PartyLayer", "Destructibles"));
-
-        foreach (Collider col in hits)
-        {
-            Renderer rend = col.GetComponentInChildren<Renderer>();
-            if (rend != null && rend.material.HasProperty("_EmissionColor"))
-            {
-                rend.material.EnableKeyword("_EMISSION");
-                rend.material.SetColor("_EmissionColor", highlightEmission);
-                currentlyHighlighted.Add(rend);
-            }
-        }
-
-        var lr = aimCircle.GetComponent<LineRenderer>();
-        for (int i = 0; i <= segments; i++)
-        {
-            float angle = 2 * Mathf.PI * i / segments;
-            Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius + center;
-            lr.SetPosition(i, pos);
-        }
-    }
-
-    private static void ClearHighlight()
-    {
-        // Clear previous highlights
-        foreach (Renderer rend in currentlyHighlighted)
-        {
-            if (rend != null && rend.material.HasProperty("_EmissionColor"))
-            {
-                rend.material.SetColor("_EmissionColor", Color.black);
-                rend.material.DisableKeyword("_EMISSION");
-            }
-        }
-        currentlyHighlighted.Clear();
-    }
-
-    public static void HideAimingCircle()
-    {
-        if (aimCircle != null)
-        {
-            ClearHighlight();
-
-            GameObject.Destroy(aimCircle);
-            aimCircle = null;
-        }
-    }
 
 
     public override void Exit()
