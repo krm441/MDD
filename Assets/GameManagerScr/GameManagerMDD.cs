@@ -211,7 +211,7 @@ public class ExplorationState : GameStateBase
                 }
 
                 CombatManager.ApplySpell(caster, spell, hit.point);
-                DrawCircle(hit.point, spell.radius);
+                AimingVisualizer.DrawImpactCircle(hit.point, spell.radius);
 
                 // Reset casting state
                 caster.DeselectSpell();
@@ -237,34 +237,16 @@ public class ExplorationState : GameStateBase
         GameObject.Destroy(currentClickMarker, 1.5f);
     }
 
-    public static void DrawCircle(Vector3 center, float radius, int segments = 32)
-    {
-        GameObject circleObj = new GameObject("SpellRangeCircle");
-        LineRenderer lr = circleObj.AddComponent<LineRenderer>();
-
-        lr.positionCount = segments + 1;
-        lr.loop = true;
-        lr.widthMultiplier = 0.05f;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.startColor = Color.red;
-        lr.endColor = Color.red;
-
-        for (int i = 0; i <= segments; i++)
-        {
-            float angle = 2 * Mathf.PI * i / segments;
-            Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius + center;
-            lr.SetPosition(i, pos);
-        }
-
-        GameObject.Destroy(circleObj, 1.5f); // destroy after 1.5 sec
-    }
-
-
-
     public override void Exit()
     {
         Debug.Log("Exiting Exploration State");
     }
+}
+
+// to refractor and use in both turn based state and explore state
+public class SpellCastingController
+{
+
 }
 
 public class TurnBasedState : GameStateBase

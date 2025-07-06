@@ -44,6 +44,7 @@ public class SpellEditorWindow : EditorWindow
             spell.manaCost = EditorGUILayout.IntField("Mana Cost", spell.manaCost);
             spell.range = EditorGUILayout.IntField("Range", spell.range);
             spell.radius = EditorGUILayout.IntField("Radius", spell.radius);
+            spell.vfxType = EditorGUILayout.TextField("VFX", spell.vfxType);
 
             if (GUILayout.Button("Remove Spell"))
             {

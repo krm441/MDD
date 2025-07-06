@@ -19,4 +19,6 @@ log two(wednesday - 2/7/25): i realised that i made a mistake trying to recreate
 
 log three(thursday - 3/7/25): it is clear that even though Unity doesnt support ECS system innately, i need to do one myself (or at least something that resembles it). this will help in construction of different classes of player controlled characters or NPCs. right now developing the combat manager.
 
-log four(thursday - 3/7/25): to develop coherent combat manager, i had to create a gloabal FSM for the GameManagerMDD. now there might be states like Exploration; where the player party is in exploration mode, and could move, interact with each other, objects... etc. another state is Combat; here i can bind a button and perform tests for the party going into combat state. 
+log four(thursday - 3/7/25): to develop coherent combat manager, i had to create a gloabal FSM for the GameManagerMDD. now there might be states like Exploration; where the player party is in exploration mode, and could move, interact with each other, objects... etc. another state is Combat; here i can bind a button and perform tests for the party going into combat state.
+
+log five(sunday - 6/7/25): in past two days implemented combat system with vfx and damage calculator. what remains is turn based combat state with turn sorting based on 'initiative' of game characters. this will be good basis to plug the BTs => target of this week

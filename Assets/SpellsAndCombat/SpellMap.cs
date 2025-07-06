@@ -43,6 +43,7 @@ public class Spell
     public int manaCost;
     public int range;
     public int radius;
+    public string vfxType;
 }
 
 /// <summary>

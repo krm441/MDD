@@ -9,7 +9,8 @@
             "prefabMeshEffect": "",
             "manaCost": 10,
             "range": 10,
-            "radius": 3
+            "radius": 3,
+            "vfxType": "fireball"
         },
         {
             "id": 1,

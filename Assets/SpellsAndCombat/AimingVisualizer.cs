@@ -10,6 +10,28 @@ public static class AimingVisualizer
 
     private static int lastSegments = 32;
 
+    public static void DrawImpactCircle(Vector3 center, float radius, int segments = 32)
+    {
+        GameObject circleObj = new GameObject("SpellRangeCircle");
+        LineRenderer lr = circleObj.AddComponent<LineRenderer>();
+
+        lr.positionCount = segments + 1;
+        lr.loop = true;
+        lr.widthMultiplier = 0.05f;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = Color.red;
+        lr.endColor = Color.red;
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float angle = 2 * Mathf.PI * i / segments;
+            Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius + center;
+            lr.SetPosition(i, pos);
+        }
+
+        GameObject.Destroy(circleObj, 1.5f); // destroy after 1.5 sec
+    }
+
     public static void Show(Vector3 center, float radius, int segments = 32)
     {
         if (circleObj == null)

@@ -11,21 +11,9 @@ public class CombatManager //: MonoBehaviour
     {
         Debug.Log("SPELL FIRE");
 
-        GameObject fireballPrefab = Resources.Load<GameObject>("Projectiles/FireballPref"); // for now just the fire spell
-        if (fireballPrefab == null)
+        SpellVisualEffectsManager.LaunchSpellVFX(spell, caster, targetPosition, () =>
         {
-            Debug.LogError("Missing fireball prefab at Resources/Projectiles/FireballPref");
-            return;
-        }
-
-        Vector3 origin = caster.transform.position + Vector3.up * 1.5f;
-        GameObject projectile = GameObject.Instantiate(fireballPrefab, origin, Quaternion.identity);
-
-        ProjectileBallistic ballistic = projectile.GetComponent<ProjectileBallistic>();
-        ballistic.Launch(origin, targetPosition, () =>
-        {
-            List<GameObject> targets = FindTargetsInRadius(targetPosition, spell.radius);
-        
+            var targets = FindTargetsInRadius(targetPosition, spell.radius);
             if (targets != null && targets.Count > 0)
             {
                 foreach (var target in targets)
@@ -33,7 +21,7 @@ public class CombatManager //: MonoBehaviour
                     int damage = CalculateDamage(caster, spell, target);
 
                     if (target.TryGetComponent<CharacterUnit>(out var unit))// ||
-                     //   target.transform.parent?.TryGetComponent<CharacterUnit>(out unit) == true) 
+                                                                            //   target.transform.parent?.TryGetComponent<CharacterUnit>(out unit) == true) 
                     {
                         unit.stats.HP -= damage;
                         Debug.Log($"{caster.unitName} hit {unit.unitName} for {damage} damage.");
@@ -44,7 +32,7 @@ public class CombatManager //: MonoBehaviour
             {
                 Debug.Log("ApplySpell::No hits");
             }
-        });
+        });       
     }
 
     private static int CalculateDamage(CharacterUnit caster, Spell spell, GameObject target)
