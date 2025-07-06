@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
+using Pathfinding;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using static UnityEditorInternal.ReorderableList;
@@ -176,16 +178,26 @@ public class ExplorationState : GameStateBase
 
     private void HandleSpellCastClick()
     {
-        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; Debug.Log("Cast cancelled"); }
+        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; HideAimingCircle(); Debug.Log("Cast cancelled"); return; }
+
+        CharacterUnit caster = PartyManager.CurrentSelected;
+        Spell spell = caster.GetSelectedSpell();
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        // spell animation
+        if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
+        {
+            Vector3 hoverPoint = hit_b.point;
+            UpdateAimingCircle(hoverPoint, spell.radius);
+
+            ShowAimingCircle(hoverPoint, spell.radius); // if not shown yet
+        }
 
         if (Input.GetMouseButtonDown(0))
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            HideAimingCircle();
+
             if (Physics.Raycast(ray, out RaycastHit hit))
             {
-                CharacterUnit caster = PartyManager.CurrentSelected;
-                Spell spell = caster.GetSelectedSpell();
-
                 if (spell == null)
                 {
                     Debug.LogWarning("No spell selected.");
@@ -200,6 +212,7 @@ public class ExplorationState : GameStateBase
                 }
 
                 CombatManager.ApplySpell(caster, spell, hit.point);
+                DrawCircle(hit.point, spell.radius);
 
                 // Reset casting state
                 caster.DeselectSpell();
@@ -223,6 +236,103 @@ public class ExplorationState : GameStateBase
 
         currentClickMarker = GameObject.Instantiate(clickMarkerPrefab, pos, rotation);
         GameObject.Destroy(currentClickMarker, 1.5f);
+    }
+
+    public static void DrawCircle(Vector3 center, float radius, int segments = 32)
+    {
+        GameObject circleObj = new GameObject("SpellRangeCircle");
+        LineRenderer lr = circleObj.AddComponent<LineRenderer>();
+
+        lr.positionCount = segments + 1;
+        lr.loop = true;
+        lr.widthMultiplier = 0.05f;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = Color.red;
+        lr.endColor = Color.red;
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float angle = 2 * Mathf.PI * i / segments;
+            Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius + center;
+            lr.SetPosition(i, pos);
+        }
+
+        GameObject.Destroy(circleObj, 1.5f); // destroy after 1.5 sec
+    }
+
+    private static GameObject aimCircle;
+
+    private static List<Renderer> currentlyHighlighted = new List<Renderer>();
+    private static Color highlightEmission = Color.white * 0.2f; // mild glow
+
+    public static void ShowAimingCircle(Vector3 center, float radius, int segments = 32)
+    {
+        if (aimCircle != null) return;
+        
+        aimCircle = new GameObject("AimCircle");
+        var lr = aimCircle.AddComponent<LineRenderer>();
+
+        lr.positionCount = segments + 1;
+        lr.loop = true;
+        lr.widthMultiplier = 0.05f;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = Color.yellow;
+        lr.endColor = Color.yellow;
+
+        UpdateAimingCircle(center, radius, segments);
+    }
+    public static void UpdateAimingCircle(Vector3 center, float radius, int segments = 32)
+    {
+        ClearHighlight();
+
+        if (aimCircle == null) return;
+
+        // Highlight new objects
+        Collider[] hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("PartyLayer", "Destructibles"));
+
+        foreach (Collider col in hits)
+        {
+            Renderer rend = col.GetComponentInChildren<Renderer>();
+            if (rend != null && rend.material.HasProperty("_EmissionColor"))
+            {
+                rend.material.EnableKeyword("_EMISSION");
+                rend.material.SetColor("_EmissionColor", highlightEmission);
+                currentlyHighlighted.Add(rend);
+            }
+        }
+
+        var lr = aimCircle.GetComponent<LineRenderer>();
+        for (int i = 0; i <= segments; i++)
+        {
+            float angle = 2 * Mathf.PI * i / segments;
+            Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius + center;
+            lr.SetPosition(i, pos);
+        }
+    }
+
+    private static void ClearHighlight()
+    {
+        // Clear previous highlights
+        foreach (Renderer rend in currentlyHighlighted)
+        {
+            if (rend != null && rend.material.HasProperty("_EmissionColor"))
+            {
+                rend.material.SetColor("_EmissionColor", Color.black);
+                rend.material.DisableKeyword("_EMISSION");
+            }
+        }
+        currentlyHighlighted.Clear();
+    }
+
+    public static void HideAimingCircle()
+    {
+        if (aimCircle != null)
+        {
+            ClearHighlight();
+
+            GameObject.Destroy(aimCircle);
+            aimCircle = null;
+        }
     }
 
 

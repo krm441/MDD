@@ -20,7 +20,7 @@
             "prefabMeshEffect": "",
             "manaCost": 0,
             "range": 0,
-            "radius": 1
+            "radius": 0
         }
     ]
 }

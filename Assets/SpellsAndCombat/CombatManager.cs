@@ -11,7 +11,7 @@ public class CombatManager //: MonoBehaviour
     {
         Debug.Log("SPELL FIRE");
 
-        GameObject fireballPrefab = Resources.Load<GameObject>("Projectiles/FireballPref");
+        GameObject fireballPrefab = Resources.Load<GameObject>("Projectiles/FireballPref"); // for now just the fire spell
         if (fireballPrefab == null)
         {
             Debug.LogError("Missing fireball prefab at Resources/Projectiles/FireballPref");
