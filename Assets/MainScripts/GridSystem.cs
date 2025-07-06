@@ -80,6 +80,20 @@ namespace Pathfinding
         }
 
         private GameObject currentClickMarker; // marker prefab reference
+               
+        public List<Node> FindPathTo(Vector3 to, Vector3 from)
+        {
+            Node startNode = GetNodeFromWorldPosition(from);
+            Node endNode = GetNodeFromWorldPosition(to);
+
+
+            if (startNode != null && endNode != null && endNode.isWalkable)
+            {
+                return thetaStar.FindPath(startNode, endNode);
+            }
+
+            return null;
+        }
 
         // better method for path construction on click
         // from point 'from' to the point where ray hit the clickable layer

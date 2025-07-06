@@ -68,7 +68,7 @@ public class CombatManager //: MonoBehaviour
                     continue;
             }
 
-            validTargets.Add(hit.gameObject);
+            validTargets.Add(hit.gameObject); 
         }
 
         return validTargets;

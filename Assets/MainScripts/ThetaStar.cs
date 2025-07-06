@@ -98,6 +98,7 @@ namespace Pathfinding
                 current = parent[current];
             }
 
+            //path.Add(start); // include the starting node : NOTE: no need, makes a zig-zag path
             path.Reverse();
             return path;
         }

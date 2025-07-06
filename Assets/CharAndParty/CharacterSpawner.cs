@@ -82,6 +82,9 @@ public class CharacterSpawner : MonoBehaviour
         {
             Intelligence = 17,
             Initiative = 5,
+            ActionPoints = 0,
+            StartActionPoints = 4,
+            Speed = 3,
             HP = 100,
             MaxHP = 100
         };
@@ -113,6 +116,9 @@ public class CharacterSpawner : MonoBehaviour
         {
             Willpower = 17,
             Initiative = 4,
+            Speed = 4,
+            ActionPoints = 0,
+            StartActionPoints = 4,
             HP = 200,
             MaxHP = 200
         };
@@ -144,6 +150,9 @@ public class CharacterSpawner : MonoBehaviour
         {
             Devotion = 17,
             Initiative = 3,
+            ActionPoints = 0,
+            StartActionPoints = 4,
+            Speed = 2,
             HP = 150,
             MaxHP = 150
         };

@@ -5,7 +5,9 @@ using Pathfinding;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using System.Linq; // for sorting
 using static UnityEditorInternal.ReorderableList;
+using UnityEditor.PackageManager;
 
 public enum GameStateEnum
 {
@@ -37,10 +39,10 @@ public class GameManagerMDD : MonoBehaviour
     - based on this variable chose a sequence, or a state to play.
     */
     // controll from outside the scene - for simplicity
-    public GameStateEnum currentStateEnum = GameStateEnum.Exploration;
-    public GameStateEnum GetCurrentState() => currentStateEnum;
-    private Dictionary<GameStateEnum, IGameState> states;
-    private IGameState currentState;
+    public static GameStateEnum currentStateEnum = GameStateEnum.Exploration;
+    public static GameStateEnum GetCurrentState() => currentStateEnum;
+    private static Dictionary<GameStateEnum, IGameState> states;
+    private static IGameState currentState;
 
     public static InteractionSubstate interactionSubstate = InteractionSubstate.Default; // exploration mode, click yields pathfinder movement of selected party
     public static InteractionSubstate GetInteraction() => interactionSubstate;
@@ -64,7 +66,7 @@ public class GameManagerMDD : MonoBehaviour
         currentState?.Update();
     }
 
-    public void ChangeState(GameStateEnum newState)
+    public static void ChangeState(GameStateEnum newState)
     {
         currentState?.Exit();
 
@@ -74,12 +76,12 @@ public class GameManagerMDD : MonoBehaviour
     }
     
     // public methods for button logic
-    public void EnterCombat()
+    public static void EnterCombat()
     {
         ChangeState(GameStateEnum.TurnBasedMode);
     }
 
-    public void ExitCombat()
+    public static void ExitCombat()
     {
         ChangeState(GameStateEnum.Exploration);
     }
@@ -121,7 +123,7 @@ public class ExplorationState : GameStateBase
 
     public override void Enter()
     {
-        Debug.Log("Entering Exploration State");
+        Console.Log("Entering Exploration State");
 
         // === 1) marker loading === 
 
@@ -187,7 +189,7 @@ public class ExplorationState : GameStateBase
         if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
         {
             Vector3 hoverPoint = hit_b.point;
-            AimingVisualizer.Show(hoverPoint, spell.radius);
+            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius);
             AimingVisualizer.HighlightTargets(hoverPoint, spell.radius);
         }
 
@@ -239,7 +241,7 @@ public class ExplorationState : GameStateBase
 
     public override void Exit()
     {
-        Debug.Log("Exiting Exploration State");
+        Console.Log("Exiting Exploration State");
     }
 }
 
@@ -249,8 +251,11 @@ public class SpellCastingController
 
 }
 
-public class TurnBasedState : GameStateBase
+public class TurnBasedState : GameStateBase 
 {
+    private Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
+    private CharacterUnit currentUnit;
+
     public TurnBasedState(GameManagerMDD manager) : base(manager) { }
 
     private CombatManager combatManager = new CombatManager();
@@ -259,16 +264,144 @@ public class TurnBasedState : GameStateBase
     {
         Debug.Log("Entering Combat");
         combatManager.EnterCombat();
+
+        var party = PartyManager.GetParty();
+        turnQueue = new Queue<CharacterUnit>(party.OrderByDescending(p => p.stats.Initiative));
+
+        PartyManager.StopAllMovement();
+
+        /* For multiparty system: use concat 
+        var combatants = PartyManager.GetParty()
+            .Concat(EnemyManager.GetEnemies())
+            .OrderByDescending(p => p.stats.Initiative);
+
+        turnQueue = new Queue<CharacterUnit>(combatants);
+        */
+
+        NextTurn();
     }
+
+    private void NextTurn()
+    {
+        // add APs
+        //if (currentUnit != null) // could be null, if scene start
+        
+        // next unit
+        currentUnit = turnQueue.Dequeue();
+        turnQueue.Enqueue(currentUnit);
+        Console.Error("start turn",  currentUnit.stats.ActionPoints);
+        currentUnit.AddActionPointsStart();    //stats.ActionPoints += currentUnit.stats.StartActionPoints;
+
+        // select new unit in the party = selects its abilities in the left icon
+        PartyManagement.PartyManager.SelectMember(currentUnit);
+       
+        //Debug.Log($"New Turn: {currentUnit.unitName}");
+    }
+
+
+    private int internalState = 0;
+    private List<Vector3> remaining; // remaining path visualisation
 
     public override void Update()
     {
-        combatManager.Update();
+        if (EventSystem.current.IsPointerOverGameObject()) return;
+        if (currentUnit == null || !currentUnit.isPlayerControlled) return;
+
+        if (internalState == 0)
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out var hit))
+            {
+                var path = gameManager.gridSystem.FindPathTo(hit.point, currentUnit.transform.position);
+                if (path != null)
+                {
+                    float maxDist = currentUnit.stats.ActionPoints * currentUnit.stats.Speed;
+                    //Debug.Log($"Drawing preview line {path.Count}");
+                    //Console.Log($"Drawing preview line {path.Count}");
+                    //Console.LoopLog("Loop: ", maxDist, currentUnit.stats.ActionPoints, currentUnit.stats.Speed);
+                    if (maxDist > 0)
+                        AimingVisualizer.DrawPathPreview(currentUnit.transform.position, hit.point, path, maxDist);
+                }
+                else
+                {
+                    Console.Error("path null");
+                }
+            }
+
+
+            // 1. Handle Movement
+            if (Input.GetMouseButtonDown(0))
+            {
+                var path = new List<Vector3>(AimingVisualizer.reachablePath);   //  gameManager.gridSystem.FindPathToClick(currentUnit.transform);
+
+                if (path == null || path.Count == 0)
+                {
+                    Console.Error("No valid path.");
+                    return;
+                }
+
+                currentUnit.MoveAlongPath(path);
+                internalState = 1;
+
+                // populate the visible path
+                remaining = new List<Vector3>(AimingVisualizer.reachablePath);
+
+                // Subtract AP based on movement length
+                float walked = 0f;
+                for (int i = 1; i < path.Count; i++)
+                    walked += Vector3.Distance(path[i - 1], path[i]);
+
+                int apCost = Mathf.CeilToInt(walked / currentUnit.stats.Speed);
+                currentUnit.stats.ActionPoints -= apCost;
+                Console.Log($"{currentUnit.unitName} moved {walked:F1} units for {apCost} AP");
+            }
+        }
+        else if(internalState == 1)
+        {
+            // NOTE: needs more organic tolerence like prevTolerance > currentTolerance
+
+            float threshold = 0.7f; // tolerance for 'reached'
+
+            // If close enough to next point, remove it from the path
+            if (remaining.Count > 1)
+            {
+                float dist = Vector3.Distance(currentUnit.transform.position, remaining[0]);
+                if (dist < threshold)
+                    remaining.RemoveAt(0);
+            }
+
+            //if(remaining.Count > 0) AimingVisualizer.DrawPath(remaining);
+
+            if (Vector3.Distance(currentUnit.transform.position, remaining[remaining.Count - 1]) > threshold)
+            {
+                AimingVisualizer.DrawPath(remaining);
+            }
+            else internalState = 2;
+        }
+        else if (internalState == 2)
+        {
+            AimingVisualizer.ClearState();
+            internalState = 0;
+        }
+
+        // 2. Handle End Turn
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            Console.Log($"{currentUnit.unitName} ends their turn.");
+            currentUnit.StopMovement();
+            AimingVisualizer.ClearState();
+            internalState = 0;
+            NextTurn();
+        }
+
+        // 3. Add spellcasting and UI interaction here
     }
+
+
 
     public override void Exit()
     {
-        Debug.Log("Exiting Combat");
+        Console.Log("Exiting Combat");
     }
 }
 

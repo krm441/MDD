@@ -92,12 +92,12 @@ public class CAMeshing : MonoBehaviour
             DestroyImmediate(parent.GetChild(i).gameObject);
         }
 
-        return;
-
-        foreach (Transform child in parent)
-        {
-            DestroyImmediate(child.gameObject);
-        }
+        //return;
+        //
+        //foreach (Transform child in parent)
+        //{
+        //    DestroyImmediate(child.gameObject);
+        //}
     }
 
 }

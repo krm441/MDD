@@ -8,9 +8,15 @@ public class StatBlock
     public int Intelligence;
     public int Willpower;
     public int Devotion;
-    public int Initiative;
     public int HP;
     public int MaxHP;
+
+    // movement and combat
+    public int Speed; // number of tiles the char can walk in one turn
+    public int Initiative;
+    public int ActionPoints;
+    public int MaxActionPoints = 8;
+    public int StartActionPoints;
 }
 
 [System.Serializable]
@@ -25,6 +31,8 @@ namespace PartyManagement
 {
     public class CharacterUnit : MonoBehaviour
     {
+        public bool isPlayerControlled = true;
+
         public StatBlock stats;
         public ArmorStat armorStat;
         public Sprite portraitSprite;
@@ -32,6 +40,11 @@ namespace PartyManagement
         public SpellBook spellBook = new SpellBook();
         private Spell currentlySelectedSpell = null;
         public int LignOfSight = 10;
+
+        public void SetActionPoints(int points)
+        {
+            stats.ActionPoints = points;
+        }
 
         public Spell GetSelectedSpell() => currentlySelectedSpell;
 
@@ -65,12 +78,34 @@ namespace PartyManagement
 
         public void MoveAlongPath(List<Pathfinding.Node> path)
         {
+            movementController?.MoveAlongPath(path); 
+        }
+
+        public void MoveAlongPath(List<Vector3> path) // override using vector3 instead of Nodes
+        {
             movementController?.MoveAlongPath(path);
         }
 
         public void StopMovement()
         {
             movementController?.StopMovement();
+        }
+
+        public void AddActionPoints(int points)
+        {
+            stats.ActionPoints += points;
+        }
+
+        public void AddActionPointsStart()
+        {
+            if (stats.ActionPoints + stats.StartActionPoints > stats.MaxActionPoints)
+            {
+                stats.ActionPoints = stats.MaxActionPoints;
+            }
+            else
+            {
+                AddActionPoints(stats.StartActionPoints);
+            }
         }
 
         //private Coroutine movementCoroutine;
