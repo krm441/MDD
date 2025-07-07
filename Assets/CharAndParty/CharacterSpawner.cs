@@ -1,6 +1,9 @@
 ﻿using UnityEngine;
 using PartyManagement;
 using System.Collections.Generic;
+using static UnityEngine.UI.CanvasScaler;
+using System.Threading;
+using System.Reflection;
 
 public class CharacterSpawner : MonoBehaviour
 {
@@ -54,7 +57,9 @@ public class CharacterSpawner : MonoBehaviour
         SpawnClericDebug();
 
         // build ui
-        portraitManager.BuildPortraitBar();
+        PartyPortraitManagerUI.BuildPortraitBar();
+        PartyManager.SelectMember(PartyManager.GetParty()[0]);
+        SpellMap.BuildIconBar(PartyManager.GetParty()[0]);
     }
 
     // Debug spawner
@@ -64,6 +69,7 @@ public class CharacterSpawner : MonoBehaviour
         var unit = obj.GetComponent<CharacterUnit>();
 
         unit.unitName = "Magus";
+        obj.name = "Magus";
 
         unit.portraitSprite = magusPortrait; 
 
@@ -109,6 +115,7 @@ public class CharacterSpawner : MonoBehaviour
         // somehow add the capsule here
 
         unit.unitName = "Warrior";
+        obj.name = "Warrior";
 
         unit.portraitSprite = warriorPortrait;
 
@@ -143,6 +150,7 @@ public class CharacterSpawner : MonoBehaviour
         var unit = obj.GetComponent<CharacterUnit>();
 
         unit.unitName = "Cleric";
+        obj.name = "Cleric";
 
         unit.portraitSprite = clericPortrait;
 

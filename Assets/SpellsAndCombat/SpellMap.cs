@@ -58,7 +58,7 @@ public class SpellListWrapper
 // Container that contains spells
 public class SpellMap : MonoBehaviour
 {
-    [SerializeField] private Transform iconBarParent;
+    [SerializeField] private static Transform iconBarParent;
 
     private static bool isInitialized = false;
     private void Start()
@@ -68,9 +68,22 @@ public class SpellMap : MonoBehaviour
             InitializeSpells();
             isInitialized = true;
         }
+
+        // Load prefab once
+        if (iconBarParent == null)
+        {
+            //GameObject parentObj = GameObject.Find("PartyPortraitParent");
+            GameObject parentObj = GameObject.Find("HorizontalLayout");
+            if (parentObj == null)
+            {
+                Console.Error("Could not find 'HorizontalLayout' in the scene!");
+                return;
+            }
+            iconBarParent = parentObj.transform;
+        }
     }
 
-    public void BuildIconBar(PartyManagement.CharacterUnit unit)
+    public static void BuildIconBar(PartyManagement.CharacterUnit unit)
     {       
         foreach (Transform child in iconBarParent)
             Destroy(child.gameObject);

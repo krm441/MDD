@@ -31,6 +31,14 @@ namespace PartyManagement
             }
         }
 
+        public static void ResetAllActionPoints()
+        {
+            foreach (CharacterUnit member in partyMembers)
+            {
+                member.SetActionPoints(0);
+            }
+        }
+
         public static void SetStartActionPoints()
         {
             if (partyMembers.Count > 0)

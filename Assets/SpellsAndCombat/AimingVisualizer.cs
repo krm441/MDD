@@ -215,6 +215,7 @@ public static class AimingVisualizer
         //rendererLineTemp.positionCount = 0;
         //rendererLineTemp = null; 
         GameObject.Destroy(objTemp);
+        GameObject.Destroy(GameObject.Find("PathPreviewContainer"));
         reachablePath.Clear();
         //objTemp = null;
     }

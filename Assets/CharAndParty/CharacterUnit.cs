@@ -27,6 +27,11 @@ public class ArmorStat
     public int moraleLevel; // this one will be about Crowd Control (CC) spells like charm or madness
 }
 
+public class MeshAndPortraits
+{
+    public string portraitPath;
+}
+
 namespace PartyManagement
 {
     public class CharacterUnit : MonoBehaviour
@@ -35,6 +40,7 @@ namespace PartyManagement
 
         public StatBlock stats;
         public ArmorStat armorStat;
+        MeshAndPortraits meshAndPortraits;
         public Sprite portraitSprite;
         public string unitName;
         public SpellBook spellBook = new SpellBook();

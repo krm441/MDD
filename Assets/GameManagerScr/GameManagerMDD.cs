@@ -8,6 +8,7 @@ using UnityEngine.EventSystems;
 using System.Linq; // for sorting
 using static UnityEditorInternal.ReorderableList;
 using UnityEditor.PackageManager;
+using static UnityEngine.UI.CanvasScaler;
 
 public enum GameStateEnum
 {
@@ -255,6 +256,7 @@ public class TurnBasedState : GameStateBase
 {
     private Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
     private CharacterUnit currentUnit;
+    private CharacterUnit selectedUnitBeforeCombat; // used on exit to set it as active again
 
     public TurnBasedState(GameManagerMDD manager) : base(manager) { }
 
@@ -265,18 +267,24 @@ public class TurnBasedState : GameStateBase
         Debug.Log("Entering Combat");
         combatManager.EnterCombat();
 
-        var party = PartyManager.GetParty();
-        turnQueue = new Queue<CharacterUnit>(party.OrderByDescending(p => p.stats.Initiative));
+        // save the active unit
+        selectedUnitBeforeCombat = PartyManager.CurrentSelected;
+
+        //var party = PartyManager.GetParty();
+        //turnQueue = new Queue<CharacterUnit>(party.OrderByDescending(p => p.stats.Initiative));
 
         PartyManager.StopAllMovement();
+        PartyManager.ResetAllActionPoints(); // zero them
 
-        /* For multiparty system: use concat 
+        // Concat the multiparty in one array
         var combatants = PartyManager.GetParty()
             .Concat(EnemyManager.GetEnemies())
             .OrderByDescending(p => p.stats.Initiative);
 
         turnQueue = new Queue<CharacterUnit>(combatants);
-        */
+
+        // portrait queue building
+        PartyPortraitManagerUI.BuildTurnQueuePortraits(turnQueue);
 
         NextTurn();
     }
@@ -294,7 +302,7 @@ public class TurnBasedState : GameStateBase
 
         // select new unit in the party = selects its abilities in the left icon
         PartyManagement.PartyManager.SelectMember(currentUnit);
-       
+        SpellMap.BuildIconBar(currentUnit);
         //Debug.Log($"New Turn: {currentUnit.unitName}");
     }
 
@@ -304,6 +312,8 @@ public class TurnBasedState : GameStateBase
 
     public override void Update()
     {
+        Console.LoopLog("UPPPPDAAAATE");
+
         if (EventSystem.current.IsPointerOverGameObject()) return;
         if (currentUnit == null || !currentUnit.isPlayerControlled) return;
 
@@ -401,7 +411,16 @@ public class TurnBasedState : GameStateBase
 
     public override void Exit()
     {
-        Console.Log("Exiting Combat");
+        // restore to default this
+        currentUnit.StopMovement();
+        AimingVisualizer.ClearState();
+        internalState = 0;
+
+        // restore state
+        PartyManager.CurrentSelected = selectedUnitBeforeCombat;
+        SpellMap.BuildIconBar(currentUnit);
+
+        Console.Error("Exiting Combat");
     }
 }
 
