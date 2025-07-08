@@ -13,6 +13,8 @@ public interface ISubstate
     void Enter();
     void Update();
     void Exit();
+
+    InteractionSubstate Type { get; }
 }
 
 public abstract class SubStateBase : ISubstate
@@ -24,6 +26,10 @@ public abstract class SubStateBase : ISubstate
         gameManager = manager;
     }
 
+    protected InteractionSubstate substate;
+
+    public virtual InteractionSubstate Type => substate;
+
     public virtual void Enter() { }
     public virtual void Update() { }
     public virtual void Exit() { }
@@ -31,18 +37,19 @@ public abstract class SubStateBase : ISubstate
 
 public class MovementSubstate : SubStateBase
 {
-    public MovementSubstate(GameManagerMDD manager) : base(manager) { }
+    public MovementSubstate(GameManagerMDD manager) : base(manager) 
+    {
+        substate = InteractionSubstate.Default;
+    }
     public override void Enter()
     {
         Console.Log("Entered Movement Substate");
-        currentUnit = PartyManagement.PartyManager.CurrentSelected;
     }
 
     public override void Update()
     {
         if (EventSystem.current.IsPointerOverGameObject()) return;
-        currentUnit = PartyManagement.PartyManager.CurrentSelected;
-        if (currentUnit == null || !currentUnit.isPlayerControlled) return;
+        if (PartyManagement.PartyManager.CurrentSelected == null || !PartyManagement.PartyManager.CurrentSelected.isPlayerControlled) return;
 
         //OnMove();
         if (Input.GetMouseButtonDown(0)) // this needs to be changed to event system unity
@@ -58,10 +65,41 @@ public class MovementSubstate : SubStateBase
 
     public override void Exit()
     {
-        Console.Log($"{currentUnit.unitName} ends their turn.");
-        currentUnit.StopMovement();
+        Console.Log($"{PartyManagement.PartyManager.CurrentSelected.unitName} ends their turn.");
+        PartyManagement.PartyManager.CurrentSelected.StopMovement();
         AimingVisualizer.ClearState();
-        internalState = 0;
+        Console.Log("Exited Casting Substate");
+    }    
+}
+
+
+public class CastingSubstate : SubStateBase
+{
+    public CastingSubstate(GameManagerMDD manager) : base(manager)
+    {
+        substate = InteractionSubstate.Casting;
+    }
+
+    public override void Enter()
+    {
+        Console.Log("Entered Casting Substate");
+
+        currentUnit = PartyManagement.PartyManager.CurrentSelected;
+    }
+
+    public override void Update()
+    {
+        // Check for click, apply spell, update visuals
+        //OnCasting();
+
+        if (Input.GetMouseButtonDown(1)) { AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); GameManagerMDD.GetCurrentState().SetMovementSubState(); return; }
+
+        CombatManager.CastCurrentSpell();
+    }
+
+    public override void Exit()
+    {
+        AimingVisualizer.Hide();
         Console.Log("Exited Casting Substate");
     }
 
@@ -69,7 +107,7 @@ public class MovementSubstate : SubStateBase
     private CharacterUnit currentUnit;
     private int internalState = 0;
     private List<Vector3> remaining; // remaining path visualisation
-    private void OnMove()
+    private void OnCasting()
     {
         if (internalState == 0)
         {
@@ -144,26 +182,5 @@ public class MovementSubstate : SubStateBase
             AimingVisualizer.ClearState();
             internalState = 0;
         }
-    }
-}
-
-
-public class CastingSubstate : ISubstate
-{
-    public void Enter()
-    {
-        Console.Log("Entered Casting Substate");
-        //AimingVisualizer.ShowAimingCircle(...);
-    }
-
-    public void Update()
-    {
-        // Check for click, apply spell, update visuals
-    }
-
-    public void Exit()
-    {
-        AimingVisualizer.Hide();
-        Console.Log("Exited Casting Substate");
     }
 }

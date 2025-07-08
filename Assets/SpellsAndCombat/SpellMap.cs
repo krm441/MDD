@@ -115,7 +115,8 @@ public class SpellMap : MonoBehaviour
                 // Stop movement - should be extrapolated to whole party ? 
                 unit.StopMovement();
                 unit.SelectSpell(spell);
-                GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
+                GameManagerMDD.GetCurrentState().SetCastingSubState();
+                //GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
                 Debug.Log("Selected spell: " + spell.name);
             });
 

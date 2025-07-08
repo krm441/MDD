@@ -12,6 +12,10 @@ public interface IGameState
     void Enter();
     void Update();
     void Exit();
+
+    // dop
+    void SetCastingSubState();
+    void SetMovementSubState();
 }
 
 // base class
@@ -27,6 +31,33 @@ public abstract class GameStateBase : IGameState
     public virtual void Enter() { }
     public virtual void Update() { }
     public virtual void Exit() { }
+
+    // ==== Substates ====
+    protected ISubstate currentSubstate;
+
+    public ISubstate GetSubstate() => currentSubstate;
+    public void SetSubstate(ISubstate newSubstate)
+    {
+        currentSubstate?.Exit();
+        currentSubstate = newSubstate;
+        currentSubstate?.Enter();
+    }
+
+    public virtual void SetCastingSubState()
+    {
+        if (currentSubstate.Type != InteractionSubstate.Casting)
+        {
+            SetSubstate(new CastingSubstate(gameManager));
+        }
+    }
+
+    public virtual void SetMovementSubState()
+    {
+        if (currentSubstate.Type != InteractionSubstate.Default)
+        {
+            SetSubstate(new MovementSubstate(gameManager));
+        }
+    }
 }
 
 public class ExplorationState : GameStateBase
@@ -44,47 +75,64 @@ public class ExplorationState : GameStateBase
 
         // === 1) marker loading === 
 
-        if (clickMarkerPrefab == null)
-        {
-            clickMarkerPrefab = Resources.Load<GameObject>("Markers/selector1");
-            if (clickMarkerPrefab == null)
-            {
-                Debug.LogWarning("ClickMarker prefab not found in Resources/Markers!");
-            }
-        }
+        //if (clickMarkerPrefab == null)
+        //{
+        //    clickMarkerPrefab = Resources.Load<GameObject>("Markers/selector1");
+        //    if (clickMarkerPrefab == null)
+        //    {
+        //        Debug.LogWarning("ClickMarker prefab not found in Resources/Markers!");
+        //    }
+        //}
 
-        GameManagerMDD.SetSubstate(new MovementSubstate(gameManager));
+        SetSubstate(new MovementSubstate(gameManager));
     }
 
-    private GameObject currentClickMarker;
-    private GameObject clickMarkerPrefab;
+    //private GameObject currentClickMarker;
+    //private GameObject clickMarkerPrefab;
     public override void Update()
     {
-        GameManagerMDD.GetSubstate()?.Update();
+        GetSubstate()?.Update();
 
         //ClickLogic();
     }
 
-    void ClickLogic()
+    
+
+    public void ChangeSubstateMoveCasting()
     {
-        if (EventSystem.current.IsPointerOverGameObject())
-            return;
-
-        if (PartyManagement.PartyManager.IsEmpty()) return; // party not assembled yet - early return
-
-        // HERE: managing the substate interaction
-        var subState = GameManagerMDD.GetInteraction();
-        switch (subState)
+        if (currentSubstate != null)
         {
-            case InteractionSubstate.Default:
-                HandleMovementClick();
-                break;
-
-            case InteractionSubstate.Casting:
-                HandleSpellCastClick();
-                break;
+            if (currentSubstate.Type == InteractionSubstate.Default || currentSubstate.Type == InteractionSubstate.Interaction)
+            {
+                SetSubstate(new CastingSubstate(gameManager));
+            }
+            else
+            {
+                SetSubstate(new MovementSubstate(gameManager));
+            }
         }
     }
+
+    //void ClickLogic()
+    //{
+    //    if (EventSystem.current.IsPointerOverGameObject())
+    //        return;
+    //
+    //    if (PartyManagement.PartyManager.IsEmpty()) return; // party not assembled yet - early return
+    //
+    //    // HERE: managing the substate interaction
+    //    var subState = GameManagerMDD.GetInteraction();
+    //    switch (subState)
+    //    {
+    //        case InteractionSubstate.Default:
+    //            HandleMovementClick();
+    //            break;
+    //
+    //        case InteractionSubstate.Casting:
+    //            HandleSpellCastClick();
+    //            break;
+    //    }
+    //}
 
     private void HandleMovementClick()
     {
@@ -94,16 +142,16 @@ public class ExplorationState : GameStateBase
             if (path != null)
             {
                 PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path);
-                SpawnClickMarker(grid.LastClickPosition);
+                //SpawnClickMarker(grid.LastClickPosition);
             }
         }
     }
 
     private void HandleSpellCastClick()
     {
-        if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); return; }
+        //if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); return; }
 
-        CombatManager.CastCurrentSpell();
+       // CombatManager.CastCurrentSpell();
         /*
         CharacterUnit caster = PartyManager.CurrentSelected;
         Spell spell = caster.GetSelectedSpell();
@@ -146,21 +194,21 @@ public class ExplorationState : GameStateBase
 
     }
 
-    private void SpawnClickMarker(Vector3 position)
-    {
-        if (clickMarkerPrefab == null) return;
-
-        if (currentClickMarker != null)
-            GameObject.Destroy(currentClickMarker);
-
-        Quaternion rotation = Quaternion.Euler(90f, 0f, 0f);
-        Vector3 pos = position + new Vector3(0f, 0.1f, 0f);
-
-        Debug.Log("marker pos: " + pos);
-
-        currentClickMarker = GameObject.Instantiate(clickMarkerPrefab, pos, rotation);
-        GameObject.Destroy(currentClickMarker, 1.5f);
-    }
+    //private void SpawnClickMarker(Vector3 position)
+    //{
+    //    if (clickMarkerPrefab == null) return;
+    //
+    //    if (currentClickMarker != null)
+    //        GameObject.Destroy(currentClickMarker);
+    //
+    //    Quaternion rotation = Quaternion.Euler(90f, 0f, 0f);
+    //    Vector3 pos = position + new Vector3(0f, 0.1f, 0f);
+    //
+    //    Debug.Log("marker pos: " + pos);
+    //
+    //    currentClickMarker = GameObject.Instantiate(clickMarkerPrefab, pos, rotation);
+    //    GameObject.Destroy(currentClickMarker, 1.5f);
+    //}
 
     public override void Exit()
     {
@@ -232,7 +280,7 @@ public class TurnBasedState : GameStateBase
     {
         if (Input.GetMouseButtonDown(1))
         {
-            GameManagerMDD.interactionSubstate = InteractionSubstate.Default;
+            //GameManagerMDD.interactionSubstate = InteractionSubstate.Default;
             AimingVisualizer.Hide();
             Debug.Log("Cast cancelled");
             transitionBool = true;
@@ -248,7 +296,7 @@ public class TurnBasedState : GameStateBase
     {
         //Console.LoopLog("UPPPPDAAAATE");
 
-        GameManagerMDD.GetSubstate()?.Update();
+        GetSubstate()?.Update();
 
         //if (EventSystem.current.IsPointerOverGameObject()) return;
         //if (currentUnit == null || !currentUnit.isPlayerControlled) return;
@@ -281,7 +329,7 @@ public class TurnBasedState : GameStateBase
             //currentUnit.StopMovement();
             //AimingVisualizer.ClearState();
             //internalState = 0;
-            GameManagerMDD.SetSubstate(new MovementSubstate(gameManager));
+            SetSubstate(new MovementSubstate(gameManager));
             NextTurn();
         }
 

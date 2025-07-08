@@ -40,12 +40,14 @@ public class GameManagerMDD : MonoBehaviour
     */
     // controll from outside the scene - for simplicity
     public static GameStateEnum currentStateEnum = GameStateEnum.Exploration;
-    public static GameStateEnum GetCurrentState() => currentStateEnum;
+    public static GameStateEnum GetCurrentStateType() => currentStateEnum;
     private static Dictionary<GameStateEnum, IGameState> states;
     private static IGameState currentState;
 
-    public static InteractionSubstate interactionSubstate = InteractionSubstate.Default; // exploration mode, click yields pathfinder movement of selected party
-    public static InteractionSubstate GetInteraction() => interactionSubstate;
+    public static IGameState GetCurrentState() => currentState;
+
+    //public static InteractionSubstate interactionSubstate = InteractionSubstate.Default; // exploration mode, click yields pathfinder movement of selected party
+    //public static InteractionSubstate GetInteraction() => interactionSubstate;
 
     // Start is called before the first frame update
     void Start()
@@ -86,16 +88,7 @@ public class GameManagerMDD : MonoBehaviour
         ChangeState(GameStateEnum.Exploration);
     }
 
-    // ==== Substates ====
-    private static ISubstate currentSubstate;
-
-    public static ISubstate GetSubstate() => currentSubstate;
-    public static void SetSubstate(ISubstate newSubstate)
-    {
-        currentSubstate?.Exit();
-        currentSubstate = newSubstate;
-        currentSubstate?.Enter();
-    }
+   
 }
 
 

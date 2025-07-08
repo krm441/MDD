@@ -7,6 +7,11 @@ using UnityEngine;
 
 public class CombatManager //: MonoBehaviour
 {
+    private bool inCombat = false;
+    public bool InCombat() => inCombat;
+    public void SetInCombat() {  inCombat = true; }
+    public void SetOutOfCombat() {  inCombat = false; }
+
     /// <summary>
     /// Casts the spell that was selected
     /// </summary>
@@ -47,7 +52,7 @@ public class CombatManager //: MonoBehaviour
 
                 // Reset casting state
                 caster.DeselectSpell();
-                GameManagerMDD.interactionSubstate = InteractionSubstate.Default;
+                GameManagerMDD.GetCurrentState().SetMovementSubState();//  interactionSubstate = InteractionSubstate.Default;
             }
         }
     }
