@@ -7,6 +7,51 @@ using UnityEngine;
 
 public class CombatManager //: MonoBehaviour
 {
+    /// <summary>
+    /// Casts the spell that was selected
+    /// </summary>
+    public static void CastCurrentSpell()
+    {
+        CharacterUnit caster = PartyManager.CurrentSelected;
+        Spell spell = caster.GetSelectedSpell();
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        // spell animation
+        if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
+        {
+            Vector3 hoverPoint = hit_b.point;
+            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius);
+            AimingVisualizer.HighlightTargets(hoverPoint, spell.radius);
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            AimingVisualizer.Hide();
+
+            if (Physics.Raycast(ray, out RaycastHit hit))
+            {
+                if (spell == null)
+                {
+                    Debug.LogWarning("No spell selected.");
+                    return;
+                }
+
+                float dist = Vector3.Distance(caster.transform.position, hit.point);
+                if (dist > spell.range)
+                {
+                    Debug.Log("Target out of range.");
+                    return;
+                }
+
+                ApplySpell(caster, spell, hit.point);
+                AimingVisualizer.DrawImpactCircle(hit.point, spell.radius);
+
+                // Reset casting state
+                caster.DeselectSpell();
+                GameManagerMDD.interactionSubstate = InteractionSubstate.Default;
+            }
+        }
+    }
+
     public static void ApplySpell(CharacterUnit caster, Spell spell, Vector3 targetPosition)
     {
         Debug.Log("SPELL FIRE");

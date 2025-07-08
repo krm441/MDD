@@ -8,9 +8,33 @@ public static class AimingVisualizer
     private static LineRenderer lr;
     private static List<Renderer> highlighted = new List<Renderer>();
     private static Color highlightColor = Color.white * 0.5f;
+    private static GameObject clickMarkerPrefab; // actual marker
+    private static GameObject currentClickMarker;// active marker (that will be destroyed after 1.5 sec animation)
 
     private static int lastSegments = 32;
 
+    public static void SpawnClickMarker(Vector3 position)
+    {
+        if (clickMarkerPrefab == null)
+        {
+            clickMarkerPrefab = Resources.Load<GameObject>("Markers/selector1");
+            if (clickMarkerPrefab == null)
+            {
+                Debug.LogWarning("ClickMarker prefab not found in Resources/Markers!");
+            }
+        }
+
+        if (currentClickMarker != null)
+            GameObject.Destroy(currentClickMarker);
+
+        Quaternion rotation = Quaternion.Euler(90f, 0f, 0f);
+        Vector3 pos = position + new Vector3(0f, 0.1f, 0f);
+
+        Debug.Log("marker pos: " + pos);
+
+        currentClickMarker = GameObject.Instantiate(clickMarkerPrefab, pos, rotation);
+        GameObject.Destroy(currentClickMarker, 1.5f);
+    }
     public static void DrawImpactCircle(Vector3 center, float radius, int segments = 32)
     {
         GameObject circleObj = new GameObject("SpellRangeCircle");
