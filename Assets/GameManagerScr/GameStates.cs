@@ -16,6 +16,8 @@ public interface IGameState
     // dop
     void SetCastingSubState();
     void SetMovementSubState();
+
+    void SetSubstate(ISubstate newSubstate);
 }
 
 // base class
@@ -73,27 +75,14 @@ public class ExplorationState : GameStateBase
     {
         Console.Log("Entering Exploration State");
 
-        // === 1) marker loading === 
-
-        //if (clickMarkerPrefab == null)
-        //{
-        //    clickMarkerPrefab = Resources.Load<GameObject>("Markers/selector1");
-        //    if (clickMarkerPrefab == null)
-        //    {
-        //        Debug.LogWarning("ClickMarker prefab not found in Resources/Markers!");
-        //    }
-        //}
 
         SetSubstate(new MovementSubstate(gameManager));
     }
 
-    //private GameObject currentClickMarker;
-    //private GameObject clickMarkerPrefab;
+   
     public override void Update()
     {
         GetSubstate()?.Update();
-
-        //ClickLogic();
     }
 
     
@@ -194,22 +183,6 @@ public class ExplorationState : GameStateBase
 
     }
 
-    //private void SpawnClickMarker(Vector3 position)
-    //{
-    //    if (clickMarkerPrefab == null) return;
-    //
-    //    if (currentClickMarker != null)
-    //        GameObject.Destroy(currentClickMarker);
-    //
-    //    Quaternion rotation = Quaternion.Euler(90f, 0f, 0f);
-    //    Vector3 pos = position + new Vector3(0f, 0.1f, 0f);
-    //
-    //    Debug.Log("marker pos: " + pos);
-    //
-    //    currentClickMarker = GameObject.Instantiate(clickMarkerPrefab, pos, rotation);
-    //    GameObject.Destroy(currentClickMarker, 1.5f);
-    //}
-
     public override void Exit()
     {
         Console.Log("Exiting Exploration State");
@@ -250,29 +223,59 @@ public class TurnBasedState : GameStateBase
         // portrait queue building
         PartyPortraitManagerUI.BuildTurnQueuePortraits(turnQueue);
 
+        
+
         NextTurn();
     }
+
+    private bool enemyTurn = false;
 
     private void NextTurn()
     {
         // add APs
-        //if (currentUnit != null) // could be null, if scene start
+        //if (PartyManagement.PartyManager.CurrentSelected != null) // could be null, if scene start
 
         // next unit
-        //currentUnit = turnQueue.Dequeue();
-        //turnQueue.Enqueue(currentUnit);
-        //Console.Error("start turn",  currentUnit.stats.ActionPoints);
-        //currentUnit.AddActionPointsStart();    //stats.ActionPoints += currentUnit.stats.StartActionPoints;
-        //
-        //// select new unit in the party = selects its abilities in the left icon
-        //PartyManagement.PartyManager.SelectMember(currentUnit);
-        //SpellMap.BuildIconBar(currentUnit);
-        //Debug.Log($"New Turn: {currentUnit.unitName}");
+        CharacterUnit unit = turnQueue.Dequeue();
+        if (unit.isPlayerControlled)
+        {
+            PartyManagement.PartyManager.CurrentSelected = unit;
+            turnQueue.Enqueue(PartyManagement.PartyManager.CurrentSelected);
+            Console.Error("start turn", PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints);
+            PartyManagement.PartyManager.CurrentSelected.AddActionPointsStart();    //stats.ActionPoints += currentUnit.stats.StartActionPoints;
+
+            // select new unit in the party = selects its abilities in the left icon
+            PartyManagement.PartyManager.SelectMember(PartyManagement.PartyManager.CurrentSelected);
+            SpellMap.BuildIconBar(PartyManagement.PartyManager.CurrentSelected);
+            Console.ScrLog($"New Turn Player: {PartyManagement.PartyManager.CurrentSelected.unitName}", "\nturn Q volume:", turnQueue.Count);
+
+            // set substate to turn movement
+            SetSubstate(new TurnBasedMovement(gameManager));
+
+            enemyTurn = false;
+        }
+        else
+        {
+            enemyTurn = true;
+            SetSubstate(new AITurnSubstate(gameManager, EndTurnAI));
+            turnQueue.Enqueue(unit);
+            Console.ScrLog($"New Turn AI: {unit.unitName}", "\nturn Q volume:", turnQueue.Count);
+        }
     }
 
+    public override void SetCastingSubState()
+    {
+        if (currentSubstate.Type != InteractionSubstate.Casting)
+        {
+            SetSubstate(new TurnBasedCasting(gameManager));
+        }
+    }
 
-
-
+    public void EndTurnAI()
+    {
+        Console.ScrLog("turn AI end");
+        NextTurn();
+    }
 
 
 
@@ -298,6 +301,18 @@ public class TurnBasedState : GameStateBase
 
         GetSubstate()?.Update();
 
+        // 2. Handle End Turn
+        if(!enemyTurn)
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                //Console.Log($"{currentUnit.unitName} ends their turn.");
+                //currentUnit.StopMovement();
+                //AimingVisualizer.ClearState();
+                //internalState = 0;
+                //SetSubstate(new MovementSubstate(gameManager));
+                NextTurn();
+            }
+
         //if (EventSystem.current.IsPointerOverGameObject()) return;
         //if (currentUnit == null || !currentUnit.isPlayerControlled) return;
         //
@@ -322,16 +337,7 @@ public class TurnBasedState : GameStateBase
         //        break;
         //}        
 
-        // 2. Handle End Turn
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            //Console.Log($"{currentUnit.unitName} ends their turn.");
-            //currentUnit.StopMovement();
-            //AimingVisualizer.ClearState();
-            //internalState = 0;
-            SetSubstate(new MovementSubstate(gameManager));
-            NextTurn();
-        }
+
 
 
     }

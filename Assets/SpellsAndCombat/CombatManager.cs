@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
+using Pathfinding;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 
@@ -11,6 +13,51 @@ public class CombatManager //: MonoBehaviour
     public bool InCombat() => inCombat;
     public void SetInCombat() {  inCombat = true; }
     public void SetOutOfCombat() {  inCombat = false; }
+
+    public static void VisualiseSpellImpactArea()
+    {
+        CharacterUnit caster = PartyManager.CurrentSelected;
+        Spell spell = caster.GetSelectedSpell();
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        // spell animation
+        if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
+        {
+            Vector3 hoverPoint = hit_b.point;
+            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius);
+            AimingVisualizer.HighlightTargets(hoverPoint, spell.radius);
+        }
+    }
+
+    public static void CastSelectedSpell()
+    {
+        AimingVisualizer.Hide();
+        CharacterUnit caster = PartyManager.CurrentSelected;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Spell spell = caster.GetSelectedSpell();
+
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            if (spell == null)
+            {
+                Debug.LogWarning("No spell selected.");
+                return;
+            }
+
+            float dist = Vector3.Distance(caster.transform.position, hit.point);
+            if (dist > spell.range)
+            {
+                Debug.Log("Target out of range.");
+                return;
+            }
+
+            ApplySpell(caster, spell, hit.point);
+            AimingVisualizer.DrawImpactCircle(hit.point, spell.radius);
+
+            // Reset casting state
+            caster.DeselectSpell();
+            //GameManagerMDD.GetCurrentState().SetMovementSubState();//  interactionSubstate = InteractionSubstate.Default;
+        }
+    }
 
     /// <summary>
     /// Casts the spell that was selected
@@ -52,7 +99,7 @@ public class CombatManager //: MonoBehaviour
 
                 // Reset casting state
                 caster.DeselectSpell();
-                GameManagerMDD.GetCurrentState().SetMovementSubState();//  interactionSubstate = InteractionSubstate.Default;
+                //GameManagerMDD.GetCurrentState().SetMovementSubState();//  interactionSubstate = InteractionSubstate.Default;
             }
         }
     }
@@ -74,7 +121,7 @@ public class CombatManager //: MonoBehaviour
                                                                             //   target.transform.parent?.TryGetComponent<CharacterUnit>(out unit) == true) 
                     {
                         unit.stats.HP -= damage;
-                        Debug.Log($"{caster.unitName} hit {unit.unitName} for {damage} damage.");
+                        Console.Error($"{caster.unitName} hit {unit.unitName} for {damage} damage.");
                     }
                 }
             }

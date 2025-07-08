@@ -111,10 +111,10 @@ public class SpellMap : MonoBehaviour
             
             Button button = btn.GetComponent<Button>();
             button.onClick.AddListener(() =>
-            {
-                // Stop movement - should be extrapolated to whole party ? 
+            { 
                 unit.StopMovement();
                 unit.SelectSpell(spell);
+
                 GameManagerMDD.GetCurrentState().SetCastingSubState();
                 //GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
                 Debug.Log("Selected spell: " + spell.name);

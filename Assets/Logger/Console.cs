@@ -1,10 +1,22 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 
 public static class Console
 {
     private static bool enabled = true;
     public static void Disable() => enabled = false;
     public static void Enable() => enabled = true;
+
+    public static void ScrLog(params object[] args)
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        string msg = BuildMessage(args);
+        if (enabled) Debug.Log(msg);
+
+        if (ConsoleUIManager.Instance != null)
+            ConsoleUIManager.Instance.Append(msg);        
+#endif
+    }
 
     public static void Log(params object[] args)
     {

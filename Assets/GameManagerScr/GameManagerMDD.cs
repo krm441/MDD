@@ -23,6 +23,11 @@ public enum InteractionSubstate
     Default,        // exploration
     Interaction,    // with objects
     Casting,        // spellcasting - including non combat state
+    TurnBased,      // movement in turn based mode
+    CombatCasting,  // cast spells in combat (AP deduced, special logic)
+
+    // AI states
+    AI_Turn,        // invoked in turn based mode, platform for AI turn based BTs
 }
 
 // singleton - persistent
@@ -33,11 +38,7 @@ public class GameManagerMDD : MonoBehaviour
    
     // references for the states:
     public Pathfinding.GridSystem gridSystem; // pathfinder
-
-    /*NOTE: == DONE
-    - add scene specific script or serialized field that will govern the FSM sequence
-    - based on this variable chose a sequence, or a state to play.
-    */
+        
     // controll from outside the scene - for simplicity
     public static GameStateEnum currentStateEnum = GameStateEnum.Exploration;
     public static GameStateEnum GetCurrentStateType() => currentStateEnum;
@@ -60,6 +61,9 @@ public class GameManagerMDD : MonoBehaviour
         };
 
         ChangeState(currentStateEnum); // start in exploration in debug
+
+        
+
     }
 
     // Update is called once per frame
