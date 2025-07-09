@@ -554,7 +554,7 @@ public static class AimingVisualizer
     {
         ClearHighlights();
 
-        var hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("Characters", "Destructibles"));
+        var hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("Characters", "Destructibles", "HostileNPCs"));
         foreach (var col in hits)
         {
             var rend = col.GetComponentInChildren<Renderer>();

@@ -192,7 +192,6 @@ public class TurnBasedState : GameStateBase
         NextTurn();
     }
 
-
     public override void Update()
     {
         GetSubstate()?.Update();
@@ -204,8 +203,6 @@ public class TurnBasedState : GameStateBase
                 NextTurn();
             }
     }
-
-
 
     public override void Exit()
     {

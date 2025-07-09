@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 1355934923842947809}
   - component: {fileID: 1355934923842947808}
   - component: {fileID: 1355934923842947815}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Sphere
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -105,7 +105,7 @@ GameObject:
   - component: {fileID: 1355934925194527636}
   - component: {fileID: 1355934925194527723}
   - component: {fileID: 1355934925194527722}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: CapsuleEnemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
