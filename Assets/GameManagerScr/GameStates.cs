@@ -85,8 +85,6 @@ public class ExplorationState : GameStateBase
         GetSubstate()?.Update();
     }
 
-    
-
     public void ChangeSubstateMoveCasting()
     {
         if (currentSubstate != null)
@@ -100,87 +98,6 @@ public class ExplorationState : GameStateBase
                 SetSubstate(new MovementSubstate(gameManager));
             }
         }
-    }
-
-    //void ClickLogic()
-    //{
-    //    if (EventSystem.current.IsPointerOverGameObject())
-    //        return;
-    //
-    //    if (PartyManagement.PartyManager.IsEmpty()) return; // party not assembled yet - early return
-    //
-    //    // HERE: managing the substate interaction
-    //    var subState = GameManagerMDD.GetInteraction();
-    //    switch (subState)
-    //    {
-    //        case InteractionSubstate.Default:
-    //            HandleMovementClick();
-    //            break;
-    //
-    //        case InteractionSubstate.Casting:
-    //            HandleSpellCastClick();
-    //            break;
-    //    }
-    //}
-
-    private void HandleMovementClick()
-    {
-        if (Input.GetMouseButtonDown(0)) // this needs to be changed to event system unity
-        {
-            var path = grid.FindPathToClick(PartyManagement.PartyManager.CurrentSelected.transform);
-            if (path != null)
-            {
-                PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path);
-                //SpawnClickMarker(grid.LastClickPosition);
-            }
-        }
-    }
-
-    private void HandleSpellCastClick()
-    {
-        //if (Input.GetMouseButtonDown(1)) { GameManagerMDD.interactionSubstate = InteractionSubstate.Default; AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); return; }
-
-       // CombatManager.CastCurrentSpell();
-        /*
-        CharacterUnit caster = PartyManager.CurrentSelected;
-        Spell spell = caster.GetSelectedSpell();
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        // spell animation
-        if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
-        {
-            Vector3 hoverPoint = hit_b.point;
-            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius);
-            AimingVisualizer.HighlightTargets(hoverPoint, spell.radius);
-        }
-
-        if (Input.GetMouseButtonDown(0))
-        {
-            AimingVisualizer.Hide();
-
-            if (Physics.Raycast(ray, out RaycastHit hit))
-            {
-                if (spell == null)
-                {
-                    Debug.LogWarning("No spell selected.");
-                    return;
-                }
-
-                float dist = Vector3.Distance(caster.transform.position, hit.point);
-                if (dist > spell.range)
-                {
-                    Debug.Log("Target out of range.");
-                    return;
-                }
-
-                CombatManager.ApplySpell(caster, spell, hit.point);
-                AimingVisualizer.DrawImpactCircle(hit.point, spell.radius);
-
-                // Reset casting state
-                caster.DeselectSpell();
-                GameManagerMDD.interactionSubstate = InteractionSubstate.Default;
-            }
-        }*/
-
     }
 
     public override void Exit()
@@ -232,17 +149,15 @@ public class TurnBasedState : GameStateBase
 
     private void NextTurn()
     {
-        // add APs
-        //if (PartyManagement.PartyManager.CurrentSelected != null) // could be null, if scene start
-
         // next unit
         CharacterUnit unit = turnQueue.Dequeue();
+
         if (unit.isPlayerControlled)
         {
             PartyManagement.PartyManager.CurrentSelected = unit;
             turnQueue.Enqueue(PartyManagement.PartyManager.CurrentSelected);
             Console.Error("start turn", PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints);
-            PartyManagement.PartyManager.CurrentSelected.AddActionPointsStart();    //stats.ActionPoints += currentUnit.stats.StartActionPoints;
+            PartyManagement.PartyManager.CurrentSelected.AddActionPointsStart();
 
             // select new unit in the party = selects its abilities in the left icon
             PartyManagement.PartyManager.SelectMember(PartyManagement.PartyManager.CurrentSelected);
@@ -278,68 +193,16 @@ public class TurnBasedState : GameStateBase
     }
 
 
-
-    private void OnCast()
-    {
-        if (Input.GetMouseButtonDown(1))
-        {
-            //GameManagerMDD.interactionSubstate = InteractionSubstate.Default;
-            AimingVisualizer.Hide();
-            Debug.Log("Cast cancelled");
-            transitionBool = true;
-            return;
-        }
-
-        CombatManager.CastCurrentSpell();
-    }
-
-    private bool transitionBool = true;
-
     public override void Update()
     {
-        //Console.LoopLog("UPPPPDAAAATE");
-
         GetSubstate()?.Update();
 
         // 2. Handle End Turn
         if(!enemyTurn)
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                //Console.Log($"{currentUnit.unitName} ends their turn.");
-                //currentUnit.StopMovement();
-                //AimingVisualizer.ClearState();
-                //internalState = 0;
-                //SetSubstate(new MovementSubstate(gameManager));
                 NextTurn();
             }
-
-        //if (EventSystem.current.IsPointerOverGameObject()) return;
-        //if (currentUnit == null || !currentUnit.isPlayerControlled) return;
-        //
-        //var subState = GameManagerMDD.GetInteraction();
-        //switch (subState)
-        //{
-        //    case InteractionSubstate.Default:
-        //        OnMove();
-        //        break;
-        //
-        //    case InteractionSubstate.Casting:
-        //        Debug.Assert(false, "not ready");
-        //        if (transitionBool)
-        //        {
-        //            currentUnit.StopMovement();
-        //            AimingVisualizer.ClearState();
-        //            internalState = 0;
-        //
-        //            transitionBool = false; // clear state
-        //        }
-        //        OnCast();
-        //        break;
-        //}        
-
-
-
-
     }
 
 

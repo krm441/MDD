@@ -47,9 +47,6 @@ public class GameManagerMDD : MonoBehaviour
 
     public static IGameState GetCurrentState() => currentState;
 
-    //public static InteractionSubstate interactionSubstate = InteractionSubstate.Default; // exploration mode, click yields pathfinder movement of selected party
-    //public static InteractionSubstate GetInteraction() => interactionSubstate;
-
     // Start is called before the first frame update
     void Start()
     {
@@ -61,9 +58,6 @@ public class GameManagerMDD : MonoBehaviour
         };
 
         ChangeState(currentStateEnum); // start in exploration in debug
-
-        
-
     }
 
     // Update is called once per frame
