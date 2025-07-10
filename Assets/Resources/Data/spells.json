@@ -8,6 +8,7 @@
             "shotcutKey": "F",
             "prefabMeshEffect": "",
             "manaCost": 10,
+            "apCost": 3,
             "range": 10,
             "radius": 3,
             "vfxType": "fireball"

@@ -44,7 +44,7 @@ namespace PartyManagement
         public Sprite portraitSprite;
         public string unitName;
         public SpellBook spellBook = new SpellBook();
-        private Spell currentlySelectedSpell = null;
+        public Spell currentlySelectedSpell = null;
         public int LignOfSight = 10;
 
         public void SetActionPoints(int points)
@@ -95,6 +95,27 @@ namespace PartyManagement
         public void StopMovement()
         {
             movementController?.StopMovement();
+        }
+
+        public void DeductActionPoints(Pathfinding.Path path)
+        {
+            // 1) How far did char move
+            float distance = path.CalculateDistance(transform.position);
+
+            // 2) Convert to AP cost: 1 AP per stats.Speed units moved
+            float rawCost = distance / (float)stats.Speed;
+
+            // 3) Round up
+            int apCost = Mathf.CeilToInt(rawCost);
+
+            // 4) Subtract apCost from ActionPoints, clamping at 0
+            int newAP = Mathf.Max(0, stats.ActionPoints - apCost);
+            SetActionPoints(newAP);
+        }
+
+        public void DeductActionPoints(int AP)
+        {
+            stats.ActionPoints -= AP;
         }
 
         public void AddActionPoints(int points)

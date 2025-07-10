@@ -39,7 +39,7 @@ public class Spell
     public string iconPath;
     public string shotcutKey;
     public string prefabMeshEffect; // mesh or effect prefab path
-    //public Animation??
+    public int apCost;
     public int manaCost;
     public int range;
     public int radius;

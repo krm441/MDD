@@ -187,7 +187,7 @@ namespace Pathfinding
 
             int x = Mathf.FloorToInt(worldPos.x / tileSize);
             int y = Mathf.FloorToInt(worldPos.z / tileSize);
-            Debug.Log("x y: " + x + " " + y + ' ' + tileSize + " " + grid == null);
+            //Debug.Log("x y: " + x + " " + y + ' ' + tileSize + " " + grid == null);
             if (x >= 0 && y >= 0 && x < grid.GetLength(0) && y < grid.GetLength(1))
             {
                 return grid[x, y];

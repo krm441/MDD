@@ -67,7 +67,8 @@ public class MovementSubstate : SubStateBase
     {
         Console.Log($"{PartyManagement.PartyManager.CurrentSelected.unitName} ends their turn.");
         PartyManagement.PartyManager.CurrentSelected.StopMovement();
-        AimingVisualizer.ClearState();
+        //AimingVisualizer.ClearState();
+        AimingVisualizer.Hide();
         Console.Log("Exited Casting Substate");
     }    
 }
@@ -85,10 +86,40 @@ public class TurnBasedMovement : SubStateBase
         if (EventSystem.current.IsPointerOverGameObject()) return;
         if (PartyManagement.PartyManager.CurrentSelected == null || !PartyManagement.PartyManager.CurrentSelected.isPlayerControlled) return;
 
-        OnMove();
+        //OnMove();
+
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Pathfinding.Path path = null;
+        bool inRange = false;
+        if (Physics.Raycast(ray, out var hit))
+        {
+            path = SpellVisualizer.VisualizePath(
+            PartyManagement.PartyManager.CurrentSelected.transform.position,
+            hit.point,
+            PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints,
+            PartyManagement.PartyManager.CurrentSelected.stats.Speed,
+            out inRange
+            );
+        }
+
+        Console.ScrLoopLog("APs:", PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints);
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (inRange && path != null)
+            {
+                PartyManagement.PartyManager.CurrentSelected.DeductActionPoints(path);
+                PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path.pathNodes);
+            }
+        }
     }
 
-    public override void Exit() { internalState = 0; remaining?.Clear(); AimingVisualizer.ClearState(); }
+    public override void Exit() 
+    { 
+        internalState = 0; remaining?.Clear(); 
+        AimingVisualizer.Hide(); 
+        //AimingVisualizer.ClearState(); 
+    }
 
     private int internalState = 0;
     private List<Vector3> remaining;
@@ -164,7 +195,7 @@ public class TurnBasedMovement : SubStateBase
         }
         else if (internalState == 2)
         {
-            AimingVisualizer.ClearState();
+            AimingVisualizer.Hide();
             internalState = 0;
         }
     }
@@ -223,11 +254,42 @@ public class TurnBasedCasting : SubStateBase
             return;
         }
 
-        CombatManager.VisualiseSpellImpactArea();
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        bool inRange = false;
+        if (Physics.Raycast(ray, out var hit))
+        {
+            //Pathfinding.Path path = 
+
+            //if (PartyManagement.PartyManager.CurrentSelected == null) 
+            //    Console.Error("null");
+            //
+            //var rad = PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().radius;
+            //var ran = PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range;
+
+                SpellVisualizer.VisualizeSpell(
+            PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().radius,
+            PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range,
+            3, // ap cost
+            PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints,
+            PartyManagement.PartyManager.CurrentSelected.stats.Speed,
+            PartyManagement.PartyManager.CurrentSelected.transform.position,
+            hit.point,
+            out inRange
+            );
+
+            //Console.LoopLog("RANGE", PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range);
+        }
+
+        //CombatManager.VisualiseSpellImpactArea();
 
         if (Input.GetMouseButtonDown(0))
         {
-            CombatManager.CastSelectedSpell();
+            if (inRange)
+            {
+                CombatManager.CastSelectedSpell();                
+                var spellCost = PartyManagement.PartyManager.CurrentSelected.currentlySelectedSpell.apCost;
+                PartyManagement.PartyManager.CurrentSelected.DeductActionPoints(spellCost);
+            }
             GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
         }
     }

@@ -4,14 +4,97 @@ using UnityEngine;
 
 public static class AimingVisualizer
 {
+
+    private static GameObject aimingVisualiserParent;
+
+
     private static GameObject circleObj;
-    private static LineRenderer lr;
+    private static GameObject spellRange;
+    private static GameObject lineProjectile;
+    //private static LineRenderer lineRendererCircle;
+    //private static LineRenderer lineRendererLine;
     private static List<Renderer> highlighted = new List<Renderer>();
     private static Color highlightColor = Color.white * 0.5f;
     private static GameObject clickMarkerPrefab; // actual marker
     private static GameObject currentClickMarker;// active marker (that will be destroyed after 1.5 sec animation)
 
     private static int lastSegments = 32;
+
+    // ============== Utility Functions: Init and Clean ======================== //
+    private static void CreateAimingVisualiserParent()
+    {
+        if (aimingVisualiserParent == null)
+            aimingVisualiserParent = new GameObject("AimingVisualiser");
+    }
+
+    private static void SetParent(GameObject child)
+    {
+        child.transform.SetParent(aimingVisualiserParent.transform);
+    }
+
+    public static void DestroyAllChildren(GameObject parent)
+    {
+        // It's safest to iterate backwards so removing children
+        // doesn't mess up the indexing.
+        if (parent != null)
+        {
+            var parentTransform = parent.transform;
+            for (int i = parentTransform.childCount - 1; i >= 0; i--)
+            {
+                Transform child = parentTransform.GetChild(i);
+                GameObject.Destroy(child.gameObject);
+            }
+        }
+    }
+
+    public static void Hide()
+    {
+        previewSegments.Clear();
+        DestroyAllChildren(aimingVisualiserParent); return;
+        //if (circleObj != null)
+        //{
+        //    UnityEngine.Object.Destroy(circleObj);
+        //    circleObj = null;
+        //    //lineRendererCircle = null;
+        //}
+        //
+        //ClearState();
+        //ClearHighlights();
+    }
+
+    // ============== Visuals ================================================== //
+
+    public static void HighlightTargets(Vector3 center, float radius)
+    {
+        ClearHighlights();
+
+        var hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("Characters", "Destructibles", "HostileNPCs"));
+        foreach (var col in hits)
+        {
+            var rend = col.GetComponentInChildren<Renderer>();
+            if (rend != null && rend.material.HasProperty("_EmissionColor"))
+            {
+                rend.material.EnableKeyword("_EMISSION");
+                rend.material.SetColor("_EmissionColor", highlightColor);
+                highlighted.Add(rend);
+            }
+        }
+    }
+    private static void ClearHighlights()
+    {
+        foreach (var rend in highlighted)
+        {
+            if (rend != null && rend.material.HasProperty("_EmissionColor"))
+            {
+                rend.material.SetColor("_EmissionColor", Color.black);
+                rend.material.DisableKeyword("_EMISSION");
+            }
+        }
+
+        highlighted.Clear();
+    }
+
+
 
     public static void SpawnClickMarker(Vector3 position)
     {
@@ -35,52 +118,140 @@ public static class AimingVisualizer
         currentClickMarker = GameObject.Instantiate(clickMarkerPrefab, pos, rotation);
         GameObject.Destroy(currentClickMarker, 1.5f);
     }
-    public static void DrawImpactCircle(Vector3 center, float radius, int segments = 32)
+    
+    /// <summary>
+    /// FOR DEGBUGGING: draws a circle of impact of a spell after spell cast
+    /// needs no parent - destruction automatic after 1.5 seconds
+    /// </summary>
+    /// <param name="center">Center of the circle</param>
+    /// <param name="radius">Radius</param>
+    /// <param name="color">Circle border color</param>
+    /// <param name="segments">Default value: 32</param>
+    public static void DrawImpactCircle(Vector3 center, float radius, Color color, int segments = 32)
     {
-        GameObject circleObj = new GameObject("SpellRangeCircle");
-        LineRenderer lr = circleObj.AddComponent<LineRenderer>();
+        if (spellRange == null)
+        {
+            spellRange = new GameObject("SpellRangeCircle");
+            LineRenderer lr = spellRange.AddComponent<LineRenderer>();
 
-        lr.positionCount = segments + 1;
-        lr.loop = true;
-        lr.widthMultiplier = 0.05f;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.startColor = Color.red;
-        lr.endColor = Color.red;
+            lr.positionCount = segments + 1;
+            lr.loop = true;
+            lr.widthMultiplier = 0.05f;
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+            lr.startColor = color;
+            lr.endColor = color;
+        }
 
         for (int i = 0; i <= segments; i++)
         {
             float angle = 2 * Mathf.PI * i / segments;
             Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius + center;
-            lr.SetPosition(i, pos);
+            spellRange.GetComponent<LineRenderer>().SetPosition(i, pos);
         }
 
-        GameObject.Destroy(circleObj, 1.5f); // destroy after 1.5 sec
+        GameObject.Destroy(spellRange, 1.5f); // destroy after 1.5 sec
     }
-
-    public static void ShowAimingCircle(Vector3 center, float radius, int segments = 32)
+    public static void ShowAimingCircle(Vector3 center, float radius, Color color, int segments = 32)
     {
+        CreateAimingVisualiserParent();
         if (circleObj == null)
         {
             circleObj = new GameObject("AimingCircle");
-            lr = circleObj.AddComponent<LineRenderer>();
-            lr.loop = true;
-            lr.widthMultiplier = 0.05f;
-            lr.material = new Material(Shader.Find("Sprites/Default"));
-            lr.startColor = Color.yellow;
-            lr.endColor = Color.yellow;
-            lr.positionCount = segments + 1;
+            SetParent(circleObj);
+            LineRenderer lineRendCircle = circleObj.AddComponent<LineRenderer>();
+            lineRendCircle.loop = true;
+            lineRendCircle.widthMultiplier = 0.05f;
+            lineRendCircle.material = new Material(Shader.Find("Sprites/Default"));
+            lineRendCircle.startColor = color; //Color.yellow;
+            lineRendCircle.endColor = color; //Color.yellow;
+            lineRendCircle.positionCount = segments + 1;
             lastSegments = segments;
+        }
+
+        var lineRendererCircle = circleObj.GetComponent<LineRenderer>();
+        // change color
+        if (lineRendererCircle.startColor != color)
+        {
+            lineRendererCircle.startColor = color;
+            lineRendererCircle.endColor = color;
         }
 
         UpdateAimingCircle(center, radius, segments);
     }
+       
+    public static void DrawProjectileArc(
+        Vector3 start,
+        Vector3 end,
+        Color color,
+        int segments = 30,
+        float arcHeight = 2f)
+    {
+        CreateAimingVisualiserParent();
+
+        if (lineProjectile == null)
+        {
+            lineProjectile = new GameObject("AimingVisualizer_LineRenderer");
+            SetParent(lineProjectile);
+            lineProjectile.hideFlags = HideFlags.None;
+            var lineRendererLine = lineProjectile.AddComponent<LineRenderer>();
+            lineRendererLine.positionCount = 0;
+            lineRendererLine.startWidth = 0.05f;
+            lineRendererLine.endWidth = 0.05f;
+            lineRendererLine.material = new Material(Shader.Find("Sprites/Default"));
+            lineRendererLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lineRendererLine.receiveShadows = false;
+            lineRendererLine.useWorldSpace = true;
+        }
+
+        // Build parabola points 
+        Vector3[] points = new Vector3[segments + 1];
+        for (int i = 0; i <= segments; i++)
+        {
+            float t = (float)i / segments;
+            // Linear interpolation
+            Vector3 point = Vector3.Lerp(start, end, t);
+            // Add height offset: a simple parabola peaked at t=0.5
+            point.y += arcHeight * 4f * t * (1f - t);
+            points[i] = point;
+        }
+
+        // Collision check per segment, trim on hit
+        int hitIndex = -1;
+        int mask = LayerMask.GetMask("Obstacle");
+        for (int i = 0; i < segments; i++)
+        {
+            Vector3 a = points[i];
+            Vector3 b = points[i + 1];
+            if (Physics.Raycast(a, (b - a).normalized, out RaycastHit hit, Vector3.Distance(a, b), mask))
+            {
+                // Insert the exact hit point
+                points[i + 1] = hit.point;
+                hitIndex = i + 1;
+                break;
+            }
+        }
+
+        // Determine points to draw
+        int drawCount = (hitIndex > 0) ? hitIndex + 1 : points.Length;
+
+        // Push into LineRenderer
+        lineProjectile.GetComponent<LineRenderer>().positionCount = drawCount;
+        lineProjectile.GetComponent<LineRenderer>().startColor = lineProjectile.GetComponent<LineRenderer>().endColor = color;
+        for (int i = 0; i < drawCount; i++)
+            lineProjectile.GetComponent<LineRenderer>().SetPosition(i, points[i]);
+    }
+
 
     public static void UpdateAimingCircle(Vector3 center, float radius, int segments = 32)
     {
-        if (circleObj == null || lr == null) return;
+        if (circleObj == null) return;
+
+        var lineRendererCircle = circleObj.GetComponent<LineRenderer>();
+        if (lineRendererCircle == null) return;
+
         if (segments != lastSegments)
         {
-            lr.positionCount = segments + 1;
+            lineRendererCircle.positionCount = segments + 1;
             lastSegments = segments;
         }
 
@@ -88,508 +259,216 @@ public static class AimingVisualizer
         {
             float angle = 2 * Mathf.PI * i / segments;
             Vector3 pos = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius + center;
-            lr.SetPosition(i, pos);
+            lineRendererCircle.SetPosition(i, pos);
         }
     }
 
-    private static GameObject pathLineObj;
-    //private static LineRenderer pathLineRenderer;
-    private static float pathWidth = 0.1f;
-    /*public static void ClearPathPreview()
-    {
-        if (pathLineRenderer != null)
-            pathLineRenderer.positionCount = 0;
-    }*/
-
-    private static List<LineRenderer> previewSegments = new List<LineRenderer>();
-    private static Transform previewContainer;
+    // Draw path preview, white if traversable, red if not, with a gradient in between
     public static List<Vector3> reachablePath = new List<Vector3>();  // Stores white path only
+    private static GameObject previewContainer;
+    private static List<LineRenderer> previewSegments = new List<LineRenderer>();
+    
 
-    // Draw path preview, white if traversable, red if not, with a gradient in between 
-    public static void DrawPathPreview(Vector3 start, Vector3 end, List<Pathfinding.Node> path, float maxDistance)
+    public static void DrawPathPreview(
+    Vector3 start,
+    Vector3 end,
+    List<Pathfinding.Node> path,
+    float maxDistance,
+    bool drawToMaxOnly = false
+)
     {
-        // Always clear previous visual path to avoid leftover segments
-        ClearPathPreview(); reachablePath.Clear();
+        // 1 Clear last frame
+        ClearPathPreview();
+        reachablePath.Clear();
 
-        // Exit early if there's no valid path
-        if (path == null || path.Count == 0) return;
+        // 2 Early return
+        if (path == null || path.Count == 0)
+            return;
 
-        // Create a parent container for organization (only once)
+        // 3 Container != null
+        CreateAimingVisualiserParent();
         if (previewContainer == null)
-            previewContainer = new GameObject("PathPreviewContainer").transform;
-
-        // Flatten the path into a list of Vector3 world positions, starting from the unit's position
-        List<Vector3> pathPoints = new List<Vector3> { start };
-        foreach (var node in path)
-            pathPoints.Add(node.worldPos);
-
-        // Vertical offset to raise the path above the ground
-        Vector3 elevation = new Vector3(0, 0.6f);
-
-        float distanceSoFar = 0f;         // Tracks cumulative distance walked
-        float stepSize = 1f;              // Distance between sampled path points
-        Vector3 current = start;          // Current position along the path
-        int currentIndex = 0;             // Index of the current segment in the full path
-
-        List<Vector3> currentSegmentPoints = new List<Vector3>(); // List of points in the current LineRenderer segment
-        Color currentColor = Color.white;                         // Starting color (white = in range)
-
-        currentSegmentPoints.Add(current + elevation); // Start from the unit's position
-
-        // Traverse the full path, segment-by-segment
-        while (currentIndex < pathPoints.Count - 1)
         {
-            Vector3 a = pathPoints[currentIndex];         // Current segment start
-            Vector3 b = pathPoints[currentIndex + 1];     // Segment end
-            float segLength = Vector3.Distance(a, b);     // Length of segment
-            Vector3 dir = (b - a).normalized;             // Direction of segment
-            float remaining = segLength;                  // Distance still to walk in this segment
+            previewContainer = new GameObject("PathPreviewContainer");
+            SetParent(previewContainer);
+        }
+        else
+        {
+            DestroyAllChildren(previewContainer);
+        }
 
-            // Walk along the current segment in `stepSize` increments
-            while (remaining >= stepSize)
+        // 4 Flatten Pathfinding.Node list to Vec3
+        List<Vector3> pathPoints = new List<Vector3>(path.Count + 1) { start };
+        foreach (var n in path) pathPoints.Add(n.worldPos);
+
+        // 5 Compute total path length
+        float totalDistance = 0f;
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+            totalDistance += Vector3.Distance(pathPoints[i], pathPoints[i + 1]);
+        if (totalDistance <= 0f) return;
+
+        // 6 Sample along the path at fixed increments
+        float stepSize = 1f;
+        Vector3 elevation = new Vector3(0f, 0.6f, 0f);
+        float distanceSoFar = 0f;
+        Vector3 current = start;
+        var sampled = new List<Vector3> { start + elevation };
+
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+        {
+            Vector3 a = pathPoints[i];
+            Vector3 b = pathPoints[i + 1];
+            float segLength = Vector3.Distance(a, b);
+            Vector3 dir = (b - a).normalized;
+
+            float walked = 0f;
+            while (walked < segLength)
             {
-                current += dir * stepSize;
-                distanceSoFar += stepSize;
+                float move = Mathf.Min(stepSize, segLength - walked);
+                walked += move;
+                distanceSoFar += move;
+                current = a + dir * walked;
+                var elevated = current + elevation;
 
-                // Decide what color this point should be (white if in range, red if not)
-                Color newColor = distanceSoFar <= maxDistance ? Color.white : Color.red;
-                Vector3 elevated = current + elevation;
-
-                // the OUT variable = white distance covered
+                // record the 'in-range' positions
                 if (distanceSoFar <= maxDistance)
                     reachablePath.Add(elevated);
 
-                // Color transition: if we've crossed from white to red (or vice versa)
-                if (newColor != currentColor)
-                {
-                    // Insert a short blending segment between last white and first red point
-                    if (currentSegmentPoints.Count > 0)
-                    {
-                        Vector3 blendStart = currentSegmentPoints[currentSegmentPoints.Count - 1];
-                        Vector3 blendEnd = elevated;
-                        CreateGradientSegment(blendStart, blendEnd, currentColor, newColor);
-                    }
+                sampled.Add(elevated);
 
-                    // Finalize the current white/red segment
-                    CreateSegment(currentSegmentPoints, currentColor);
-                    currentSegmentPoints.Clear();
-
-                    // Start the new segment with the current point
-                    currentSegmentPoints.Add(elevated);
-                    currentColor = newColor;
-                }
-
-                // Add this point to the current segment
-                currentSegmentPoints.Add(elevated);
-                remaining -= stepSize;
+                if (drawToMaxOnly && distanceSoFar >= maxDistance)
+                    break;
             }
-
-            currentIndex++;
+            if (drawToMaxOnly && distanceSoFar >= maxDistance)
+                break;
         }
 
-        // Add the final segment (if it has at least two points)
-        if (currentSegmentPoints.Count > 1)
-            CreateSegment(currentSegmentPoints, currentColor);
-    }
-
-    private static LineRenderer pathLineRenderer;
-    //private static LineRenderer pathLineRenderer;
-    //private static Transform previewContainer;
-    public static void ClearStaticPath()
-    {
-        if (pathLineRenderer != null)
-            pathLineRenderer.positionCount = 0;
-    }
-
-    public static void DrawPathf(List<Vector3> points)
-    {
-        if (points == null || points.Count < 2)
-        {
-            ClearStaticPath(); // Clear if path is too short
+        if (sampled.Count < 2)
             return;
-        }
 
-        if (previewContainer == null)
-            previewContainer = new GameObject("PathPreviewContainer").transform;
+        // 7 Create a single LineRenderer
+        var go = new GameObject("PathPreviewLine");
+        go.transform.SetParent(previewContainer.transform, worldPositionStays: true);
+        var lr = go.AddComponent<LineRenderer>();
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.widthMultiplier = 0.1f;
+        lr.useWorldSpace = true;
+        lr.loop = false;
 
-        if (pathLineRenderer == null)
+        lr.positionCount = sampled.Count;
+        lr.SetPositions(sampled.ToArray());
+
+        // 8 Build a 4-key gradient: white → blend → red
+        float split = Mathf.Clamp01(maxDistance / totalDistance);
+        var gradient = new Gradient();
+
+        if (split <= 0f)
         {
-            GameObject obj = new GameObject("DrawnPath");
-            obj.transform.SetParent(previewContainer);
-
-            pathLineRenderer = obj.AddComponent<LineRenderer>();
-            pathLineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            pathLineRenderer.widthMultiplier = 0.1f;
-            pathLineRenderer.useWorldSpace = true;
-            pathLineRenderer.loop = false;
+            // all red
+            gradient.SetKeys(
+                new[] {
+                new GradientColorKey(Color.red, 0f),
+                new GradientColorKey(Color.red, 1f)
+                },
+                new[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+                }
+            );
+        }
+        else if (split >= 1f)
+        {
+            // all white
+            gradient.SetKeys(
+                new[] {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+                },
+                new[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+                }
+            );
+        }
+        else
+        {
+            // white until split, then red (instant blend)
+            gradient.SetKeys(
+                new[] {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, split),
+                new GradientColorKey(Color.red,   split),
+                new GradientColorKey(Color.red,   1f)
+                },
+                new[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+                }
+            );
         }
 
-        pathLineRenderer.startColor = Color.white;
-        pathLineRenderer.endColor = Color.white;
+        lr.colorGradient = gradient;
 
-        pathLineRenderer.positionCount = points.Count;
-        pathLineRenderer.SetPositions(points.ToArray());
+        // 9 Track for cleanup
+        previewSegments.Add(lr);
     }
 
-    private static GameObject objTemp;
-    private static LineRenderer rendererLineTemp; 
-
-    public static void ClearState()
+    public static void ClearPathPreview()
     {
-        //rendererLineTemp.positionCount = 0;
-        //rendererLineTemp = null; 
-        GameObject.Destroy(objTemp);
-        GameObject.Destroy(GameObject.Find("PathPreviewContainer"));
-        reachablePath.Clear();
-        //objTemp = null;
+        //if (pathLineRenderer != null)
+        //    pathLineRenderer.positionCount = 0;
+
+        //previewSegments.Clear();
+
+        // Destroy all existing segment objects
+        //if (previewContainer != null)
+        //{
+        //    for (int i = previewContainer.transform.childCount - 1; i >= 0; i--)
+        //        GameObject.Destroy(previewContainer.transform.GetChild(i).gameObject);
+        //}
+        //previewSegments.Clear();
     }
+
+   
+
 
     public static void DrawPath(List<Vector3> points)
     {
         ClearPathPreview(); // clear previous render
 
-        if (points == null || points.Count < 2)
-            return;
-
-        if (previewContainer == null)
-            previewContainer = new GameObject("PathPreviewContainer").transform;
-
-        if (objTemp == null)
-        {
-            //GameObject obj = new GameObject("DrawnPath");
-            //objTemp = obj;
-            objTemp = new GameObject("DrawnPath");
-            var obj = objTemp;
-            obj.transform.parent = previewContainer;
-
-            var lr = obj.AddComponent<LineRenderer>();
-            rendererLineTemp = lr;
-            lr.positionCount = points.Count;
-            lr.SetPositions(points.ToArray());
-            lr.material = new Material(Shader.Find("Sprites/Default"));
-            lr.startColor = Color.white;
-            lr.endColor = Color.white;
-            lr.widthMultiplier = 0.1f;
-            lr.useWorldSpace = true;
-            lr.loop = false;
-        }
-
-        rendererLineTemp.positionCount = points.Count;
-        rendererLineTemp.SetPositions(points.ToArray());
-        previewSegments.Add(lr);
-    }
-
-    public static void DrawPath2(List<Vector3> points)
-    {
-        if (points == null || points.Count < 2)
-            return;
-
-        if (previewContainer == null)
-            previewContainer = new GameObject("PathPreviewContainer").transform;
-
-        // Reuse or create once
-        if (pathLineRenderer == null)
-        {
-            GameObject obj = new GameObject("DrawnPath");
-            obj.transform.parent = previewContainer;
-
-            pathLineRenderer = obj.AddComponent<LineRenderer>();
-            pathLineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            pathLineRenderer.widthMultiplier = 0.1f;
-            pathLineRenderer.useWorldSpace = true;
-            pathLineRenderer.loop = false;
-            pathLineRenderer.startColor = Color.white;
-            pathLineRenderer.endColor = Color.white;
-        }
-
-        pathLineRenderer.positionCount = points.Count;
-        pathLineRenderer.SetPositions(points.ToArray());
+        //if (points == null || points.Count < 2)
+        //    return;
+        //
+        //if (previewContainer == null)
+        //    previewContainer = new GameObject("PathPreviewContainer").transform;
+        //
+        //if (objTemp == null)
+        //{
+        //    //GameObject obj = new GameObject("DrawnPath");
+        //    //objTemp = obj;
+        //    objTemp = new GameObject("DrawnPath");
+        //    var obj = objTemp;
+        //    obj.transform.parent = previewContainer;
+        //
+        //    var lr = obj.AddComponent<LineRenderer>();
+        //    rendererLineTemp = lr;
+        //    lr.positionCount = points.Count;
+        //    lr.SetPositions(points.ToArray());
+        //    lr.material = new Material(Shader.Find("Sprites/Default"));
+        //    lr.startColor = Color.white;
+        //    lr.endColor = Color.white;
+        //    lr.widthMultiplier = 0.1f;
+        //    lr.useWorldSpace = true;
+        //    lr.loop = false;
+        //}
+        //
+        //rendererLineTemp.positionCount = points.Count;
+        //rendererLineTemp.SetPositions(points.ToArray());
+        //previewSegments.Add(lineRendererCircle);
     }
 
 
-    // Creates a short 2-point LineRenderer that blends from one color to another
-    private static void CreateGradientSegment(Vector3 from, Vector3 to, Color startColor, Color endColor)
-    {
-        GameObject obj = new GameObject("BlendSegment");
-        obj.transform.parent = previewContainer;
+    // ====================== End Visualisers ============================= //
 
-        var lr = obj.AddComponent<LineRenderer>();
-        lr.positionCount = 2;
-        lr.SetPosition(0, from);
-        lr.SetPosition(1, to);
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.widthMultiplier = 0.1f;
-        lr.useWorldSpace = true;
-        lr.loop = false;
-
-        Gradient g = new Gradient();
-        g.SetKeys(
-            new GradientColorKey[]
-            {
-            new GradientColorKey(startColor, 0f),
-            new GradientColorKey(endColor, 1f)
-            },
-            new GradientAlphaKey[]
-            {
-            new GradientAlphaKey(1f, 0f),
-            new GradientAlphaKey(1f, 1f)
-            });
-
-        lr.colorGradient = g;
-
-        previewSegments.Add(lr);
-    }
-
-    // Creates a solid-colored LineRenderer from a list of points
-    private static void CreateSegment(List<Vector3> points, Color color)
-    {
-        GameObject obj = new GameObject("PathSegment");
-        obj.transform.parent = previewContainer;
-
-        var lr = obj.AddComponent<LineRenderer>();
-        lr.positionCount = points.Count;
-        lr.SetPositions(points.ToArray());
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.startColor = color;
-        lr.endColor = color;
-        lr.widthMultiplier = 0.1f;
-        lr.useWorldSpace = true;
-        lr.loop = false;
-
-        previewSegments.Add(lr);
-    }
-
-    // Deletes all previous LineRenderers
-    public static void ClearPathPreview()
-    {
-        if (previewSegments.Count > 0)
-        {
-            foreach (var seg in previewSegments)
-                if (seg != null)
-                    GameObject.Destroy(seg.gameObject);
-            previewSegments.Clear();
-        }
-    }
-
-
-    public static void DrawPathPreview13(Vector3 start, Vector3 end, List<Pathfinding.Node> path, float maxDistance)
-    {
-        if (path == null || path.Count == 0)
-        {
-            ClearPathPreview();
-            return;
-        }
-
-        if (pathLineObj == null)
-        {
-            pathLineObj = new GameObject("PathPreviewLine");
-            pathLineRenderer = pathLineObj.AddComponent<LineRenderer>();
-            pathLineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            pathLineRenderer.widthMultiplier = 0.1f;
-            pathLineRenderer.loop = false;
-            pathLineRenderer.useWorldSpace = true;
-        }
-
-        float totalDistance = 0f;
-        totalDistance += Vector3.Distance(start, path[0].worldPos);
-        for (int i = 0; i < path.Count; i++)
-        {
-            if (i > 0)
-                totalDistance += Vector3.Distance(path[i - 1].worldPos, path[i].worldPos);
-        }
-
-        int count = Mathf.CeilToInt(maxDistance);
-
-        pathLineRenderer.positionCount = count;// path.Count + 1;
-        pathLineRenderer.startColor = Color.white;
-        pathLineRenderer.endColor = Color.white;
-
-        Vector3 elevation = new Vector3(0, 0.6f);
-
-        pathLineRenderer.SetPosition(0, start + elevation);
-
-        List<Vector3> positions = new List<Vector3>();
-        List<GradientColorKey> colorKeys = new List<GradientColorKey>();
-        List<GradientAlphaKey> alphaKeys = new List<GradientAlphaKey>();
-
-        // Start point
-        Vector3 prev = start + elevation;
-        positions.Add(prev);
-        float distanceSoFar = 0f;
-        colorKeys.Add(new GradientColorKey(Color.white, 0f));
-        alphaKeys.Add(new GradientAlphaKey(1f, 0f));
-
-        Debug.Log("zabre " + count + " max: " + maxDistance);
-
-        // Walk through the path and subdivide
-        for (int i = 1; i < count; i++)
-        {
-            float interpolationRatio = (float)i / (float)count;
-
-            Vector3 interpolatedPosition = Vector3.Lerp(Vector3.up, Vector3.forward, interpolationRatio);
-
-            Vector3 next = interpolatedPosition; // here use some interpolation to find the vec3 point
-            float segmentLength = Vector3.Distance(prev, next);
-            distanceSoFar += segmentLength;
-
-            float t = Mathf.Clamp01(distanceSoFar / totalDistance);
-            Color color = distanceSoFar <= maxDistance ? Color.white : Color.red;
-
-            positions.Add(next);
-            colorKeys.Add(new GradientColorKey(color, t));
-            alphaKeys.Add(new GradientAlphaKey(1f, t));
-
-            prev = next;
-        }
-
-        // Set LineRenderer
-        pathLineRenderer.positionCount = positions.Count;
-        pathLineRenderer.SetPositions(positions.ToArray());
-
-        Gradient gradient = new Gradient();
-        gradient.SetKeys(colorKeys.ToArray(), alphaKeys.ToArray());
-        pathLineRenderer.colorGradient = gradient;
-    }
-
-   /* Debug.Log("POSITION " +  path[0].worldPos);
-        float distanceSoFar = 0f;
-        distanceSoFar += Vector3.Distance(start, path[0].worldPos);
-        for (int i = 0; i < path.Count; i++)
-        {
-            pathLineRenderer.SetPosition(i + 1, path[i].worldPos + elevation);
-
-            if (i > 0)
-                distanceSoFar += Vector3.Distance(path[i - 1].worldPos, path[i].worldPos);
-        }
-
-        // Decide gradient color split
-        // Recalculate totalDistance for full path
-        float totalDistance = 0f;
-        for (int i = 1; i < path.Count; i++)
-            totalDistance += Vector3.Distance(path[i - 1].worldPos, path[i].worldPos);
-
-        float maxDist = Mathf.Max(0.001f, maxDistance); // avoid divide by zero
-        float affordRatio = Mathf.Clamp01(maxDist / totalDistance);
-
-        // Set color gradient split
-        Gradient gradient = new Gradient();
-        GradientColorKey[] colorKeys = new GradientColorKey[]
-        {
-            new GradientColorKey(Color.white, 0f),
-            new GradientColorKey(Color.white, affordRatio),
-            new GradientColorKey(Color.red, affordRatio + 0.001f),
-            new GradientColorKey(Color.red, 1f)
-        };
-
-        GradientAlphaKey[] alphaKeys = new GradientAlphaKey[]
-        {
-            new GradientAlphaKey(1f, 0f),
-            new GradientAlphaKey(1f, 1f)
-        };
-
-        gradient.SetKeys(colorKeys, alphaKeys);
-        pathLineRenderer.colorGradient = gradient;
-    }*/
-
-
-    public static void DrawPathPreview2(Vector3 start, List<Pathfinding.Node> path, float maxDistance)
-    {
-        if (path == null || path.Count < 2)
-        {
-            ClearPathPreview();
-            return;
-        }
-
-        if (pathLineObj == null)
-        {
-            pathLineObj = new GameObject("PathPreviewLine");
-            pathLineRenderer = pathLineObj.AddComponent<LineRenderer>();
-            pathLineRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            pathLineRenderer.widthMultiplier = pathWidth;
-            pathLineRenderer.loop = false;
-            pathLineRenderer.useWorldSpace = true;
-            pathLineRenderer.positionCount = 0;
-        }
-
-        pathLineRenderer.positionCount = path.Count;
-
-        float distanceSoFar = 0f;
-        distanceSoFar += Vector3.Distance(start, path[0].worldPos);
-        pathLineRenderer.SetPosition(0, start);
-
-        for (int i = 1; i < path.Count; i++)
-        {
-            pathLineRenderer.SetPosition(i, path[i].worldPos);
-
-            if (i > 0)
-                distanceSoFar += Vector3.Distance(path[i - 1].worldPos, path[i].worldPos);
-        }
-
-        // Decide gradient color split
-        Gradient gradient = new Gradient();
-        GradientColorKey[] colorKeys;
-        GradientAlphaKey[] alphaKeys;
-
-        float threshold = Mathf.Clamp01(maxDistance / Mathf.Max(distanceSoFar, 0.001f));
-        colorKeys = new GradientColorKey[]
-        {
-        new GradientColorKey(Color.white, 0f),
-        new GradientColorKey(Color.white, threshold),
-        new GradientColorKey(Color.red, threshold + 0.01f),
-        new GradientColorKey(Color.red, 1f)
-        };
-
-        alphaKeys = new GradientAlphaKey[]
-        {
-        new GradientAlphaKey(1f, 0f),
-        new GradientAlphaKey(1f, 1f)
-        };
-
-        gradient.SetKeys(colorKeys, alphaKeys);
-        pathLineRenderer.colorGradient = gradient;
-    }
-
-
-    public static void HighlightTargets(Vector3 center, float radius)
-    {
-        ClearHighlights();
-
-        var hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("Characters", "Destructibles", "HostileNPCs"));
-        foreach (var col in hits)
-        {
-            var rend = col.GetComponentInChildren<Renderer>();
-            if (rend != null && rend.material.HasProperty("_EmissionColor"))
-            {
-                rend.material.EnableKeyword("_EMISSION");
-                rend.material.SetColor("_EmissionColor", highlightColor);
-                highlighted.Add(rend);
-            }
-        }
-    }
-
-    public static void Hide()
-    {
-        if (circleObj != null)
-        {
-            UnityEngine.Object.Destroy(circleObj);
-            circleObj = null;
-            lr = null;
-        }
-
-        ClearHighlights();
-    }
-
-    private static void ClearHighlights()
-    {
-        foreach (var rend in highlighted)
-        {
-            if (rend != null && rend.material.HasProperty("_EmissionColor"))
-            {
-                rend.material.SetColor("_EmissionColor", Color.black);
-                rend.material.DisableKeyword("_EMISSION");
-            }
-        }
-
-        highlighted.Clear();
-    }
+   
 }

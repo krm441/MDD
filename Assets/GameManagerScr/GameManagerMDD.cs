@@ -85,8 +85,7 @@ public class GameManagerMDD : MonoBehaviour
     {
         ChangeState(GameStateEnum.Exploration);
     }
-
-   
+       
 }
 
 

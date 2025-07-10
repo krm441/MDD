@@ -18,6 +18,17 @@ public static class Console
 #endif
     }
 
+    public static void ScrLoopLog(params object[] args)
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        string msg = BuildMessage(args, false);
+        //if (enabled) Debug.Log(msg);
+
+        if (ConsoleUIManager.Instance != null)
+            ConsoleUIManager.Instance.Append(msg);
+#endif
+    }
+
     public static void Log(params object[] args)
     {
 #if UNITY_EDITOR

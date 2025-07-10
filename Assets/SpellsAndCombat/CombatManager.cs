@@ -23,7 +23,7 @@ public class CombatManager //: MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
         {
             Vector3 hoverPoint = hit_b.point;
-            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius);
+            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius, Color.yellow);
             AimingVisualizer.HighlightTargets(hoverPoint, spell.radius);
         }
     }
@@ -51,10 +51,10 @@ public class CombatManager //: MonoBehaviour
             }
 
             ApplySpell(caster, spell, hit.point);
-            AimingVisualizer.DrawImpactCircle(hit.point, spell.radius);
+            AimingVisualizer.DrawImpactCircle(hit.point, spell.radius, Color.red);
 
             // Reset casting state
-            caster.DeselectSpell();
+            //caster.DeselectSpell();
             //GameManagerMDD.GetCurrentState().SetMovementSubState();//  interactionSubstate = InteractionSubstate.Default;
         }
     }
@@ -71,7 +71,7 @@ public class CombatManager //: MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit_b, 100f))
         {
             Vector3 hoverPoint = hit_b.point;
-            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius);
+            AimingVisualizer.ShowAimingCircle(hoverPoint, spell.radius, Color.yellow);
             AimingVisualizer.HighlightTargets(hoverPoint, spell.radius);
         }
 
@@ -95,10 +95,10 @@ public class CombatManager //: MonoBehaviour
                 }
 
                 ApplySpell(caster, spell, hit.point);
-                AimingVisualizer.DrawImpactCircle(hit.point, spell.radius);
+                AimingVisualizer.DrawImpactCircle(hit.point, spell.radius, Color.red);
 
                 // Reset casting state
-                caster.DeselectSpell();
+                //caster.DeselectSpell();
                 //GameManagerMDD.GetCurrentState().SetMovementSubState();//  interactionSubstate = InteractionSubstate.Default;
             }
         }
