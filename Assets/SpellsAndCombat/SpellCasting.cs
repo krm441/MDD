@@ -64,70 +64,133 @@ public static class SpellRangeBackend
         return new Path { pathNodes = nodes };
     }
 
-    
+    // SpellRangeBackend.cs
     public static Path calculateRangeSpell(
-        float spellRadius,
+        float castRange,
         int spellCost,
         int availableAP,
         float speed,
         Vector3 start,
         Vector3 end,
-        out bool inRange)
+        out bool inRange
+    )
     {
         inRange = false;
-        if (grid == null)
-        {
-            Console.Error("SpellRangeBackend::calculateRangeSpell: GridSystem not found in scene.");
-            return null;
-        }
+        if (grid == null) { Console.Error("Err"); return null; }
 
         var fullNodes = grid.FindPathTo(end, start);
-        if (fullNodes == null || fullNodes.Count == 0)
-            return null;
+        if (fullNodes == null || fullNodes.Count == 0) return null;
 
-        // Build cumulative distance list
-        List<float> cumulativeDist = new List<float>(fullNodes.Count);
-        float totalDist = 0f;
+        // Build cumulative distances
+        var cumulative = new List<float>(fullNodes.Count);
+        float total = 0f, walked = 0f;
         Vector3 prev = start;
-        foreach (var node in fullNodes)
+        foreach (var n in fullNodes)
         {
-            totalDist += Vector3.Distance(prev, node.worldPos);
-            cumulativeDist.Add(totalDist);
-            prev = node.worldPos;
+            total += Vector3.Distance(prev, n.worldPos);
+            cumulative.Add(total);
+            prev = n.worldPos;
         }
 
-        // Distance needed to walk to be within spell radius
-        float needDist = Mathf.Max(0f, totalDist - spellRadius);
-        // AP left for movement
+        // How far we must go to be in casting range
+        float need = Mathf.Max(0f, total - castRange);
+        // How far we can go on remaining AP
         int moveAP = Mathf.Max(0, availableAP - spellCost);
-        float maxWalkDist = moveAP * speed;
+        float canGo = moveAP * speed;
 
-        List<Node> moveNodes;
+        // Actual walk distance
+        float walkDist = Mathf.Min(need, canGo);
+        inRange = canGo >= need;
 
-        if (needDist <= 0f)
+        // Take the prefix of nodes within walkDist
+        var moveNodes = new List<Node>();
+        if (walkDist > 0f)
         {
-            // Already in range
-            inRange = true;
-            moveNodes = new List<Node>();
-        }
-        else if (needDist <= maxWalkDist)
-        {
-            // Reachable within AP budget
-            inRange = true;
-            // find first node where cumulative >= needDist
-            int idx = cumulativeDist.FindIndex(d => d >= needDist);
-            moveNodes = idx >= 0 ? fullNodes.Take(idx + 1).ToList() : new List<Node>(fullNodes);
-        }
-        else
-        {
-            // Cannot reach cast range within AP
-            inRange = false;
-            // truncate to AP budget
-            int idx = cumulativeDist.FindIndex(d => d > maxWalkDist);
-            moveNodes = idx >= 0 ? fullNodes.Take(idx).ToList() : new List<Node>(fullNodes);
+            float remaining = walkDist;
+            Vector3 prevPos = start;
+
+            foreach (var n in fullNodes)
+            {
+                float segLen = Vector3.Distance(prevPos, n.worldPos);
+                if (remaining >= segLen)
+                {
+                    // We can reach this node fully
+                    moveNodes.Add(n);
+                    remaining -= segLen;
+                    prevPos = n.worldPos;
+                }
+                else
+                {
+                    // We run out of budget mid‐segment: make a partial node
+                    Vector3 partialPos = prevPos
+                        + (n.worldPos - prevPos).normalized * remaining;
+                    // Use partial node - accurate
+                    var partialNode = new Pathfinding.Node(n.gridPos, partialPos, n.isWalkable);
+                    moveNodes.Add(partialNode);
+                    break;
+                }
+            }
         }
 
         return new Path { pathNodes = moveNodes };
+    }
+
+    
+    public static Path VisualizeSpell(
+        float spellRadius,
+        float spellRange,
+        int spellCost,
+        int availableAP,
+        float speed,
+        Vector3 start,
+        Vector3 end,
+        out bool inRange
+    )
+    {
+        inRange = false;
+        Path movePath = null;
+
+        float dist = Vector3.Distance(start, end);
+        if (dist <= spellRange)
+        {
+            inRange = true;
+        }
+        else
+        {
+            // 1- how far to walk to cast
+            bool canCast;
+            movePath = SpellRangeBackend.calculateRangeSpell(
+                spellRange,
+                spellCost,
+                availableAP,
+                speed,
+                start,
+                end,
+                out canCast
+            );
+
+            // 2- draw just that walk
+            if (movePath?.pathNodes != null && movePath.pathNodes.Count > 0)
+            {
+                int moveAP = Mathf.Max(0, availableAP - spellCost);
+                float maxDist = moveAP * speed;           // full movement budget
+                AimingVisualizer.DrawPathPreview(
+                    start, end,
+                    movePath.pathNodes,
+                    maxDist,
+                    true
+                );
+                inRange = canCast;
+            }
+        }
+
+        // 3- now show the aiming circle at the target
+        var circleColor = inRange ? Color.green : Color.red;
+        AimingVisualizer.ShowAimingCircle(end, spellRadius, circleColor);
+        AimingVisualizer.DrawProjectileArc(start, end, circleColor);
+        AimingVisualizer.HighlightTargets(end, spellRadius);
+
+        return movePath;
     }
 }
 
@@ -153,8 +216,6 @@ public static class SpellVisualizer
 
         return path;
     }
-
-    
 
     /// <summary>
     /// Visualizes both the movement path needed (if exists) and the spell impact area
@@ -182,12 +243,7 @@ public static class SpellVisualizer
         else
         {
             movePath = SpellRangeBackend.calculateRangeSpell(
-                spellRadius, spellCost, availableAP, speed, start, end, out canCast);
-
-            if (movePath == null) 
-            {
-                Console.Error("here"); 
-            }
+                spellRange, spellCost, availableAP, speed, start, end, out canCast);
 
             // clear old preview
             AimingVisualizer.ClearPathPreview();
@@ -196,7 +252,7 @@ public static class SpellVisualizer
             if (movePath?.pathNodes != null && movePath.pathNodes.Count > 0)
             {
                 float moveAP = Mathf.Max(0, availableAP - spellCost);
-                float maxDist = moveAP * speed - spellRadius / 2f;
+                float maxDist = moveAP * speed;// - spellRadius / 2f;
                 AimingVisualizer.DrawPathPreview(start, end, movePath.pathNodes, maxDist, true);
                 inRange = canCast;
             }
@@ -208,7 +264,10 @@ public static class SpellVisualizer
             : Color.red;
 
         AimingVisualizer.ShowAimingCircle(end, spellRadius, circleColor);
-        AimingVisualizer.DrawProjectileArc(start, end, circleColor); // ballistic trajectory
+        if(movePath !=  null && movePath.pathNodes.Count > 0)
+            AimingVisualizer.DrawProjectileArc(movePath.pathNodes.Last().worldPos, end, circleColor);
+        else
+            AimingVisualizer.DrawProjectileArc(start, end, circleColor); // ballistic trajectory
         AimingVisualizer.HighlightTargets(end, spellRadius);
 
         return movePath;

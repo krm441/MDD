@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -66,6 +67,63 @@ namespace PartyManagement
 
         public MovementController movementController;
 
+        /// <summary>
+        /// Coroutine: Moves and deducts AP based on path length
+        /// </summary>
+        /// <param name="nodes">Path to move</param>
+        /// <returns></returns>
+        public IEnumerator MoveAlongPathRoutine(Pathfinding.Path nodes)
+        {
+            if (nodes == null) yield break;
+            foreach (var node in nodes.pathNodes)
+            {
+                Vector3 target = node.worldPos;
+                while (Vector3.Distance(transform.position, target) > 0.01f)
+                {
+                    transform.position = Vector3.MoveTowards(
+                        transform.position,
+                        target,
+                        stats.Speed * Time.deltaTime
+                    );
+                    yield return null;
+                }
+            }
+
+            DeductActionPoints(nodes);
+        }
+
+        /// <summary>
+        /// Coroutine: Moves then casts at targetPoint - then invokes onComplete
+        /// </summary>
+        /// <param name="spell"></param>
+        /// <param name="path"></param>
+        /// <param name="targetPoint"></param>
+        /// <param name="onComplete"></param>
+        /// <returns></returns>
+        public IEnumerator CastSpellWithMovement(
+            Spell spell,
+            Pathfinding.Path path,
+            Vector3 targetPoint,
+            Action onComplete
+        )
+        {
+            // 1- Walk first
+            if (path != null)
+                yield return StartCoroutine(MoveAlongPathRoutine(path));
+
+            // 2- Cast at targetPoint when walk is over
+            // onComplete callback is passed to ApplySpell in Combat manager
+            CombatManager.ApplySpell(this, spell, targetPoint, () =>
+            {
+                // only after the animation spell is over
+                AimingVisualizer.DrawImpactCircle(targetPoint, spell.radius, Color.red);
+                DeductActionPoints(spell.apCost);
+                onComplete?.Invoke();
+            });
+        }
+    
+
+
         void Start()
         {
             // Auto-fetch if not set - need revision
@@ -96,6 +154,8 @@ namespace PartyManagement
         {
             movementController?.StopMovement();
         }
+
+       
 
         public void DeductActionPoints(Pathfinding.Path path)
         {

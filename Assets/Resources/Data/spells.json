@@ -21,6 +21,7 @@
             "shotcutKey": "R",
             "prefabMeshEffect": "",
             "manaCost": 0,
+            "apCost": 2,
             "range": 0,
             "radius": 0
         }

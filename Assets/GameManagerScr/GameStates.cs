@@ -18,6 +18,8 @@ public interface IGameState
     void SetMovementSubState();
 
     void SetSubstate(ISubstate newSubstate);
+
+    ISubstate GetSubstate();
 }
 
 // base class

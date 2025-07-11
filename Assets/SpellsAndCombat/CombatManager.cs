@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
 using Pathfinding;
@@ -28,6 +29,34 @@ public class CombatManager //: MonoBehaviour
         }
     }
 
+    public static void CastSpell(CharacterUnit caster, Spell spell, Vector3 target)
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            if (spell == null)
+            {
+                Debug.LogWarning("No spell selected.");
+                return;
+            }
+
+            float dist = Vector3.Distance(caster.transform.position, hit.point);
+            if (dist > spell.range)
+            {
+                Debug.Log("Target out of range.");
+                return;
+            }
+
+            ApplySpell(caster, spell, hit.point, null);
+            AimingVisualizer.DrawImpactCircle(hit.point, spell.radius, Color.red);
+
+            // Reset casting state
+            //caster.DeselectSpell();
+            //GameManagerMDD.GetCurrentState().SetMovementSubState();//  interactionSubstate = InteractionSubstate.Default;
+        }
+    }
+
     public static void CastSelectedSpell()
     {
         AimingVisualizer.Hide();
@@ -50,7 +79,7 @@ public class CombatManager //: MonoBehaviour
                 return;
             }
 
-            ApplySpell(caster, spell, hit.point);
+            ApplySpell(caster, spell, hit.point, null);
             AimingVisualizer.DrawImpactCircle(hit.point, spell.radius, Color.red);
 
             // Reset casting state
@@ -94,7 +123,7 @@ public class CombatManager //: MonoBehaviour
                     return;
                 }
 
-                ApplySpell(caster, spell, hit.point);
+                ApplySpell(caster, spell, hit.point, null);
                 AimingVisualizer.DrawImpactCircle(hit.point, spell.radius, Color.red);
 
                 // Reset casting state
@@ -104,7 +133,7 @@ public class CombatManager //: MonoBehaviour
         }
     }
 
-    public static void ApplySpell(CharacterUnit caster, Spell spell, Vector3 targetPosition)
+    public static void ApplySpell(CharacterUnit caster, Spell spell, Vector3 targetPosition, Action onImpactComplete)
     {
         Debug.Log("SPELL FIRE");
 
@@ -129,6 +158,8 @@ public class CombatManager //: MonoBehaviour
             {
                 Debug.Log("ApplySpell::No hits");
             }
+
+            onImpactComplete?.Invoke();
         });       
     }
 

@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
+using Pathfinding;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -16,6 +18,8 @@ public interface ISubstate
     void Exit();
 
     InteractionSubstate Type { get; }
+
+    bool AnimationFinished { get; set; }
 }
 
 public abstract class SubStateBase : ISubstate
@@ -34,6 +38,8 @@ public abstract class SubStateBase : ISubstate
     public virtual void Enter() { }
     public virtual void Update() { }
     public virtual void Exit() { }
+
+    public bool AnimationFinished { get; set; }
 }
 
 public class MovementSubstate : SubStateBase
@@ -247,6 +253,14 @@ public class TurnBasedCasting : SubStateBase
 
     public override void Update()
     {
+        // early return
+        if(PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().apCost > PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints)
+        {
+            GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+            return;
+        }
+
+
         if (Input.GetMouseButtonDown(1))
         {
             AimingVisualizer.Hide();
@@ -256,41 +270,53 @@ public class TurnBasedCasting : SubStateBase
 
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         bool inRange = false;
+        Pathfinding.Path path = null;
         if (Physics.Raycast(ray, out var hit))
         {
-            //Pathfinding.Path path = 
+            path = SpellVisualizer.VisualizeSpell(
+                PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().radius,
+                PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range,
+                PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().apCost,
+                PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints,
+                PartyManagement.PartyManager.CurrentSelected.stats.Speed,
+                PartyManagement.PartyManager.CurrentSelected.transform.position,
+                hit.point,
+                out inRange
+                );
 
-            //if (PartyManagement.PartyManager.CurrentSelected == null) 
-            //    Console.Error("null");
-            //
-            //var rad = PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().radius;
-            //var ran = PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range;
-
-                SpellVisualizer.VisualizeSpell(
-            PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().radius,
-            PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range,
-            3, // ap cost
-            PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints,
-            PartyManagement.PartyManager.CurrentSelected.stats.Speed,
-            PartyManagement.PartyManager.CurrentSelected.transform.position,
-            hit.point,
-            out inRange
-            );
-
-            //Console.LoopLog("RANGE", PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range);
         }
-
-        //CombatManager.VisualiseSpellImpactArea();
 
         if (Input.GetMouseButtonDown(0))
         {
             if (inRange)
             {
-                CombatManager.CastSelectedSpell();                
-                var spellCost = PartyManagement.PartyManager.CurrentSelected.currentlySelectedSpell.apCost;
-                PartyManagement.PartyManager.CurrentSelected.DeductActionPoints(spellCost);
-            }
+                var caster = PartyManagement.PartyManager.CurrentSelected;
+                var spell = caster.GetSelectedSpell();
+                int cost = spell.apCost;
+                //var nodes = path?.pathNodes;
+                var target = hit.point;
+
+                // This will first walk the nodes
+                // Then call CombatManager.CastSpell
+                // then deduct AP, then finally invoke our callback
+                gameManager.StartCoroutine(
+                    caster.CastSpellWithMovement(
+                        spell,
+                        path,
+                        target,
+                        () => {
+                            // only runs after move + cast are done (when spell animation is over)
+                            AimingVisualizer.Hide();
+                            GameManagerMDD.GetCurrentState().GetSubstate().AnimationFinished = true;
+                        }
+                    )
+                );
+            }            
+        }
+        if (GameManagerMDD.GetCurrentState().GetSubstate().AnimationFinished)
+        {
             GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+            AnimationFinished = false;
         }
     }
     public override void Exit()
