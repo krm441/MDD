@@ -7,8 +7,9 @@
             "iconPath": "SpellIcons\\FireballIcn",
             "shotcutKey": "F",
             "prefabMeshEffect": "",
-            "manaCost": 10,
+            "physicsType": 2,
             "apCost": 3,
+            "manaCost": 10,
             "range": 10,
             "radius": 3,
             "vfxType": "fireball"
@@ -20,10 +21,12 @@
             "iconPath": "SpellIcons\\MeleeAttack",
             "shotcutKey": "R",
             "prefabMeshEffect": "",
-            "manaCost": 0,
+            "physicsType": 0,
             "apCost": 2,
+            "manaCost": 0,
             "range": 0,
-            "radius": 0
+            "radius": 1,
+            "vfxType": ""
         }
     ]
 }

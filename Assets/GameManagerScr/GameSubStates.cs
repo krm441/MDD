@@ -274,9 +274,7 @@ public class TurnBasedCasting : SubStateBase
         if (Physics.Raycast(ray, out var hit))
         {
             path = SpellVisualizer.VisualizeSpell(
-                PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().radius,
-                PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().range,
-                PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().apCost,
+                PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell(),
                 PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints,
                 PartyManagement.PartyManager.CurrentSelected.stats.Speed,
                 PartyManagement.PartyManager.CurrentSelected.transform.position,
@@ -298,7 +296,7 @@ public class TurnBasedCasting : SubStateBase
 
                 // This will first walk the nodes
                 // Then call CombatManager.CastSpell
-                // then deduct AP, then finally invoke our callback
+                // then deduct AP, then finally invoke callback
                 gameManager.StartCoroutine(
                     caster.CastSpellWithMovement(
                         spell,

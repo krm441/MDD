@@ -30,6 +30,13 @@ public class SpellBook
     private List<Spell> spells = new List<Spell>();
 }
 
+public enum SpellPhysicsType
+{
+    Static,
+    Linear,
+    Parabolic, // arc like
+}
+
 [System.Serializable]
 public class Spell
 {
@@ -39,6 +46,7 @@ public class Spell
     public string iconPath;
     public string shotcutKey;
     public string prefabMeshEffect; // mesh or effect prefab path
+    public SpellPhysicsType physicsType;
     public int apCost;
     public int manaCost;
     public int range;

@@ -45,6 +45,7 @@ public class SpellEditorWindow : EditorWindow
             spell.range = EditorGUILayout.IntField("Range", spell.range);
             spell.radius = EditorGUILayout.IntField("Radius", spell.radius);
             spell.vfxType = EditorGUILayout.TextField("VFX", spell.vfxType);
+            spell.physicsType = (SpellPhysicsType)EditorGUILayout.EnumPopup("Physics Type", spell.physicsType);
 
             if (GUILayout.Button("Remove Spell"))
             {
