@@ -217,6 +217,6 @@ public class TurnBasedState : GameStateBase
         //PartyManager.CurrentSelected = selectedUnitBeforeCombat;
         //SpellMap.BuildIconBar(currentUnit);
         //
-        //Console.Error("Exiting Combat");
+        Console.Error("Exiting Combat");
     }
 }

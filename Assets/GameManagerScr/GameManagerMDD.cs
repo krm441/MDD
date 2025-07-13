@@ -30,6 +30,13 @@ public enum InteractionSubstate
     AI_Turn,        // invoked in turn based mode, platform for AI turn based BTs
 }
 
+public enum SpellCastingAnimationStates
+{
+    None,
+    Animation,
+    Finished
+}
+
 // singleton - persistent
 public class GameManagerMDD : MonoBehaviour
 {
@@ -64,6 +71,7 @@ public class GameManagerMDD : MonoBehaviour
     void Update()
     {
         currentState?.Update();
+        MouseTracker.Update();
     }
 
     public static void ChangeState(GameStateEnum newState)

@@ -15,3 +15,18 @@ public static class TimerUtility
         callback?.Invoke();
     }
 }
+
+public static class MouseTracker
+{
+    private static Vector3 lastPosition;
+    private static bool mouseMoved;
+
+    public static bool MouseMovedThisFrame => mouseMoved;
+
+    public static void Update()
+    {
+        Vector3 currentPos = Input.mousePosition;
+        mouseMoved = currentPos != lastPosition;
+        lastPosition = currentPos;
+    }
+}
