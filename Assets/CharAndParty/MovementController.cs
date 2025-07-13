@@ -41,12 +41,8 @@ public class MovementController : MonoBehaviour
         foreach (Node node in path)
         {
             Vector3 targetPos = node.worldPos;
-            targetPos.y = transform.position.y;
 
-            if ((targetPos - transform.position).sqrMagnitude > 0.01f)
-            {
-                transform.rotation = Quaternion.LookRotation(targetPos - transform.position);
-            }
+            LookAtTarget(targetPos);
 
             while (Vector3.Distance(transform.position, targetPos) > 0.05f)
             {
@@ -56,6 +52,16 @@ public class MovementController : MonoBehaviour
         }
 
         movementCoroutine = null;
+    }
+
+    public void LookAtTarget(Vector3 targetPos)
+    {
+        targetPos.y = transform.position.y;
+
+        if ((targetPos - transform.position).sqrMagnitude > 0.01f)
+        {
+            transform.rotation = Quaternion.LookRotation(targetPos - transform.position);
+        }
     }
 
     private IEnumerator FollowPath(List<Vector3> path, float speed)

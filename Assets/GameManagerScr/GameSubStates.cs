@@ -289,8 +289,8 @@ public class TurnBasedCasting : SubStateBase
             if (inRange)
             {
                 var caster = PartyManagement.PartyManager.CurrentSelected;
-                var spell = caster.GetSelectedSpell();
-                int cost = spell.apCost;
+                //var spell = caster.GetSelectedSpell();
+                //int cost = spell.apCost;
                 //var nodes = path?.pathNodes;
                 var target = hit.point;
 
@@ -299,7 +299,7 @@ public class TurnBasedCasting : SubStateBase
                 // then deduct AP, then finally invoke callback
                 gameManager.StartCoroutine(
                     caster.CastSpellWithMovement(
-                        spell,
+                        caster,
                         path,
                         target,
                         () => {

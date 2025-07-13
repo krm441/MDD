@@ -80,6 +80,7 @@ namespace PartyManagement
                 Vector3 target = node.worldPos;
                 while (Vector3.Distance(transform.position, target) > 0.01f)
                 {
+                    LookAtTarget(target);
                     transform.position = Vector3.MoveTowards(
                         transform.position,
                         target,
@@ -101,12 +102,16 @@ namespace PartyManagement
         /// <param name="onComplete"></param>
         /// <returns></returns>
         public IEnumerator CastSpellWithMovement(
-            Spell spell,
+            CharacterUnit caster,
+            //Spell spell,
             Pathfinding.Path path,
             Vector3 targetPoint,
             Action onComplete
         )
         {
+            // variables:
+            var spell = caster.GetSelectedSpell();
+
             // 1- Walk first
             if (path != null)
                 yield return StartCoroutine(MoveAlongPathRoutine(path));
@@ -155,6 +160,10 @@ namespace PartyManagement
             movementController?.StopMovement();
         }
 
+        public void LookAtTarget(Vector3 target)
+        {
+            movementController?.LookAtTarget(target);
+        }
        
 
         public void DeductActionPoints(Pathfinding.Path path)

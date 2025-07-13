@@ -79,6 +79,9 @@ public class CombatManager //: MonoBehaviour
                 return;
             }
 
+            // rotate to face the target:
+            caster.LookAtTarget(hit.point);
+
             ApplySpell(caster, spell, hit.point, null);
             AimingVisualizer.DrawImpactCircle(hit.point, spell.radius, Color.red);
 
@@ -136,6 +139,9 @@ public class CombatManager //: MonoBehaviour
     public static void ApplySpell(CharacterUnit caster, Spell spell, Vector3 targetPosition, Action onImpactComplete)
     {
         Debug.Log("SPELL FIRE");
+
+        // Rotate to face the target:
+        caster.LookAtTarget(targetPosition);
 
         SpellVisualEffectsManager.LaunchSpellVFX(spell, caster, targetPosition, () =>
         {
