@@ -110,7 +110,7 @@ public class ExplorationState : GameStateBase
 
 public class TurnBasedState : GameStateBase
 {
-    private Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
+    public Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
 
     private CharacterUnit selectedUnitBeforeCombat; // used on exit to set it as active again
 
@@ -138,6 +138,9 @@ public class TurnBasedState : GameStateBase
             .OrderByDescending(p => p.stats.Initiative);
 
         turnQueue = new Queue<CharacterUnit>(combatants);
+
+        // set queue in manager = for reference
+        CombatManager.turnQueue = turnQueue;
 
         // portrait queue building
         PartyPortraitManagerUI.BuildTurnQueuePortraits(turnQueue);
@@ -217,6 +220,10 @@ public class TurnBasedState : GameStateBase
         //PartyManager.CurrentSelected = selectedUnitBeforeCombat;
         //SpellMap.BuildIconBar(currentUnit);
         //
+
+        // Clean turn queue
+        turnQueue.Clear();
+
         Console.Error("Exiting Combat");
     }
 }

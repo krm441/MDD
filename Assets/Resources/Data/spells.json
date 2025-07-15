@@ -12,7 +12,8 @@
             "manaCost": 10,
             "range": 10,
             "radius": 3,
-            "vfxType": "fireball"
+            "vfxType": "fireball",
+            "baseDamage": 100.0
         },
         {
             "id": 1,
@@ -26,7 +27,8 @@
             "manaCost": 0,
             "range": 0,
             "radius": 1,
-            "vfxType": "sword"
+            "vfxType": "sword",
+            "baseDamage": 100.0
         },
         {
             "id": 2,
@@ -40,7 +42,8 @@
             "manaCost": 10,
             "range": 12,
             "radius": 0,
-            "vfxType": "basicHeal"
+            "vfxType": "basicHeal",
+            "baseDamage": 100.0
         }
     ]
 }

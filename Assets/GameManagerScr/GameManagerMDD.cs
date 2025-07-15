@@ -91,7 +91,11 @@ public class GameManagerMDD : MonoBehaviour
 
     public static void ExitCombat()
     {
+        if (currentStateEnum == GameStateEnum.Exploration) return;
         ChangeState(GameStateEnum.Exploration);
+
+        // set the main character as selected
+        PartyManagement.PartyManager.SetMainAsSelected();
     }
        
 }

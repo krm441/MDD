@@ -34,8 +34,27 @@ public class EnemyManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        foreach (var party in allParties)
+       //foreach (var party in allParties)
+       //{
+       //    party.Update(); // checks for visibilityv
+       //    if(party.State == EnemyParty.PartyState.Destroyed)
+       //    {
+       //
+       //    }
+       //}
+        for(int i = allParties.Count - 1; i >= 0; i--)
+        {
+            var party = allParties[i];
             party.Update(); // checks for visibilityv
+            if (party.State == EnemyParty.PartyState.Destroyed)
+            {
+                allParties.RemoveAt(i);
+            }
+        }
+        if(allParties.Count == 0)
+        {
+            GameManagerMDD.ExitCombat();
+        }
     }
 
     public static void RegisterParty(EnemyParty party)

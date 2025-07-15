@@ -52,6 +52,7 @@ public class Spell
     public int range;
     public int radius;
     public string vfxType;
+    public float baseDamage = 100;
 }
 
 /// <summary>

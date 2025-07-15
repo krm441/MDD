@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using PartyManagement;
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
 /// Represents a possible pack of enemies
@@ -19,7 +20,8 @@ public class EnemyParty// : MonoBehaviour
     public enum PartyState
     {
         Idle,
-        Combat
+        Combat,
+        Destroyed
     }
 
     public PartyState State = PartyState.Idle;
@@ -38,8 +40,25 @@ public class EnemyParty// : MonoBehaviour
                 }
             }
         else if (State == PartyState.Combat)
+        {
             // this is where party ai should work
-            return;
+            for (int i = enemiesInPack.Count - 1; i >= 0; i--)
+            {
+                var enemy = enemiesInPack[i];
+                if (enemy.IsDead)
+                {
+                    GameObject.Destroy(enemy.gameObject);
+                    enemiesInPack.RemoveAt(i);
+                    PartyPortraitManagerUI portraitUI = GameManagerMDD.FindObjectOfType<PartyPortraitManagerUI>();
+                    portraitUI.RemoveDeadPortraits();
+                }
+            }
+            if(enemiesInPack.Count == 0)
+            {
+                State = PartyState.Destroyed;
+            }
+        }
+        return;
     }
 
     private bool IsPlayerVisible(CharacterUnit enemy)
@@ -74,7 +93,24 @@ public enum EnemyPackType
 /// </summary>
 public class EnemyPackSummoner : MonoBehaviour
 {
-    public static List<CharacterUnit> activeEnemies = new List<CharacterUnit>();
+    //public static List<CharacterUnit> activeEnemies = new List<CharacterUnit>();
+
+    private void Update()
+    {
+       //if(activeEnemies.Count > 0)
+       //{
+       //    for (int i = activeEnemies.Count - 1; i >= 0; i--)
+       //    {
+       //        var enemy = activeEnemies[i];
+       //        if (enemy.IsDead)
+       //        {
+       //            Destroy(enemy.gameObject);
+       //            activeEnemies.RemoveAt(i);
+       //        }
+       //    }
+       //
+       //}
+    }
 
     public static void SpawnDebugPack(Vector3 center, float areaRadius, string enemyType = "NpcSimple", string partyName = "DebugParty")
     {
@@ -107,6 +143,7 @@ public class EnemyPackSummoner : MonoBehaviour
         int count = Mathf.Clamp(maxEnemies, 1, 12);
 
         List<Vector3> spawnPoints = GenerateCirclePositions(center, areaRadius, count);
+        List<CharacterUnit> activeEnemies = new List<CharacterUnit>();
 
         for (int i = 0; i < count; i++)
         {
@@ -133,8 +170,8 @@ public class EnemyPackSummoner : MonoBehaviour
             // Assign properties from JSON
             unit.unitName = $"{npcDef.displayName}_{i}";
             unit.isPlayerControlled = false;
-            unit.stats = npcDef.statBlock;
-            unit.armorStat = npcDef.armorStat;
+            unit.stats = new StatBlock (npcDef.statBlock );
+            unit.armorStat = new ArmorStat ( npcDef.armorStat );
 
             // portrait
             Sprite portrait = Resources.Load<Sprite>(npcDef.portraitPath);

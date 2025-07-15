@@ -56,7 +56,7 @@ public class MovementSubstate : SubStateBase
         Console.Log("Entered Movement Substate");
     }
 
-    public override void Update()
+    public override void Update() 
     {
         if (EventSystem.current.IsPointerOverGameObject()) return;
         if (PartyManagement.PartyManager.CurrentSelected == null || !PartyManagement.PartyManager.CurrentSelected.isPlayerControlled) return;

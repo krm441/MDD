@@ -9,8 +9,11 @@ public class PartyPortraitManagerUI : MonoBehaviour
     //[SerializeField] 
     private static GameObject portraitButtonPrefab;
     //[SerializeField] 
-    private static Transform[] portraitParent = new Transform[2]; // this could be a Dictionary
+    //private static Transform[] portraitParent = new Transform[2]; // this could be a Dictionary
     //[SerializeField] private SpellMap spellMap;
+
+    private static Transform verticalParent;   // Vertical pane: party portraits
+    private static Transform horizontalParent; // Horizontal queue: 
 
     public static void BuildTurnQueuePortraits(Queue<CharacterUnit> units)
     {
@@ -34,16 +37,16 @@ public class PartyPortraitManagerUI : MonoBehaviour
                 Console.Error("Could not find 'HorizontalTurnPortraits' in the scene!");
                 return;
             }
-            portraitParent[1] = parentObj.transform;
+            horizontalParent = parentObj.transform;
         }
 
         // Clear old portraits
-        foreach (Transform child in portraitParent[1])
+        foreach (Transform child in horizontalParent)
             Object.Destroy(child.gameObject);
 
         foreach(CharacterUnit unit in units)
         {
-            GameObject btn = Object.Instantiate(portraitButtonPrefab, portraitParent[1]);
+            GameObject btn = Object.Instantiate(portraitButtonPrefab, horizontalParent);
             //var img = btn.GetComponentInChildren<Image>();
             //if (img != null)
             //    img.sprite = unit.portraitSprite;
@@ -90,11 +93,11 @@ public class PartyPortraitManagerUI : MonoBehaviour
                 Console.Error("Could not find 'VerticalLayout' in the scene!");
                 return; 
             }
-            portraitParent[0] = parentObj.transform;
+            horizontalParent = parentObj.transform;
         }
 
         // Clear old portraits
-        foreach (Transform child in portraitParent[0])
+        foreach (Transform child in horizontalParent)
             Object.Destroy(child.gameObject);
 
         // Build buttons
@@ -103,7 +106,7 @@ public class PartyPortraitManagerUI : MonoBehaviour
             int index = i;
             CharacterUnit unit = PartyManager.partyMembers[i];
 
-            GameObject btn = Object.Instantiate(portraitButtonPrefab, portraitParent[0]);
+            GameObject btn = Object.Instantiate(portraitButtonPrefab, horizontalParent);
            //var img = btn.GetComponentInChildren<Image>();
            //if (img != null)
            //    img.sprite = unit.portraitSprite;
@@ -151,5 +154,41 @@ public class PartyPortraitManagerUI : MonoBehaviour
                 Console.Log($"Selected: {unit.unitName}");
             });
         }*/
+    }
+
+    // PRIVATE:
+    public void RemoveDeadPortraits(float delay = 0.5f)
+    {
+        StartCoroutine(RemoveDeadAndRebuild(delay));
+    }
+
+    private IEnumerator RemoveDeadAndRebuild(float delay)
+    {
+        foreach (Transform child in horizontalParent)
+        {
+            PortraitBarUI barUI = child.GetComponent<PortraitBarUI>();
+            if (barUI != null && barUI.unit != null && barUI.unit.IsDead)
+            {
+                barUI.AnimateAndDestroy();
+            }
+        }
+
+        yield return new WaitForSeconds(delay);
+
+        // Rebuild the queue (excluding dead units)
+        Queue<CharacterUnit> alive = new Queue<CharacterUnit>();
+        var currentTurnQueue = CombatManager.turnQueue;
+        if(currentTurnQueue != null)
+            foreach (var unit in currentTurnQueue)
+                if (!unit.IsDead)
+                    alive.Enqueue(unit);
+
+        BuildTurnQueuePortraits(alive);
+    }
+
+    private void ClearPortraits(Transform parent)
+    {
+        foreach (Transform child in parent)
+            Destroy(child.gameObject);
     }
 }

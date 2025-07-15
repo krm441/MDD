@@ -6,6 +6,22 @@ using UnityEngine;
 [System.Serializable]
 public class StatBlock
 {
+    public StatBlock() { }
+    public StatBlock(StatBlock copy)
+    {
+        this.Intelligence = copy.Intelligence;
+        this.Willpower = copy.Willpower;
+        this.Devotion = copy.Devotion;
+        this.HP = copy.HP;
+        this.MaxHP = copy.MaxHP;
+        
+        this.Speed = copy.Speed;
+        this.Initiative = copy.Initiative;
+        this.ActionPoints = copy.ActionPoints;
+        this.MaxActionPoints = copy.MaxActionPoints;
+        this.StartActionPoints = copy.StartActionPoints;
+    }
+
     public int Intelligence;
     public int Willpower;
     public int Devotion;
@@ -23,6 +39,14 @@ public class StatBlock
 [System.Serializable]
 public class ArmorStat
 {
+    public ArmorStat() { }
+    public ArmorStat(ArmorStat copy)
+    {
+        this.magicArmor = copy.magicArmor;
+        this.physicalArmor = copy.physicalArmor;
+        this.moraleLevel = copy.moraleLevel;
+    }
+
     public int physicalArmor;
     public int magicArmor;
     public int moraleLevel; // this one will be about Crowd Control (CC) spells like charm or madness
@@ -38,6 +62,10 @@ namespace PartyManagement
     public class CharacterUnit : MonoBehaviour
     {
         public bool isPlayerControlled = true;
+        public bool isMainCharacter = false;
+
+        public bool IsDead => stats.HP <= 0;
+
 
         public StatBlock stats;
         public ArmorStat armorStat;
@@ -138,11 +166,7 @@ namespace PartyManagement
 
         private void Update()
         {
-            if(currentlySelectedSpell != null)
-            {
-                // play animation
-                //currentlySelectedSpell.PlayAnimation();
-            }
+           
         }
 
         public void MoveAlongPath(List<Pathfinding.Node> path)
@@ -203,55 +227,5 @@ namespace PartyManagement
                 AddActionPoints(stats.StartActionPoints);
             }
         }
-
-        //private Coroutine movementCoroutine;
-
-        // For animation FSM
-        //public bool IsMoving => movementCoroutine != null;
-
-
-        //void Start()
-        //{
-            //FindObjectOfType<PartyManager>().AddMember(this);
-        //}
-
-/*
-        public void MoveAlongPath(List<Pathfinding.Node> path)
-        {
-            // Cancel current movement, if any
-            if (movementCoroutine != null)
-            {
-                StopCoroutine(movementCoroutine);
-                Debug.Log("new movement");
-            }
-
-            // Start new movement
-            movementCoroutine = StartCoroutine(FollowPath(path, 3f));
-        }
-
-        private IEnumerator FollowPath(List<Pathfinding.Node> path, float speed)
-        {
-            foreach (Pathfinding.Node node in path)
-            {
-                Vector3 targetPos = node.worldPos;
-                targetPos.y = transform.position.y; // Prevent rotation tilt
-
-                // Determine direction to look at (skip if already at target)
-                Vector3 direction = targetPos - transform.position;
-                if (direction != Vector3.zero)
-                {
-                    transform.rotation = Quaternion.LookRotation(direction);
-                }
-
-                while (Vector3.Distance(transform.position, targetPos) > 0.05f)
-                {
-                    // move
-                    transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
-                    yield return null;
-                }
-            }
-
-            movementCoroutine = null; // Reset after movement ends
-        }*/
     }
 }

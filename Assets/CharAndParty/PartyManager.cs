@@ -12,6 +12,21 @@ namespace PartyManagement
         public static int selectedIndex = 0;
         public static CharacterUnit CurrentSelected;// => partyMembers.Count > 0 ? partyMembers[selectedIndex] : null;
 
+        public static void SetMainAsSelected()
+        {
+            int index = 0;
+            foreach(CharacterUnit unit in partyMembers)
+            {
+                if(unit.isMainCharacter)
+                {
+                    CurrentSelected = unit;
+                    selectedIndex = index;
+                    break;
+                }
+                index++;
+            }
+        }
+
         public static bool IsEmpty() => partyMembers.Count == 0;
 
         public static void AddMember(CharacterUnit newMember)

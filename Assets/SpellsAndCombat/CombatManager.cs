@@ -15,6 +15,8 @@ public class CombatManager //: MonoBehaviour
     public void SetInCombat() {  inCombat = true; }
     public void SetOutOfCombat() {  inCombat = false; }
 
+    public static Queue<CharacterUnit> turnQueue;
+
     public static void VisualiseSpellImpactArea()
     {
         CharacterUnit caster = PartyManager.CurrentSelected;
@@ -173,7 +175,7 @@ public class CombatManager //: MonoBehaviour
     {
         // example logic - mage for now, then adds to willpower. or just maybe should be converted to main stat
         //return spell.manaCost + caster.stats.Intelligence; 
-        return 20; // basic example damage for testing
+        return (int)spell.baseDamage; // basic example damage for testing
     }
 
     /// <summary>
@@ -186,7 +188,7 @@ public class CombatManager //: MonoBehaviour
     private static List<GameObject> FindTargetsInRadius(Vector3 pos, float radius, Vector3? losSource = null) 
     {
         List<GameObject> validTargets = new List<GameObject>();
-        LayerMask affectedLayers = LayerMask.GetMask("PartyLayer", "Destructibles");
+        LayerMask affectedLayers = LayerMask.GetMask("PartyLayer", "Destructibles", "HostileNPCs");
         Collider[] hits = Physics.OverlapSphere(pos, radius, affectedLayers);
 
         Debug.Log($"Checking radius {radius} at {pos}");

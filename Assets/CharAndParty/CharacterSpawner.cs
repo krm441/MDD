@@ -71,6 +71,9 @@ public class CharacterSpawner : MonoBehaviour
         unit.unitName = "Magus";
         obj.name = "Magus";
 
+        // this is main character for now
+        unit.isMainCharacter = true;
+
         unit.portraitSprite = magusPortrait; 
 
         /* AS a REMINDER:
