@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEngine.UI.Image;
 
 /// <summary>
 /// FOR FUTURE: when ammount of spell will be too big, i will use this
@@ -38,6 +39,14 @@ public static class SpellVisualEffectsManager
                 LaunchProjectile("FireballPref", caster, targetPosition, onImpact);
                 break;
 
+            case "sword":
+                SwordAttack1H("SwordPivot", caster, targetPosition, onImpact);
+                break;
+
+            case "basicheal":
+                ApplyPointHeal("HealingEffectSimple", caster, targetPosition, onImpact);
+                break;
+
             default:
                 Debug.LogWarning($"Unknown spell VFX type: {spell.vfxType}. Falling back to default.");
                 LaunchProjectile("FireballPref", caster, targetPosition, onImpact); // for now default will be the fireball visuals
@@ -66,5 +75,50 @@ public static class SpellVisualEffectsManager
             Debug.LogWarning($"Prefab '{prefabName}' missing ProjectileBallistic.");
             GameObject.Destroy(proj);
         }
+    }
+
+    private static void SwordAttack1H(string prefabName, CharacterUnit caster, Vector3 targetPosition, Action onImpact)
+    {
+        GameObject prefab = Resources.Load<GameObject>($"Equipment/{prefabName}");
+        if (prefab == null)
+        {
+            Console.Error($"Spell VFX prefab '{prefabName}' not found.");
+            return;
+        }
+
+        Vector3 origin = caster.transform.position + Vector3.up * 1.5f;
+
+        GameObject proj = GameObject.Instantiate(prefab, origin, Quaternion.identity);
+        var transform = proj.transform;
+
+        // Look at target
+        targetPosition.y = origin.y;
+
+        if ((targetPosition - origin).sqrMagnitude > 0.01f)
+        {
+            transform.rotation = Quaternion.LookRotation(targetPosition - transform.position);
+        }
+
+        onImpact?.Invoke();
+
+        GameObject.Destroy(proj, 2f);
+    }
+
+    private static void ApplyPointHeal(string prefabName, CharacterUnit caster, Vector3 targetPosition, Action onImpact)
+    {
+        GameObject prefab = Resources.Load<GameObject>($"Particles/{prefabName}");
+        if (prefab == null)
+        {
+            Console.Error($"Spell VFX prefab '{prefabName}' not found.");
+            return;
+        }
+
+        Vector3 origin = targetPosition + Vector3.up * 1.5f;
+
+        GameObject proj = GameObject.Instantiate(prefab, origin, Quaternion.identity);
+
+        onImpact?.Invoke();
+
+        GameObject.Destroy(proj, 2f); // spell duration !
     }
 }

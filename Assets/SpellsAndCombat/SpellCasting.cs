@@ -78,6 +78,14 @@ public static class SpellRangeBackend
         inRange = false;
         if (grid == null) { Console.Error("SpellRangeBackend::calculateRangeSpell::Err: grid == null"); return null; }
 
+        // Special case: for non-combat state: if AP is negative, skip spell constraints — draw full walk path
+       //if (availableAP < 0)
+       //{
+       //    var nodes = grid.FindPathTo(end, start);
+       //    inRange = true;
+       //    return new Path { pathNodes = nodes };
+       //}
+
         var fullNodes = grid.FindPathTo(end, start);
         if (fullNodes == null || fullNodes.Count == 0) return null;
 
@@ -95,7 +103,9 @@ public static class SpellRangeBackend
         // How far we must go to be in casting range
         float need = Mathf.Max(0f, total - castRange);
         // How far we can go on remaining AP
-        int moveAP = Mathf.Max(0, availableAP - spellCost);
+        int moveAP = int.MaxValue; 
+        if (availableAP > 0)
+            moveAP = Mathf.Max(0, availableAP - spellCost);
         float canGo = moveAP * speed;
 
         // Actual walk distance
@@ -136,62 +146,62 @@ public static class SpellRangeBackend
     }
 
     
-    public static Path VisualizeSpell(
-        float spellRadius,
-        float spellRange,
-        int spellCost,
-        int availableAP,
-        float speed,
-        Vector3 start,
-        Vector3 end,
-        out bool inRange
-    )
-    {
-        inRange = false;
-        Path movePath = null;
-
-        float dist = Vector3.Distance(start, end);
-        if (dist <= spellRange)
-        {
-            inRange = true;
-        }
-        else
-        {
-            // 1- how far to walk to cast
-            bool canCast;
-            movePath = SpellRangeBackend.calculateRangeSpell(
-                spellRange,
-                spellCost,
-                availableAP,
-                speed,
-                start,
-                end,
-                out canCast
-            );
-
-            // 2- draw just that walk
-            if (movePath?.pathNodes != null && movePath.pathNodes.Count > 0)
-            {
-                int moveAP = Mathf.Max(0, availableAP - spellCost);
-                float maxDist = moveAP * speed;           // full movement budget
-                AimingVisualizer.DrawPathPreview(
-                    start, end,
-                    movePath.pathNodes,
-                    maxDist,
-                    true
-                );
-                inRange = canCast;
-            }
-        }
-
-        // 3- now show the aiming circle at the target
-        var circleColor = inRange ? Color.green : Color.red;
-        AimingVisualizer.ShowAimingCircle(end, spellRadius, circleColor);
-        AimingVisualizer.DrawProjectileArc(start, end, circleColor);
-        AimingVisualizer.HighlightTargets(end, spellRadius);
-
-        return movePath;
-    }
+    //public static Path VisualizeSpell(
+    //    float spellRadius,
+    //    float spellRange,
+    //    int spellCost,
+    //    int availableAP,
+    //    float speed,
+    //    Vector3 start,
+    //    Vector3 end,
+    //    out bool inRange
+    //)
+    //{
+    //    inRange = false;
+    //    Path movePath = null;
+    //
+    //    float dist = Vector3.Distance(start, end);
+    //    if (dist <= spellRange)
+    //    {
+    //        inRange = true;
+    //    }
+    //    else
+    //    {
+    //        // 1- how far to walk to cast
+    //        bool canCast;
+    //        movePath = SpellRangeBackend.calculateRangeSpell(
+    //            spellRange,
+    //            spellCost,
+    //            availableAP,
+    //            speed,
+    //            start,
+    //            end,
+    //            out canCast
+    //        );
+    //
+    //        // 2- draw just that walk
+    //        if (movePath?.pathNodes != null && movePath.pathNodes.Count > 0)
+    //        {
+    //            int moveAP = Mathf.Max(0, availableAP - spellCost);
+    //            float maxDist = moveAP * speed;           // full movement budget
+    //            AimingVisualizer.DrawPathPreview(
+    //                start, end,
+    //                movePath.pathNodes,
+    //                maxDist,
+    //                true
+    //            );
+    //            inRange = canCast;
+    //        }
+    //    }
+    //
+    //    // 3- now show the aiming circle at the target
+    //    var circleColor = inRange ? Color.green : Color.red;
+    //    AimingVisualizer.ShowAimingCircle(end, spellRadius, circleColor);
+    //    //AimingVisualizer.DrawProjectileArc(start, end, circleColor, out false);
+    //    AimingVisualizer.HighlightTargets(end, spellRadius);
+    //
+    //    return movePath;
+    //}
 }
 
 /// <summary>
@@ -259,34 +269,41 @@ public static class SpellVisualizer
             {
                 float moveAP = Mathf.Max(0, availableAP - spell.apCost);
                 float maxDist = moveAP * speed;// - spellRadius / 2f;
+                if (availableAP < 0)
+                    maxDist = float.MaxValue;
                 AimingVisualizer.DrawPathPreview(start, end, movePath.pathNodes, maxDist, true);
                 inRange = canCast;
             }
+        }
+
+        
+
+        switch (spell.physicsType)
+        {
+            case SpellPhysicsType.Parabolic:
+                {
+                    bool obstacle = false;
+                    if (movePath != null && movePath.pathNodes.Count > 0)
+                        AimingVisualizer.DrawProjectileArc(movePath.pathNodes.Last().worldPos, end, Color.green, out obstacle);
+                    else
+                        AimingVisualizer.DrawProjectileArc(start, end, Color.green, out obstacle); // ballistic trajectory
+                    inRange = !obstacle;
+                }
+                break;
+            case SpellPhysicsType.Linear: break;
+            default:
+                Console.Warn("Unknown spell effect.");
+                break;
         }
 
         // Draw spell radius at target
         var circleColor = inRange
             ? Color.green
             : Color.red;
-
         AimingVisualizer.ShowAimingCircle(end, spell.radius, circleColor);
-        switch (spell.physicsType)
-        {
-            case SpellPhysicsType.Parabolic:
-                {
-                    if (movePath != null && movePath.pathNodes.Count > 0)
-                        AimingVisualizer.DrawProjectileArc(movePath.pathNodes.Last().worldPos, end, circleColor);
-                    else
-                        AimingVisualizer.DrawProjectileArc(start, end, circleColor); // ballistic trajectory
-                    
-                }
-                break;
-            default:
-                Console.Warn("Unknown spell effect.");
-                break;
-        }
 
-        AimingVisualizer.HighlightTargets(end, spell.radius);
+        if (inRange)
+            AimingVisualizer.HighlightTargets(end, spell.radius);
 
         return movePath;
     }

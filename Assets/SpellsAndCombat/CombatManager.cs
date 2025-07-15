@@ -151,9 +151,9 @@ public class CombatManager //: MonoBehaviour
                 foreach (var target in targets)
                 {
                     int damage = CalculateDamage(caster, spell, target);
-
-                    if (target.TryGetComponent<CharacterUnit>(out var unit))// ||
-                                                                            //   target.transform.parent?.TryGetComponent<CharacterUnit>(out unit) == true) 
+                    Console.Error("HITS", damage);
+                    if (target.TryGetComponent<CharacterUnit>(out var unit) ||
+                                                                               target.transform.parent?.TryGetComponent<CharacterUnit>(out unit) == true) 
                     {
                         unit.stats.HP -= damage;
                         Console.Error($"{caster.unitName} hit {unit.unitName} for {damage} damage.");
@@ -172,7 +172,8 @@ public class CombatManager //: MonoBehaviour
     private static int CalculateDamage(CharacterUnit caster, Spell spell, GameObject target)
     {
         // example logic - mage for now, then adds to willpower. or just maybe should be converted to main stat
-        return spell.manaCost + caster.stats.Intelligence; 
+        //return spell.manaCost + caster.stats.Intelligence; 
+        return 20; // basic example damage for testing
     }
 
     /// <summary>

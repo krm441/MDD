@@ -26,7 +26,21 @@
             "manaCost": 0,
             "range": 0,
             "radius": 1,
-            "vfxType": ""
+            "vfxType": "sword"
+        },
+        {
+            "id": 2,
+            "name": "BasicHeal",
+            "description": "Spawn healing streamlet",
+            "iconPath": "SpellIcons\\healingStreamlet",
+            "shotcutKey": "H",
+            "prefabMeshEffect": "",
+            "physicsType": 2,
+            "apCost": 0,
+            "manaCost": 10,
+            "range": 12,
+            "radius": 0,
+            "vfxType": "basicHeal"
         }
     ]
 }

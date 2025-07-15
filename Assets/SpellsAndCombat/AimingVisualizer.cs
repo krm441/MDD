@@ -50,6 +50,7 @@ public static class AimingVisualizer
     public static void Hide()
     {
         previewSegments.Clear();
+        ClearHighlights();
         DestroyAllChildren(aimingVisualiserParent); return;
         //if (circleObj != null)
         //{
@@ -68,7 +69,7 @@ public static class AimingVisualizer
     {
         ClearHighlights();
 
-        var hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("Characters", "Destructibles", "HostileNPCs"));
+        var hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("PartyLayer", "Destructibles", "HostileNPCs"));
         foreach (var col in hits)
         {
             var rend = col.GetComponentInChildren<Renderer>();
@@ -178,14 +179,100 @@ public static class AimingVisualizer
 
         UpdateAimingCircle(center, radius, segments);
     }
-       
+
+    private static bool GenerateProjectileArc(
+    Vector3 start,
+    Vector3 end,
+    float arcHeight,
+    int segments,
+    LayerMask obstacleMask,
+    out Vector3[] arcPoints,
+    out int hitIndex)
+    {
+        arcPoints = new Vector3[segments + 1];
+        hitIndex = -1;
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float t = (float)i / segments;
+            Vector3 point = Vector3.Lerp(start, end, t);
+            point.y += arcHeight * 4f * t * (1f - t);
+            arcPoints[i] = point;
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            Vector3 a = arcPoints[i];
+            Vector3 b = arcPoints[i + 1];
+
+            if (Physics.Linecast(a, b, out RaycastHit hit, obstacleMask))
+            {
+                arcPoints[i + 1] = hit.point;
+                hitIndex = i + 1;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void RenderArc(Vector3[] points, int drawCount, Color color)
+    {
+        CreateAimingVisualiserParent();
+
+        if (lineProjectile == null)
+        {
+            lineProjectile = new GameObject("AimingVisualizer_LineRenderer");
+            SetParent(lineProjectile);
+            lineProjectile.hideFlags = HideFlags.None;
+
+            var lr = lineProjectile.AddComponent<LineRenderer>();
+            lr.startWidth = 0.05f;
+            lr.endWidth = 0.05f;
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+            lr.useWorldSpace = true;
+        }
+
+        var lineRenderer = lineProjectile.GetComponent<LineRenderer>();
+        lineRenderer.positionCount = drawCount;
+        lineRenderer.startColor = lineRenderer.endColor = color;
+
+        for (int i = 0; i < drawCount; i++)
+            lineRenderer.SetPosition(i, points[i]);
+    }
+
     public static void DrawProjectileArc(
+    Vector3 start,
+    Vector3 end,
+    Color baseColor,
+    out bool obstaclesHit,
+    int segments = 30,
+    float arcHeight = 2f)
+    {
+        LayerMask mask = LayerMask.GetMask("Obstacles");
+
+        bool hit = GenerateProjectileArc(start, end, arcHeight, segments, mask, out Vector3[] points, out int hitIndex);
+        obstaclesHit = hit;
+
+        int drawCount = (hitIndex > 0) ? hitIndex + 1 : points.Length;
+        Color arcColor = hit ? Color.red : baseColor;
+
+        RenderArc(points, drawCount, arcColor);
+    }
+
+
+    public static void DrawProjectileArc1(
         Vector3 start,
         Vector3 end,
         Color color,
+        out bool obstaclesHit,
         int segments = 30,
         float arcHeight = 2f)
     {
+        obstaclesHit = false;
+
         CreateAimingVisualiserParent();
 
         if (lineProjectile == null)
@@ -217,7 +304,7 @@ public static class AimingVisualizer
 
         // Collision check per segment, trim on hit
         int hitIndex = -1;
-        int mask = LayerMask.GetMask("Obstacle");
+        int mask = LayerMask.GetMask("Obstacles");
         for (int i = 0; i < segments; i++)
         {
             Vector3 a = points[i];
@@ -227,6 +314,7 @@ public static class AimingVisualizer
                 // Insert the exact hit point
                 points[i + 1] = hit.point;
                 hitIndex = i + 1;
+                obstaclesHit = true;
                 break;
             }
         }

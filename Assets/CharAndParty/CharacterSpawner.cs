@@ -141,7 +141,7 @@ public class CharacterSpawner : MonoBehaviour
         }
 
         PartyManager.AddMember(unit);
-        Debug.Log("Spawned and added: Magus");
+        Debug.Log("Spawned and added: Warior");
     }
 
     public void SpawnClericDebug()
@@ -165,6 +165,8 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 150
         };
 
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[2]); // basic heal streamlet
+
         if (capsuleYellow != null)
         {
             GameObject visual = Instantiate(capsuleYellow, obj.transform);
@@ -172,6 +174,6 @@ public class CharacterSpawner : MonoBehaviour
         }
 
         PartyManager.AddMember(unit);
-        Debug.Log("Spawned and added: Magus");
+        Debug.Log("Spawned and added: Cleric");
     }
 }

@@ -44,11 +44,23 @@ public class PartyPortraitManagerUI : MonoBehaviour
         foreach(CharacterUnit unit in units)
         {
             GameObject btn = Object.Instantiate(portraitButtonPrefab, portraitParent[1]);
-            var img = btn.GetComponentInChildren<Image>();
-            if (img != null)
-                img.sprite = unit.portraitSprite;
+            //var img = btn.GetComponentInChildren<Image>();
+            //if (img != null)
+            //    img.sprite = unit.portraitSprite;
 
-            btn.GetComponent<Button>().onClick.AddListener(() =>
+            // Inject CharacterUnit to the UI script
+            PortraitBarUI barUI = btn.GetComponent<PortraitBarUI>();
+            if (barUI != null)
+            {
+                // Assign the CharacterUnit
+                barUI.SetUnit(unit);
+            }
+
+            var portraitImg = btn.transform.Find("Panel/PortraitButton").GetComponent<Image>();
+            if (portraitImg != null)
+                portraitImg.sprite = unit.portraitSprite;
+
+            btn.GetComponentInChildren<Button>().onClick.AddListener(() =>
             {
                 // show stats in a tooltip
             });
@@ -92,11 +104,23 @@ public class PartyPortraitManagerUI : MonoBehaviour
             CharacterUnit unit = PartyManager.partyMembers[i];
 
             GameObject btn = Object.Instantiate(portraitButtonPrefab, portraitParent[0]);
-            var img = btn.GetComponentInChildren<Image>();
-            if (img != null)
-                img.sprite = unit.portraitSprite;
+           //var img = btn.GetComponentInChildren<Image>();
+           //if (img != null)
+           //    img.sprite = unit.portraitSprite;
 
-            btn.GetComponent<Button>().onClick.AddListener(() =>
+            var portraitImg = btn.transform.Find("Panel/PortraitButton").GetComponent<Image>();
+            if (portraitImg != null)
+                portraitImg.sprite = unit.portraitSprite;
+
+            // Inject CharacterUnit to the UI script
+            PortraitBarUI barUI = btn.GetComponent<PortraitBarUI>();
+            if (barUI != null)
+            {
+                // Assign the CharacterUnit
+                barUI.SetUnit(unit);
+            }
+
+            btn.GetComponentInChildren<Button>().onClick.AddListener(() =>
             {
                 PartyManager.SelectMember(index);
                 SpellMap.BuildIconBar(unit);

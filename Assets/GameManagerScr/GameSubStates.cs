@@ -226,13 +226,85 @@ public class CastingSubstate : SubStateBase
     {
         if (Input.GetMouseButtonDown(1)) { AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); GameManagerMDD.GetCurrentState().SetMovementSubState(); return; }
 
-        CombatManager.VisualiseSpellImpactArea();
+        //CombatManager.VisualiseSpellImpactArea();
 
-        if(Input.GetMouseButtonDown(0))
+        bool inRange = false;
+        Pathfinding.Path path = null;
+
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        if (Physics.Raycast(ray, out var hit))
         {
-            CombatManager.CastSelectedSpell();
-            GameManagerMDD.GetCurrentState().SetMovementSubState();
+            if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState != SpellCastingAnimationStates.Animation)
+            {
+                // for optimisation, to alter the state of line renderer only if user is aiming
+                bool mouseMoved = MouseTracker.MouseMovedThisFrame;
+                bool mouseClicked = Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1);
+
+                if (mouseMoved || mouseClicked)
+                {
+                    path = SpellVisualizer.VisualizeSpell(
+                        PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell(),
+                        -1,
+                        PartyManagement.PartyManager.CurrentSelected.stats.Speed,
+                        PartyManagement.PartyManager.CurrentSelected.transform.position,
+                        hit.point,
+                        out inRange
+                        );
+                }
+            }
+            else
+            {
+                AimingVisualizer.Hide();
+                path = null;
+                inRange = true;
+            }
         }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (inRange)
+            {
+                var caster = PartyManagement.PartyManager.CurrentSelected;
+                var target = hit.point;
+
+                GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Animation;
+
+                // This will first walk the nodes
+                // Then call CombatManager.CastSpell
+                // then deduct AP, then finally invoke callback
+                gameManager.StartCoroutine(
+                    caster.CastSpellWithMovement(
+                        caster,
+                        //actualPath, 
+                        path,
+                        target,
+                        () => {
+                            // only runs after move + cast are done (when spell animation is over)
+                            AimingVisualizer.Hide();
+                            //GameManagerMDD.GetCurrentState().GetSubstate().AnimationFinished = true;
+                            GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Finished;
+
+
+                            // Special case : restore char's ap to maximin
+                            caster.SetActionPoints(caster.stats.StartActionPoints);
+                        }
+                    )
+                );
+            }
+        }
+        if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState == SpellCastingAnimationStates.Finished)
+        {
+            GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+            //AnimationFinished = false;
+            GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.None;
+        }
+
+        //if (Input.GetMouseButtonDown(0))
+        //{
+        //    CombatManager.CastSelectedSpell();
+        //    GameManagerMDD.GetCurrentState().SetMovementSubState();
+        //}
     }
 
     public override void Exit()
@@ -321,7 +393,7 @@ public class TurnBasedCasting : SubStateBase
                 gameManager.StartCoroutine(
                     caster.CastSpellWithMovement(
                         caster,
-                        new Pathfinding.Path { pathNodes = path.pathNodes }, // passing path as copy
+                        path,//new Pathfinding.Path { pathNodes = path.pathNodes }, // passing path as copy
                         target,
                         () => {
                             // only runs after move + cast are done (when spell animation is over)
@@ -333,7 +405,7 @@ public class TurnBasedCasting : SubStateBase
                 );
             }            
         }
-        if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState == SpellCastingAnimationStates.Finished)//          .AnimationFinished)
+        if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState == SpellCastingAnimationStates.Finished)
         {
             GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
             //AnimationFinished = false;
