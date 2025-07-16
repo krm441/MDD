@@ -1,8 +1,6 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using PartyManagement;
 using UnityEngine;
-using System.Collections;
 
 /// <summary>
 /// Represents a possible pack of enemies

@@ -15,6 +15,8 @@ namespace Pathfinding
 
         public float fCost => gCost + hCost;
 
+        public Node() { }
+
         public Node(Vector2Int gridPos, Vector3 worldPos, bool isWalkable)
         {
             this.gridPos = gridPos;

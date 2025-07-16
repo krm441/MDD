@@ -15,6 +15,11 @@ public class PartyPortraitManagerUI : MonoBehaviour
     private static Transform verticalParent;   // Vertical pane: party portraits
     private static Transform horizontalParent; // Horizontal queue: 
 
+    public static void ClearHorisontal()
+    {
+        ClearPortraits(horizontalParent);
+    }
+
     public static void BuildTurnQueuePortraits(Queue<CharacterUnit> units)
     {
         // Load prefab if not loaded earlier
@@ -41,8 +46,9 @@ public class PartyPortraitManagerUI : MonoBehaviour
         }
 
         // Clear old portraits
-        foreach (Transform child in horizontalParent)
-            Object.Destroy(child.gameObject);
+        ClearPortraits(horizontalParent);
+        //foreach (Transform child in horizontalParent)
+        //    Object.Destroy(child.gameObject);
 
         foreach(CharacterUnit unit in units)
         {
@@ -93,12 +99,13 @@ public class PartyPortraitManagerUI : MonoBehaviour
                 Console.Error("Could not find 'VerticalLayout' in the scene!");
                 return; 
             }
-            horizontalParent = parentObj.transform;
+            verticalParent = parentObj.transform;
         }
 
         // Clear old portraits
-        foreach (Transform child in horizontalParent)
-            Object.Destroy(child.gameObject);
+        ClearPortraits(verticalParent);
+        //foreach (Transform child in verticalParent)
+        //    Object.Destroy(child.gameObject);
 
         // Build buttons
         for (int i = 0; i < PartyManager.partyMembers.Count; i++)
@@ -106,7 +113,7 @@ public class PartyPortraitManagerUI : MonoBehaviour
             int index = i;
             CharacterUnit unit = PartyManager.partyMembers[i];
 
-            GameObject btn = Object.Instantiate(portraitButtonPrefab, horizontalParent);
+            GameObject btn = Object.Instantiate(portraitButtonPrefab, verticalParent);
            //var img = btn.GetComponentInChildren<Image>();
            //if (img != null)
            //    img.sprite = unit.portraitSprite;
@@ -186,7 +193,7 @@ public class PartyPortraitManagerUI : MonoBehaviour
         BuildTurnQueuePortraits(alive);
     }
 
-    private void ClearPortraits(Transform parent)
+    private static void ClearPortraits(Transform parent)
     {
         foreach (Transform child in parent)
             Destroy(child.gameObject);

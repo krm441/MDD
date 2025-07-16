@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 
 namespace PartyManagement
@@ -14,16 +13,17 @@ namespace PartyManagement
 
         public static void SetMainAsSelected()
         {
-            int index = 0;
+            //int index = 0;
             foreach(CharacterUnit unit in partyMembers)
             {
                 if(unit.isMainCharacter)
                 {
-                    CurrentSelected = unit;
-                    selectedIndex = index;
+                    //CurrentSelected = unit;
+                    //selectedIndex = index;
+                    SelectMember(unit);
                     break;
                 }
-                index++;
+                //index++;
             }
         }
 
@@ -75,6 +75,8 @@ namespace PartyManagement
 
             selectedIndex = index;
             CurrentSelected = partyMembers[selectedIndex];
+
+            SpellMap.BuildIconBar(CurrentSelected);
         }
 
         public static void SelectMember(CharacterUnit member) 
@@ -91,6 +93,8 @@ namespace PartyManagement
             {
                 Debug.LogWarning($"PartyManager:: error: {member.unitName} is not in the party.");
             }
+
+            SpellMap.BuildIconBar(member);
         }
     }
 }

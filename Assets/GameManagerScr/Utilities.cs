@@ -30,3 +30,36 @@ public static class MouseTracker
         lastPosition = currentPos;
     }
 }
+
+public class CoroutineHandle
+{
+    public bool IsRunning { get; private set; }
+    public bool IsCompleted { get; private set; }
+
+    private MonoBehaviour owner;
+    private Coroutine routine;
+
+    public CoroutineHandle(MonoBehaviour owner, IEnumerator coroutine)
+    {
+        this.owner = owner;
+        routine = owner.StartCoroutine(Run(coroutine));
+    }
+
+    private IEnumerator Run(IEnumerator coroutine)
+    {
+        IsRunning = true;
+        yield return coroutine;
+        IsRunning = false;
+        IsCompleted = true;
+    }
+
+    public void Stop()
+    {
+        if (IsRunning)
+        {
+            owner.StopCoroutine(routine);
+            IsRunning = false;
+            IsCompleted = false;
+        }
+    }
+}

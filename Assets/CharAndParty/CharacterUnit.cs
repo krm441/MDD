@@ -144,6 +144,8 @@ namespace PartyManagement
             if (path != null)
                 yield return StartCoroutine(MoveAlongPathRoutine(path));
 
+            bool done = false; // simple bool will block the immediate return
+
             // 2- Cast at targetPoint when walk is over
             // onComplete callback is passed to ApplySpell in Combat manager
             CombatManager.ApplySpell(this, spell, targetPoint, () =>
@@ -151,8 +153,11 @@ namespace PartyManagement
                 // only after the animation spell is over
                 AimingVisualizer.DrawImpactCircle(targetPoint, spell.radius, Color.red);
                 DeductActionPoints(spell.apCost);
+                done = true;
                 onComplete?.Invoke();
             });
+
+            yield return new WaitUntil(() => done);
         }
     
 

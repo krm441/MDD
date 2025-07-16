@@ -176,6 +176,11 @@ public class TurnBasedState : GameStateBase
         }
         else
         {
+            if(unit.IsDead)
+            {
+                NextTurn();
+            }
+
             enemyTurn = true;
             SetSubstate(new AITurnSubstate(gameManager, EndTurnAI));
             turnQueue.Enqueue(unit);

@@ -222,9 +222,10 @@ public static class SpellVisualizer
             return null;
         }
         float maxDist = ap * speed;
-        AimingVisualizer.DrawPathPreview(start, end, path.pathNodes, maxDist);
+        
+        var res = AimingVisualizer.DrawPathPreview(start, end, path.pathNodes, maxDist);
 
-        return path;
+        return res;
     }
 
     /// <summary>

@@ -25,6 +25,7 @@ public class NPCDefinition
 
 public class EnemyManager : MonoBehaviour
 {
+    private static bool isInitiated = false;
     // Start is called before the first frame update
     void Start()
     {
@@ -34,6 +35,7 @@ public class EnemyManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (!isInitiated) return;
        //foreach (var party in allParties)
        //{
        //    party.Update(); // checks for visibilityv
@@ -54,13 +56,17 @@ public class EnemyManager : MonoBehaviour
         if(allParties.Count == 0)
         {
             GameManagerMDD.ExitCombat();
+            isInitiated = false;
         }
     }
 
     public static void RegisterParty(EnemyParty party)
     {
         if (!allParties.Contains(party))
+        {
             allParties.Add(party);
+            isInitiated = true;
+        }
     }
 
     public static List<CharacterUnit> GetEnemies()
@@ -74,6 +80,7 @@ public class EnemyManager : MonoBehaviour
     public static void Clear()
     {
         allParties.Clear();
+        isInitiated = false;
     }
 
     // parties that are triggered - and entered the combat state

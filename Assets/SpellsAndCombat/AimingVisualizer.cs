@@ -357,7 +357,7 @@ public static class AimingVisualizer
     private static List<LineRenderer> previewSegments = new List<LineRenderer>();
     
 
-    public static void DrawPathPreview(
+    public static Pathfinding.Path DrawPathPreview(
     Vector3 start,
     Vector3 end,
     List<Pathfinding.Node> path,
@@ -371,7 +371,7 @@ public static class AimingVisualizer
 
         // 2 Early return
         if (path == null || path.Count == 0)
-            return;
+            return null;
 
         // 3 Container != null
         CreateAimingVisualiserParent();
@@ -393,7 +393,7 @@ public static class AimingVisualizer
         float totalDistance = 0f;
         for (int i = 0; i < pathPoints.Count - 1; i++)
             totalDistance += Vector3.Distance(pathPoints[i], pathPoints[i + 1]);
-        if (totalDistance <= 0f) return;
+        if (totalDistance <= 0f) return null;
 
         // 6 Sample along the path at fixed increments
         float stepSize = 1f;
@@ -432,7 +432,7 @@ public static class AimingVisualizer
         }
 
         if (sampled.Count < 2)
-            return;
+            return null;
 
         // 7 Create a single LineRenderer
         var go = new GameObject("PathPreviewLine");
@@ -499,6 +499,9 @@ public static class AimingVisualizer
 
         // 9 Track for cleanup
         previewSegments.Add(lr);
+
+        // 10 return walkable path
+        return new Pathfinding.Path(reachablePath);
     }
 
     public static void ClearPathPreview()

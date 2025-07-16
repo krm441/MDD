@@ -92,12 +92,38 @@ public class GameManagerMDD : MonoBehaviour
     public static void ExitCombat()
     {
         if (currentStateEnum == GameStateEnum.Exploration) return;
+        
         ChangeState(GameStateEnum.Exploration);
 
         // set the main character as selected
         PartyManagement.PartyManager.SetMainAsSelected();
+
+        // clear turn based queue
+        PartyPortraitManagerUI.ClearHorisontal();
     }
-       
+    
+    // Coroutine handlers
+    private Dictionary<string, CoroutineHandle> coroutineHandlers = new Dictionary<string, CoroutineHandle>();
+
+    public void CreateCoroutine(string name, IEnumerator coroutine)
+    {
+        coroutineHandlers[name] = new CoroutineHandle(this, coroutine);
+    }
+
+    public CoroutineHandle GetCoroutine(string name) 
+    { 
+        if (coroutineHandlers.ContainsKey(name))
+            return coroutineHandlers[name];
+        return null;
+    }
+
+    public void StopAllCoroutinesMDD() // MDD since it is ambiguous with Monobehaviour
+    {
+        foreach(CoroutineHandle handle in coroutineHandlers.Values)
+        {
+            handle.Stop();
+        }
+    }
 }
 
 
