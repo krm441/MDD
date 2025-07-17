@@ -1,0 +1,29 @@
+{
+    "list": [
+        {
+            "id": "NpcSimple",
+            "displayName": "DebugSimple",
+            "prefabPath": "CapsuleEnemy",
+            "visualPath": "CapsuleEnemy",
+            "portraitPath": "Portraits/debugEnemyIcn",
+            "hostility": 1,
+            "armorStat": {
+                "physicalArmor": 0,
+                "magicArmor": 0,
+                "moraleLevel": 0
+            },
+            "statBlock": {
+                "Intelligence": 0,
+                "Willpower": 8,
+                "Devotion": 0,
+                "HP": 100,
+                "MaxHP": 100,
+                "Speed": 4,
+                "Initiative": 3,
+                "ActionPoints": 0,
+                "MaxActionPoints": 4,
+                "StartActionPoints": 2
+            }
+        }
+    ]
+}

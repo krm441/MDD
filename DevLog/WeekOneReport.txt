@@ -1,0 +1,6 @@
+BSP is tested and completed:
+
+For next Week I need to follow plan and complete CA generator, then:
+1- a game starter script and game starting location.
+2- test the main idea of main dungeon starter with 3 possible locations
+3- we have three dungeons: test of intellect, test of strength, and test of devotion. one will be pure CA, other pure BSP and third  will be combination

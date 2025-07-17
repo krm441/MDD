@@ -1,0 +1,49 @@
+{
+    "spells": [
+        {
+            "id": 0,
+            "name": "BasicAttackMagic",
+            "description": "Basic ranged magic attack",
+            "iconPath": "SpellIcons\\FireballIcn",
+            "shotcutKey": "F",
+            "prefabMeshEffect": "",
+            "physicsType": 2,
+            "apCost": 3,
+            "manaCost": 10,
+            "range": 10,
+            "radius": 3,
+            "vfxType": "fireball",
+            "baseDamage": 100.0
+        },
+        {
+            "id": 1,
+            "name": "BasicAttackMelee",
+            "description": "Basic attack melee",
+            "iconPath": "SpellIcons\\MeleeAttack",
+            "shotcutKey": "R",
+            "prefabMeshEffect": "",
+            "physicsType": 0,
+            "apCost": 2,
+            "manaCost": 0,
+            "range": 0,
+            "radius": 1,
+            "vfxType": "sword",
+            "baseDamage": 100.0
+        },
+        {
+            "id": 2,
+            "name": "BasicHeal",
+            "description": "Spawn healing streamlet",
+            "iconPath": "SpellIcons\\healingStreamlet",
+            "shotcutKey": "H",
+            "prefabMeshEffect": "",
+            "physicsType": 2,
+            "apCost": 0,
+            "manaCost": 10,
+            "range": 12,
+            "radius": 0,
+            "vfxType": "basicHeal",
+            "baseDamage": 100.0
+        }
+    ]
+}
