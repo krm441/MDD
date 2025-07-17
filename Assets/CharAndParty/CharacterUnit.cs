@@ -176,6 +176,7 @@ namespace PartyManagement
 
         public void MoveAlongPath(List<Pathfinding.Node> path)
         {
+            if(IsDead) return;
             movementController?.MoveAlongPath(path); 
         }
 

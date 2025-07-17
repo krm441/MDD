@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using PartyManagement;
 using UnityEngine;
 
@@ -26,6 +28,8 @@ public class NPCDefinition
 public class EnemyManager : MonoBehaviour
 {
     private static bool isInitiated = false;
+
+    public static event Action OnAllEnemiesDefeated;
     // Start is called before the first frame update
     void Start()
     {
@@ -53,9 +57,14 @@ public class EnemyManager : MonoBehaviour
                 allParties.RemoveAt(i);
             }
         }
-        if(allParties.Count == 0)
+        //if(allParties.Count == 0)
+        //{
+        //    StartCoroutine(ExitCombatAfterDelay());
+        //    isInitiated = false;
+        //}
+        if (allParties.Count == 0)
         {
-            GameManagerMDD.ExitCombat();
+            OnAllEnemiesDefeated?.Invoke();
             isInitiated = false;
         }
     }

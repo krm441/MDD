@@ -4,6 +4,7 @@ using PartyManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Linq; // for sorting
+using UnityEngine.UI;
 
 // game states
 // interface:
@@ -77,6 +78,11 @@ public class ExplorationState : GameStateBase
     {
         Console.Log("Entering Exploration State");
 
+        // ui debug
+        GameObject statusTextObject = GameObject.Find("StatusText");
+        Text statusText = statusTextObject.GetComponent<Text>();
+        statusText.text = "Status: Exploration";
+
 
         SetSubstate(new MovementSubstate(gameManager));
     }
@@ -118,9 +124,29 @@ public class TurnBasedState : GameStateBase
 
     private CombatManager combatManager = new CombatManager();
 
+    private void HandleCombatEnded()
+    {
+        gameManager.StartCoroutine(ExitCombatAfterDelay());
+    }
+
+    private IEnumerator ExitCombatAfterDelay()
+    {
+        yield return new WaitForSeconds(1f);
+        GameManagerMDD.ExitCombat();
+    }
+
+
     public override void Enter()
     {
         Debug.Log("Entering Combat");
+
+        // ui debug
+        GameObject statusTextObject = GameObject.Find("StatusText");
+        Text statusText = statusTextObject.GetComponent<Text>();
+        statusText.text = "Status: Combat";
+
+        EnemyManager.OnAllEnemiesDefeated += HandleCombatEnded;
+
         combatManager.EnterCombat();
 
         // save the active unit
@@ -216,15 +242,8 @@ public class TurnBasedState : GameStateBase
 
     public override void Exit()
     {
-        // restore to default this
-        //currentUnit.StopMovement();
-        //AimingVisualizer.ClearState();
-        //internalState = 0;
-        //
-        //// restore state
-        //PartyManager.CurrentSelected = selectedUnitBeforeCombat;
-        //SpellMap.BuildIconBar(currentUnit);
-        //
+        // remove event
+        EnemyManager.OnAllEnemiesDefeated -= HandleCombatEnded;
 
         // Clean turn queue
         turnQueue.Clear();

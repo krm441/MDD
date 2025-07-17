@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
 /// <summary>
@@ -52,6 +53,10 @@ public class MovementSubstate : SubStateBase
     public override void Enter()
     {
         Console.Log("Entered Movement Substate");
+        // ui debug
+        GameObject statusTextObject = GameObject.Find("Substatus");
+        Text statusText = statusTextObject.GetComponent<Text>();
+        statusText.text = "SubStatus: Movement";
     }
 
     public override void Update() 
@@ -66,8 +71,95 @@ public class MovementSubstate : SubStateBase
             {
                 PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path);
                 AimingVisualizer.SpawnClickMarker(gameManager.gridSystem.LastClickPosition);
+
+                // Get leader's final target point
+                Vector3 leaderTarget = path[path.Count - 1].worldPos;
+                gameManager.StartCoroutine(FollowPartyTogether(leaderTarget));
             }
         }
+    }
+
+    private List<Vector3> GetFormationTargets(Vector3 leaderTarget, Vector3 leaderForward)
+    {
+        List<Vector3> formationTargets = new List<Vector3>();
+        Vector3 right = Vector3.Cross(Vector3.up, leaderForward).normalized;
+
+        float spacing = 2f; // distance between characters
+
+        // Rhombus formation:
+
+        //     Leader
+        // F1    F3    F2
+        //       F4
+
+
+        // F1: back-left
+        formationTargets.Add(leaderTarget - leaderForward * spacing + right * -spacing);
+        // F2: back-right
+        formationTargets.Add(leaderTarget - leaderForward * spacing + right * spacing);
+        // F3: directly behind
+        formationTargets.Add(leaderTarget - leaderForward * spacing * 1.5f);
+        // F4: double back
+        formationTargets.Add(leaderTarget - leaderForward * spacing * 2f);
+
+        return formationTargets;
+    }
+
+    private IEnumerator FollowPartyTogether(Vector3 leaderTarget)
+    {
+        var party = PartyManager.GetParty();
+        var leader = PartyManager.CurrentSelected;
+        Vector3 leaderForward = (leaderTarget - leader.transform.position).normalized;
+
+        // Followers should look at a forward point, 13 units ahead of the leader's destination
+        Vector3 sharedLookTarget = leaderTarget + leaderForward * 13f;
+
+        // Get follower positions behind leader
+        List<Vector3> formationTargets = GetFormationTargets(leaderTarget, leaderForward);
+
+        // This variable is used to know whom to apply lookAt to target direction
+        List<PartyManagement.CharacterUnit> activeFollowers = new List<PartyManagement.CharacterUnit>();
+
+
+        // 
+        int followerIndex = 0;
+
+        foreach (var follower in party)
+        {
+            if (follower == leader ) continue;
+
+            if (followerIndex >= formationTargets.Count)
+                break;
+
+            Vector3 followerGoal = formationTargets[followerIndex];
+            followerIndex++;
+
+            var path = gameManager.gridSystem.FindPathTo(followerGoal, follower.transform.position);
+            if (path != null)
+            {
+                follower.MoveAlongPath(path);
+                activeFollowers.Add(follower);
+            }
+        }
+
+        // Wait until all followers have stopped moving
+        yield return new WaitUntil(() => AllFollowersStopped(activeFollowers));
+
+        // Apply look at direction of leader
+        foreach (var follower in party)
+        {
+            follower.LookAtTarget(sharedLookTarget);
+        }
+    }
+
+    private bool AllFollowersStopped(List<PartyManagement.CharacterUnit> followers)
+    {
+        foreach (var unit in followers)
+        {
+            if (unit.movementController != null && unit.movementController.IsMoving)
+                return false;
+        }
+        return true;
     }
 
     public override void Exit()
@@ -88,8 +180,11 @@ public class TurnBasedMovement : SubStateBase
     }
 
     public override void Enter()
-    { 
-        
+    {
+        // ui debug
+        GameObject statusTextObject = GameObject.Find("Substatus");
+        Text statusText = statusTextObject.GetComponent<Text>();
+        statusText.text = "SubStatus: TurnBasedM";
     }
 
     public override void Update()
@@ -326,6 +421,10 @@ public class CastingSubstate : SubStateBase
     public override void Enter()
     {
         Console.Log("Entered Casting Substate");
+        // ui debug
+        GameObject statusTextObject = GameObject.Find("Substatus");
+        Text statusText = statusTextObject.GetComponent<Text>();
+        statusText.text = "SubStatus: Casting";
     }
 
     public override void Update()
@@ -390,11 +489,11 @@ public class CastingSubstate : SubStateBase
 
 
                     // Special case : restore char's ap to maximin
-                    caster.SetActionPoints(caster.stats.StartActionPoints);
+                    //caster.SetActionPoints(caster.stats.StartActionPoints);
                 }
             );
 
-        GameManagerMDD.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
+        GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
     }
 
     public void Update2()
@@ -500,6 +599,10 @@ public class TurnBasedCasting : SubStateBase
     public override void Enter()
     {
         Console.Log("Entered CombatCasting Substate");
+        // ui debug
+        GameObject statusTextObject = GameObject.Find("Substatus");
+        Text statusText = statusTextObject.GetComponent<Text>();
+        statusText.text = "SubStatus: TurnCasting";
     }
 
     //private 
@@ -661,7 +764,13 @@ public class AITurnSubstate : SubStateBase
         endTurn = onCompleteCallback;
     }
 
-    public override void Enter() { }
+    public override void Enter()
+    {
+        // ui debug
+        GameObject statusTextObject = GameObject.Find("Substatus");
+        Text statusText = statusTextObject.GetComponent<Text>();
+        statusText.text = "SubStatus: AITurn";
+    }
     public override void Update() 
     {
         Console.Log("AI turn");
