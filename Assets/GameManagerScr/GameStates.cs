@@ -131,8 +131,10 @@ public class TurnBasedState : GameStateBase
 
     private IEnumerator ExitCombatAfterDelay()
     {
+        // short wait for all animations to finish
         yield return new WaitForSeconds(1f);
-        GameManagerMDD.ExitCombat();
+        yield return new WaitUntil(() => !gameManager.AreAnyCombatCoroutinesRunning()); // also ends all coroutines if not ended
+        GameManagerMDD.ExitCombat(); 
     }
 
 

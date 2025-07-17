@@ -4,6 +4,7 @@ using PartyManagement;
 using Pathfinding;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using System.Linq;
 using UnityEngine.EventSystems;
 using static UnityEditorInternal.ReorderableList;
 using UnityEditor.PackageManager;
@@ -60,8 +61,7 @@ public class GameManagerMDD : MonoBehaviour
         states = new Dictionary<GameStateEnum, IGameState>
         {
             { GameStateEnum.Exploration, new ExplorationState(this, gridSystem) },
-            { GameStateEnum.TurnBasedMode, new TurnBasedState(this) },
-            
+            { GameStateEnum.TurnBasedMode, new TurnBasedState(this) },            
         };
 
         ChangeState(currentStateEnum); // start in exploration in debug
@@ -92,7 +92,7 @@ public class GameManagerMDD : MonoBehaviour
     public static void ExitCombat()
     {
         if (currentStateEnum == GameStateEnum.Exploration) return;
-        
+
         ChangeState(GameStateEnum.Exploration);
 
         // set the main character as selected
@@ -101,7 +101,14 @@ public class GameManagerMDD : MonoBehaviour
         // clear turn based queue
         PartyPortraitManagerUI.ClearHorisontal();
     }
-    
+
+    public bool AreAnyCombatCoroutinesRunning()
+    {
+        return coroutineHandlers.Any(pair =>
+            pair.Value.IsRunning
+        );
+    }
+
     // Coroutine handlers
     private Dictionary<string, CoroutineHandle> coroutineHandlers = new Dictionary<string, CoroutineHandle>();
 
