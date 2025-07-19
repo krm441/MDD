@@ -23,6 +23,23 @@
                 "ActionPoints": 0,
                 "MaxActionPoints": 4,
                 "StartActionPoints": 2
+            },
+            "damageResistenceContainer": {
+                "Slashing": 0,
+                "Piercing": 0,
+                "Crushing": 0,
+                "Fire": 100,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 0,
+                "MentalFortification": 0,
+                "MagicFortification": 0
             }
         }
     ]

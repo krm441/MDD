@@ -38,6 +38,65 @@ public enum SpellPhysicsType
 }
 
 [System.Serializable]
+public class DamageResistenceContainer
+{
+    public DamageResistenceContainer() { }
+    public DamageResistenceContainer(DamageResistenceContainer other)
+    {
+        Slashing = other.Slashing;
+        Piercing = other.Piercing;
+        Crushing = other.Crushing;
+
+        Fire = other.Fire;
+        Water = other.Water;
+        Wind = other.Wind;
+        Earth = other.Earth;
+
+        Light = other.Light;
+        Shadow = other.Shadow;
+
+        Necrotic = other.Necrotic;
+        Poison = other.Poison;
+        Demonic = other.Demonic;
+
+        Healing = other.Healing;
+        MentalFortification = other.MentalFortification;
+        MagicFortification = other.MagicFortification;
+    }
+
+    // Physical
+    public int Slashing = 0;
+    public int Piercing = 0;
+    public int Crushing = 0;
+    public int TotalPhysical => Slashing + Piercing + Crushing;
+
+    // Elemental
+    public int Fire = 0;
+    public int Water = 0;
+    public int Wind = 0;
+    public int Earth = 0;
+    public int TotalElemental => Fire + Water + Wind + Earth;
+
+    // Spiritual
+    public int Light = 0;
+    public int Shadow = 0;
+    public int TotalSpiritual => Light + Shadow;
+
+    // Heretique
+    public int Necrotic = 0;
+    public int Poison = 0;
+    public int Demonic = 0;
+    public int TotalHeretique => Necrotic + Poison + Demonic;
+
+    // Healing
+    public int Healing = 0;
+    public int MentalFortification = 0;
+    public int MagicFortification = 0;
+
+    public DamageResistenceContainer Clone() => (DamageResistenceContainer)this.MemberwiseClone();
+}
+
+[System.Serializable]
 public class Spell
 {
     public int id;
@@ -47,12 +106,12 @@ public class Spell
     public string shotcutKey;
     public string prefabMeshEffect; // mesh or effect prefab path
     public SpellPhysicsType physicsType;
+    public DamageResistenceContainer baseDamage;
     public int apCost;
     public int manaCost;
     public int range;
     public int radius;
     public string vfxType;
-    public float baseDamage = 100;
 }
 
 /// <summary>
@@ -92,7 +151,7 @@ public class SpellMap : MonoBehaviour
         }
     }
 
-    public static void BuildIconBar(PartyManagement.CharacterUnit unit)
+    public void BuildIconBar(PartyManagement.CharacterUnit unit, GameManagerMDD gameManager)
     {       
         foreach (Transform child in iconBarParent)
             Destroy(child.gameObject);
@@ -124,7 +183,7 @@ public class SpellMap : MonoBehaviour
                 unit.StopMovement();
                 unit.SelectSpell(spell);
 
-                GameManagerMDD.GetCurrentState().SetCastingSubState();
+                gameManager.GetCurrentState().SetCastingSubState();
                 //GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
                 Debug.Log("Selected spell: " + spell.name);
             });
@@ -134,7 +193,7 @@ public class SpellMap : MonoBehaviour
             // initialize = since it returns null
             if (trigger == null)
                 trigger = btn.AddComponent<EventTrigger>();
-            // PointerEnter → Show tooltip
+            // PointerEnter: Show tooltip
             EventTrigger.Entry entryEnter = new EventTrigger.Entry
             {
                 eventID = EventTriggerType.PointerEnter
@@ -146,7 +205,7 @@ public class SpellMap : MonoBehaviour
             });
             trigger.triggers.Add(entryEnter);
 
-            // PointerExit → Hide tooltip
+            // PointerExit: Hide tooltip
             EventTrigger.Entry entryExit = new EventTrigger.Entry
             {
                 eventID = EventTriggerType.PointerExit

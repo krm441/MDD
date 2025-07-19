@@ -5,14 +5,30 @@ using UnityEngine;
 /// <summary>
 /// Represents a possible pack of enemies
 /// </summary>
-public class EnemyParty// : MonoBehaviour 
+public class EnemyParty : MonoBehaviour 
 {
     public List<CharacterUnit> enemiesInPack = new List<CharacterUnit>();
 
-    public EnemyParty(List<CharacterUnit> members)
+    public GameManagerMDD gameManager;
+
+    private EnemyManager enemyPartyManager;
+    private PartyManager playerPartyManager;
+
+    //public EnemyParty(List<CharacterUnit> members, EnemyManager manager, PartyManager playerPartyManager)
+    //{
+    //    enemiesInPack = members;
+    //    manager.RegisterParty(this);
+    //    enemyPartyManager = manager;
+    //    this.playerPartyManager = playerPartyManager;
+    //}
+
+    public void Init(List<CharacterUnit> members, EnemyManager manager, PartyManager playerPartyManager)
     {
         enemiesInPack = members;
-        EnemyManager.RegisterParty(this);
+        enemyPartyManager = manager;
+        this.playerPartyManager = playerPartyManager;
+
+        manager.RegisterParty(this);
     }
 
     public enum PartyState
@@ -24,7 +40,7 @@ public class EnemyParty// : MonoBehaviour
 
     public PartyState State = PartyState.Idle;
 
-    public void Update()
+    private void Update()
     {
         if (State == PartyState.Idle)
             foreach (var enemy in enemiesInPack)
@@ -32,7 +48,7 @@ public class EnemyParty// : MonoBehaviour
                 if (IsPlayerVisible(enemy))
                 {
                     Console.Log("Combat triggered by " + enemy.unitName);
-                    GameManagerMDD.EnterCombat();
+                    gameManager.EnterCombat();
                     State = PartyState.Combat;
                     break;
                 }
@@ -47,13 +63,15 @@ public class EnemyParty// : MonoBehaviour
                 {
                     GameObject.Destroy(enemy.gameObject);
                     enemiesInPack.RemoveAt(i);
+                    //enemyPartyManager.allParties.Remove(enemy);
                     PartyPortraitManagerUI portraitUI = GameManagerMDD.FindObjectOfType<PartyPortraitManagerUI>();
-                    portraitUI.RemoveDeadPortraits();
+                    portraitUI.RemoveDeadPortraits(gameManager.combatQueue);
                 }
             }
             if(enemiesInPack.Count == 0)
             {
                 State = PartyState.Destroyed;
+                enemyPartyManager.AllEnemiesDefeated();
             }
         }
         return;
@@ -61,7 +79,7 @@ public class EnemyParty// : MonoBehaviour
 
     private bool IsPlayerVisible(CharacterUnit enemy)
     {
-        foreach (var player in PartyManager.GetParty())
+        foreach (var player in playerPartyManager.GetParty())
         {
             float dist = Vector3.Distance(enemy.transform.position, player.transform.position);
             if (dist > enemy.LignOfSight) continue;
@@ -89,7 +107,7 @@ public enum EnemyPackType
 /// <summary>
 /// Used in UI or by other scripts to summon enemy pack at certain location
 /// </summary>
-public class EnemyPackSummoner : MonoBehaviour
+public class EnemyPackSummoner// : MonoBehaviour
 {
     //public static List<CharacterUnit> activeEnemies = new List<CharacterUnit>();
 
@@ -110,100 +128,6 @@ public class EnemyPackSummoner : MonoBehaviour
        //}
     }
 
-    public static void SpawnDebugPack(Vector3 center, float areaRadius, string enemyType = "NpcSimple", string partyName = "DebugParty")
-    {
-        if (!EnemyDatabase.NPCs.TryGetValue(enemyType, out var npcDef))
-        {
-            Console.Error($"Enemy type '{enemyType}' not found in EnemyDatabase.");
-            return;
-        }
-
-        //GameObject prefab = Resources.Load<GameObject>(npcDef.prefabPath);
-        GameObject prefab = Resources.Load<GameObject>("Prefabs/CharPrefab");
-        GameObject visual = Resources.Load<GameObject>("Visuals/" + npcDef.visualPath);
-
-        if (prefab == null || visual == null)
-        {
-            Console.Error("Could not load prefab or visual for enemy type", enemyType);
-            return;
-        }
-
-        // Root holder for all enemy parties
-        GameObject root = GameObject.Find("EnemyParties") ?? new GameObject("EnemyParties");
-
-        // Create a holder for this specific pack
-        GameObject partyHolder = new GameObject(partyName);
-        partyHolder.transform.parent = root.transform;
-
-        // Determine how many enemies based on area size
-        float spacing = 2.5f;
-        int maxEnemies = Mathf.FloorToInt(Mathf.PI * areaRadius * areaRadius / (spacing * spacing));
-        int count = Mathf.Clamp(maxEnemies, 1, 12);
-
-        List<Vector3> spawnPoints = GenerateCirclePositions(center, areaRadius, count);
-        List<CharacterUnit> activeEnemies = new List<CharacterUnit>();
-
-        for (int i = 0; i < count; i++)
-        {
-            Vector3 pos = spawnPoints[i];
-
-            GameObject obj = GameObject.Instantiate(prefab, pos, Quaternion.identity, partyHolder.transform);
-
-            // Set the layer to HostileNPCs
-            obj.layer = LayerMask.NameToLayer("HostileNPCs");
-
-            // Set all children recursively - since the model will be made from many meshes
-            foreach (Transform child in obj.GetComponentsInChildren<Transform>())
-            {
-                child.gameObject.layer = LayerMask.NameToLayer("HostileNPCs");
-            }
-
-            CharacterUnit unit = obj.GetComponent<CharacterUnit>();
-            if (unit == null)
-            {
-                Debug.LogError("CharPrefab missing CharacterUnit script.");
-                continue;
-            }
-
-            // Assign properties from JSON
-            unit.unitName = $"{npcDef.displayName}_{i}";
-            unit.isPlayerControlled = false;
-            unit.stats = new StatBlock (npcDef.statBlock );
-            unit.armorStat = new ArmorStat ( npcDef.armorStat );
-
-            // portrait
-            Sprite portrait = Resources.Load<Sprite>(npcDef.portraitPath);
-            if (portrait == null)
-                Debug.LogWarning($"Portrait not found for {npcDef.portraitPath}");
-            else
-                unit.portraitSprite = portrait;
-
-            GameObject vis = GameObject.Instantiate(visual, obj.transform);
-            vis.transform.localRotation = Quaternion.identity;
-
-            activeEnemies.Add(unit);
-            Console.Log($"Spawned enemy {unit.unitName}");
-        }
-
-        // register in EnemyManager
-        EnemyManager.RegisterParty(new EnemyParty(activeEnemies));
-
-    }
-    private static List<Vector3> GenerateCirclePositions(Vector3 center, float radius, int count)
-    {
-        List<Vector3> positions = new List<Vector3>();
-        float angleStep = 360f / count;
-
-        for (int i = 0; i < count; i++)
-        {
-            float angle = angleStep * i * Mathf.Deg2Rad;
-            float x = Mathf.Cos(angle) * radius;
-            float z = Mathf.Sin(angle) * radius;
-            positions.Add(new Vector3(center.x + x, center.y, center.z + z));
-        }
-
-        return positions;
-    }
 
 
 }

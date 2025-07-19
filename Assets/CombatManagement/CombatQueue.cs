@@ -1,9 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using PartyManagement;
 using UnityEngine;
 
-public class SpawnButton1 : MonoBehaviour
+public class CombatQueue : MonoBehaviour
 {
+    [SerializeField]
+    private GameManagerMDD gameManager;
+
+    public Queue<CharacterUnit> unitQueue;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -14,10 +20,5 @@ public class SpawnButton1 : MonoBehaviour
     void Update()
     {
         
-    }
-
-    public void SpawnParty1()
-    {
-        FindObjectOfType<EnemyManager>().SpawnDebugPack(new Vector3(20, 0, 20), 3);
     }
 }

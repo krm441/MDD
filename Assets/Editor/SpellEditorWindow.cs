@@ -44,9 +44,11 @@ public class SpellEditorWindow : EditorWindow
             spell.manaCost = EditorGUILayout.IntField("Mana Cost", spell.manaCost);
             spell.range = EditorGUILayout.IntField("Range", spell.range);
             spell.radius = EditorGUILayout.IntField("Radius", spell.radius);
-            spell.baseDamage = EditorGUILayout.FloatField("Base damage", spell.baseDamage);
+            //spell.baseDamage = EditorGUILayout.FloatField("Base damage", spell.baseDamage);
             spell.vfxType = EditorGUILayout.TextField("VFX", spell.vfxType);
             spell.physicsType = (SpellPhysicsType)EditorGUILayout.EnumPopup("Physics Type", spell.physicsType);
+
+            DrawDamageContainer(spell.baseDamage);
 
             if (GUILayout.Button("Remove Spell"))
             {
@@ -56,6 +58,8 @@ public class SpellEditorWindow : EditorWindow
 
             EditorGUILayout.EndVertical();
         }
+
+
 
         EditorGUILayout.EndScrollView();
 
@@ -72,6 +76,38 @@ public class SpellEditorWindow : EditorWindow
         }
     }
 
+    public static void DrawDamageContainer(DamageResistenceContainer dmg, string label = "Base Damage")
+    {
+        EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
+        EditorGUI.indentLevel++;
+
+        EditorGUILayout.LabelField("Physical");
+        dmg.Slashing = EditorGUILayout.IntField("  Slashing", dmg.Slashing);
+        dmg.Piercing = EditorGUILayout.IntField("  Piercing", dmg.Piercing);
+        dmg.Crushing = EditorGUILayout.IntField("  Crushing", dmg.Crushing);
+
+        EditorGUILayout.LabelField("Elemental");
+        dmg.Fire = EditorGUILayout.IntField("  Fire", dmg.Fire);
+        dmg.Water = EditorGUILayout.IntField("  Water", dmg.Water);
+        dmg.Wind = EditorGUILayout.IntField("  Wind", dmg.Wind);
+        dmg.Earth = EditorGUILayout.IntField("  Earth", dmg.Earth);
+
+        EditorGUILayout.LabelField("Spiritual");
+        dmg.Light = EditorGUILayout.IntField("  Light", dmg.Light);
+        dmg.Shadow = EditorGUILayout.IntField("  Shadow", dmg.Shadow);
+
+        EditorGUILayout.LabelField("Heretique");
+        dmg.Necrotic = EditorGUILayout.IntField("  Necrotic", dmg.Necrotic);
+        dmg.Poison = EditorGUILayout.IntField("  Poison", dmg.Poison);
+        dmg.Demonic = EditorGUILayout.IntField("  Demonic", dmg.Demonic);
+
+        EditorGUILayout.LabelField("Support / Healing");
+        dmg.Healing = EditorGUILayout.IntField("  Healing", dmg.Healing);
+        dmg.MentalFortification = EditorGUILayout.IntField("  Mental Fortification", dmg.MentalFortification);
+        dmg.MagicFortification = EditorGUILayout.IntField("  Magic Fortification", dmg.MagicFortification);
+
+        EditorGUI.indentLevel--;
+    }
     private void LoadSpells()
     {
         if (File.Exists(jsonPath))

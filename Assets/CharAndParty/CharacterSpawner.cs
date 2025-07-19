@@ -12,11 +12,15 @@ public class CharacterSpawner : MonoBehaviour
     [SerializeField] private GameObject capsuleBlue;
     [SerializeField] private GameObject capsuleRed;
     [SerializeField] private GameObject capsuleYellow;
+    [SerializeField] private GameManagerMDD gameManager;
+    [SerializeField] private SpellMap spellMap;
+    [SerializeField] private PartyManager partyManager;
 
     public Sprite magusPortrait;
     public Sprite warriorPortrait;
     public Sprite clericPortrait;
 
+    [SerializeField]
     public PartyPortraitManagerUI portraitManager;
 
     //public PartyManager partyManager;
@@ -29,7 +33,7 @@ public class CharacterSpawner : MonoBehaviour
 
     private void RebuildPartyFromData()
     {
-        List<CharacterUnit> party = PartyManager.partyMembers;
+        List<CharacterUnit> party = partyManager.partyMembers;
 
         for (int i = 0; i < party.Count && i < spawnPoints.Length; i++)
         {
@@ -40,10 +44,10 @@ public class CharacterSpawner : MonoBehaviour
 
             // Copy data from stored unit into new one
             unit.unitName = logicData.unitName;
-            unit.stats = logicData.stats;
+            unit.attributeSet.stats = logicData.attributeSet.stats;
 
             // Replace PartyManager reference with the freshly spawned one
-            PartyManager.partyMembers[i] = unit;
+            partyManager.partyMembers[i] = unit;
 
             Debug.Log($"Re-spawned: {unit.unitName}");
         }
@@ -57,9 +61,9 @@ public class CharacterSpawner : MonoBehaviour
         SpawnClericDebug();
 
         // build ui
-        PartyPortraitManagerUI.BuildPortraitBar();
-        PartyManager.SelectMember(PartyManager.GetParty()[0]);
-        SpellMap.BuildIconBar(PartyManager.GetParty()[0]);
+        portraitManager.BuildPortraitBar();
+        partyManager.SelectMember(partyManager.GetParty()[0]);
+        spellMap.BuildIconBar(partyManager.GetParty()[0], gameManager);
     }
 
     // Debug spawner
@@ -87,7 +91,7 @@ public class CharacterSpawner : MonoBehaviour
             public int MaxHP;
         }*/
 
-        unit.stats = new StatBlock
+        unit.attributeSet.stats = new StatBlock
         {
             Intelligence = 17,
             Initiative = 5,
@@ -98,6 +102,11 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 100
         };
 
+        unit.attributeSet.resistances = new DamageResistenceContainer
+        {
+
+        };
+
         unit.spellBook.AddSpell(SpellMap.idSpellPairs[0]); // basic magic cast
 
         if (capsuleBlue != null)
@@ -106,7 +115,7 @@ public class CharacterSpawner : MonoBehaviour
             visual.transform.localRotation = Quaternion.identity;
         }
 
-        PartyManager.AddMember(unit);
+        partyManager.AddMember(unit);
         Debug.Log("Spawned and added: Magus");
     }
     
@@ -122,7 +131,7 @@ public class CharacterSpawner : MonoBehaviour
 
         unit.portraitSprite = warriorPortrait;
 
-         unit.stats = new StatBlock
+         unit.attributeSet.stats = new StatBlock
         {
             Willpower = 17,
             Initiative = 4,
@@ -143,7 +152,7 @@ public class CharacterSpawner : MonoBehaviour
             visual.transform.localRotation = Quaternion.identity;
         }
 
-        PartyManager.AddMember(unit);
+        partyManager.AddMember(unit);
         Debug.Log("Spawned and added: Warior");
     }
 
@@ -157,7 +166,7 @@ public class CharacterSpawner : MonoBehaviour
 
         unit.portraitSprite = clericPortrait;
 
-        unit.stats = new StatBlock
+        unit.attributeSet.stats = new StatBlock
         {
             Devotion = 17,
             Initiative = 3,
@@ -176,7 +185,7 @@ public class CharacterSpawner : MonoBehaviour
             visual.transform.localRotation = Quaternion.identity;
         }
 
-        PartyManager.AddMember(unit);
+        partyManager.AddMember(unit);
         Debug.Log("Spawned and added: Cleric");
     }
 }

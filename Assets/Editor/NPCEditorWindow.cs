@@ -54,6 +54,8 @@ public class NPCEditorWindow : EditorWindow
             npc.armorStat.magicArmor = EditorGUILayout.IntField("Magic Armor", npc.armorStat.magicArmor);
             npc.armorStat.moraleLevel = EditorGUILayout.IntField("Morale Level", npc.armorStat.moraleLevel);
 
+            SpellEditorWindow.DrawDamageContainer(npc.damageResistenceContainer, "Resistances");
+
             EditorGUILayout.Space(5);
             if (GUILayout.Button("Delete NPC"))
             {

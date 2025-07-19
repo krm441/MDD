@@ -123,60 +123,6 @@ namespace Pathfinding
             return null;
         }
 
-
-        void DetectClick()
-        {
-            if (EventSystem.current.IsPointerOverGameObject()) // ui event consume
-                return;
-
-            if (Input.GetMouseButtonDown(0))
-            {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                Debug.Log("RaycastSent");
-
-                // Only raycast against objects in the "clickableLayer" layer mask
-                if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
-                {        
-                    Vector3 worldPos = hit.point;
-                    Debug.Log("RaycastHit "  + worldPos);
-                    Node clickedNode = GetNodeFromWorldPosition(worldPos);
-
-
-                    if (clickedNode != null && clickedNode.isWalkable)
-                    {
-                        Debug.Log("Clicked node: " + clickedNode.gridPos);
-
-                        Node startNode = GetNodeFromWorldPosition(PartyManagement.PartyManager.CurrentSelected.transform.position);
-                        Node endNode = GetNodeFromWorldPosition(hit.point);
-
-                        //List<Node> path = aStar.FindPath(startNode, endNode);
-                        List<Node> path = thetaStar.FindPath(startNode, endNode);
-                        PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path);
-
-                        // Visual marker
-                        if (clickMarkerPrefab != null)
-                        {
-                             // Destroy the previous marker if it still exists
-                            if (currentClickMarker != null)
-                            {
-                                Destroy(currentClickMarker);
-                            }
-
-                            Quaternion rotation = Quaternion.Euler(90f, 0f, 0f); // Flat on ground
-                            Vector3 pos = hit.point + new Vector3(0f, 0.1f, 0f); // Prevent Z-fighting
-
-                            // Spawn new marker and keep reference
-                            currentClickMarker = Instantiate(clickMarkerPrefab, pos, rotation);
-
-                            // Auto-destroy after 1.5 seconds and clear the reference
-                            Destroy(currentClickMarker, 1.5f); // Lifetime = 1.5 seconds
-                        }
-
-                    }
-                }
-            }
-        }
-
         public Node GetNodeFromWorldPosition(Vector3 worldPos)
         {
             if (grid == null)

@@ -17,8 +17,8 @@ public class PortraitBarUI : MonoBehaviour
     {
         if (unit == null || healthBarFill == null) return;
 
-        float currentHP = unit.stats.HP;
-        float maxHP = unit.stats.MaxHP;
+        float currentHP = unit.attributeSet.stats.HP;
+        float maxHP = unit.attributeSet.stats.MaxHP;
         float percent = Mathf.Clamp01(currentHP / maxHP);
 
         // scale method (X-axis)

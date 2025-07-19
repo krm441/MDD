@@ -41,19 +41,23 @@ public enum SpellCastingAnimationStates
 // singleton - persistent
 public class GameManagerMDD : MonoBehaviour
 {
+    [SerializeField] public CombatQueue combatQueue;
+    [SerializeField] public SpellMap spellMap;
+    [SerializeField] public PartyManagement.PartyManager partyManager;
 
-    public static PlayerData playerData = new PlayerData();
+    public PlayerData playerData = new PlayerData();
+    public CombatManager CombatManager = new CombatManager();
    
     // references for the states:
     public Pathfinding.GridSystem gridSystem; // pathfinder
         
     // controll from outside the scene - for simplicity
-    public static GameStateEnum currentStateEnum = GameStateEnum.Exploration;
-    public static GameStateEnum GetCurrentStateType() => currentStateEnum;
-    private static Dictionary<GameStateEnum, IGameState> states;
-    private static IGameState currentState;
+    public GameStateEnum currentStateEnum = GameStateEnum.Exploration;
+    public GameStateEnum GetCurrentStateType() => currentStateEnum;
+    private Dictionary<GameStateEnum, IGameState> states;
+    private IGameState currentState;
 
-    public static IGameState GetCurrentState() => currentState;
+    public IGameState GetCurrentState() => currentState;
 
     // Start is called before the first frame update
     void Start()
@@ -74,7 +78,7 @@ public class GameManagerMDD : MonoBehaviour
         MouseTracker.Update();
     }
 
-    public static void ChangeState(GameStateEnum newState)
+    public void ChangeState(GameStateEnum newState)
     {
         currentState?.Exit();
 
@@ -84,19 +88,19 @@ public class GameManagerMDD : MonoBehaviour
     }
     
     // public methods for button logic
-    public static void EnterCombat()
+    public void EnterCombat()
     {
         ChangeState(GameStateEnum.TurnBasedMode);
     }
 
-    public static void ExitCombat()
+    public void ExitCombat()
     {
         if (currentStateEnum == GameStateEnum.Exploration) return;
 
         ChangeState(GameStateEnum.Exploration);
 
         // set the main character as selected
-        PartyManagement.PartyManager.SetMainAsSelected();
+        partyManager.SetMainAsSelected();
 
         // clear turn based queue
         PartyPortraitManagerUI.ClearHorisontal();

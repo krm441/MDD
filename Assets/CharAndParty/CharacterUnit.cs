@@ -9,17 +9,16 @@ public class StatBlock
     public StatBlock() { }
     public StatBlock(StatBlock copy)
     {
-        this.Intelligence = copy.Intelligence;
-        this.Willpower = copy.Willpower;
-        this.Devotion = copy.Devotion;
-        this.HP = copy.HP;
-        this.MaxHP = copy.MaxHP;
-        
-        this.Speed = copy.Speed;
-        this.Initiative = copy.Initiative;
-        this.ActionPoints = copy.ActionPoints;
-        this.MaxActionPoints = copy.MaxActionPoints;
-        this.StartActionPoints = copy.StartActionPoints;
+        this.Intelligence       = copy.Intelligence;
+        this.Willpower          = copy.Willpower;
+        this.Devotion           = copy.Devotion;
+        this.HP                 = copy.HP;
+        this.MaxHP              = copy.MaxHP;        
+        this.Speed              = copy.Speed;
+        this.Initiative         = copy.Initiative;
+        this.ActionPoints       = copy.ActionPoints;
+        this.MaxActionPoints    = copy.MaxActionPoints;
+        this.StartActionPoints  = copy.StartActionPoints;
     }
 
     public int Intelligence;
@@ -42,9 +41,9 @@ public class ArmorStat
     public ArmorStat() { }
     public ArmorStat(ArmorStat copy)
     {
-        this.magicArmor = copy.magicArmor;
-        this.physicalArmor = copy.physicalArmor;
-        this.moraleLevel = copy.moraleLevel;
+        this.magicArmor         = copy.magicArmor;
+        this.physicalArmor      = copy.physicalArmor;
+        this.moraleLevel        = copy.moraleLevel;
     }
 
     public int physicalArmor;
@@ -64,11 +63,11 @@ namespace PartyManagement
         public bool isPlayerControlled = true;
         public bool isMainCharacter = false;
 
-        public bool IsDead => stats.HP <= 0;
+        
+        public bool IsDead => attributeSet.stats.HP <= 0;
 
+        public AttributeSet attributeSet;
 
-        public StatBlock stats;
-        public ArmorStat armorStat;
         MeshAndPortraits meshAndPortraits;
         public Sprite portraitSprite;
         public string unitName;
@@ -78,7 +77,7 @@ namespace PartyManagement
 
         public void SetActionPoints(int points)
         {
-            stats.ActionPoints = points;
+            attributeSet.stats.ActionPoints = points;
         }
 
         public Spell GetSelectedSpell() => currentlySelectedSpell;
@@ -112,7 +111,7 @@ namespace PartyManagement
                     transform.position = Vector3.MoveTowards(
                         transform.position,
                         target,
-                        stats.Speed * Time.deltaTime
+                        attributeSet.stats.Speed * Time.deltaTime
                     );
                     yield return null;
                 }
@@ -131,7 +130,7 @@ namespace PartyManagement
         /// <returns></returns>
         public IEnumerator CastSpellWithMovement(
             CharacterUnit caster,
-            //Spell spell,
+            CombatManager combatManager,
             Pathfinding.Path path,
             Vector3 targetPoint,
             Action onComplete
@@ -148,7 +147,7 @@ namespace PartyManagement
 
             // 2- Cast at targetPoint when walk is over
             // onComplete callback is passed to ApplySpell in Combat manager
-            CombatManager.ApplySpell(this, spell, targetPoint, () =>
+            combatManager.ApplySpell(this, spell, targetPoint, () =>
             {
                 // only after the animation spell is over
                 AimingVisualizer.DrawImpactCircle(targetPoint, spell.radius, Color.red);
@@ -202,35 +201,35 @@ namespace PartyManagement
             float distance = path.CalculateDistance(transform.position);
 
             // 2) Convert to AP cost: 1 AP per stats.Speed units moved
-            float rawCost = distance / (float)stats.Speed;
+            float rawCost = distance / (float)attributeSet.stats.Speed;
 
             // 3) Round up
             int apCost = Mathf.CeilToInt(rawCost);
 
             // 4) Subtract apCost from ActionPoints, clamping at 0
-            int newAP = Mathf.Max(0, stats.ActionPoints - apCost);
+            int newAP = Mathf.Max(0, attributeSet.stats.ActionPoints - apCost);
             SetActionPoints(newAP);
         }
 
         public void DeductActionPoints(int AP)
         {
-            stats.ActionPoints -= AP;
+            attributeSet.stats.ActionPoints -= AP;
         }
 
         public void AddActionPoints(int points)
         {
-            stats.ActionPoints += points;
+            attributeSet.stats.ActionPoints += points;
         }
 
         public void AddActionPointsStart()
         {
-            if (stats.ActionPoints + stats.StartActionPoints > stats.MaxActionPoints)
+            if (attributeSet.stats.ActionPoints + attributeSet.stats.StartActionPoints > attributeSet.stats.MaxActionPoints)
             {
-                stats.ActionPoints = stats.MaxActionPoints;
+                attributeSet.stats.ActionPoints = attributeSet.stats.MaxActionPoints;
             }
             else
             {
-                AddActionPoints(stats.StartActionPoints);
+                AddActionPoints(attributeSet.stats.StartActionPoints);
             }
         }
     }

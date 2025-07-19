@@ -8,12 +8,28 @@
             "shotcutKey": "F",
             "prefabMeshEffect": "",
             "physicsType": 2,
+            "baseDamage": {
+                "Slashing": 0,
+                "Piercing": 0,
+                "Crushing": 0,
+                "Fire": 50,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 0,
+                "MentalFortification": 0,
+                "MagicFortification": 0
+            },
             "apCost": 3,
             "manaCost": 10,
             "range": 10,
             "radius": 3,
-            "vfxType": "fireball",
-            "baseDamage": 100.0
+            "vfxType": "fireball"
         },
         {
             "id": 1,
@@ -23,12 +39,28 @@
             "shotcutKey": "R",
             "prefabMeshEffect": "",
             "physicsType": 0,
+            "baseDamage": {
+                "Slashing": 40,
+                "Piercing": 0,
+                "Crushing": 0,
+                "Fire": 0,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 0,
+                "MentalFortification": 0,
+                "MagicFortification": 0
+            },
             "apCost": 2,
             "manaCost": 0,
             "range": 0,
             "radius": 1,
-            "vfxType": "sword",
-            "baseDamage": 100.0
+            "vfxType": "sword"
         },
         {
             "id": 2,
@@ -38,12 +70,28 @@
             "shotcutKey": "H",
             "prefabMeshEffect": "",
             "physicsType": 2,
+            "baseDamage": {
+                "Slashing": 0,
+                "Piercing": 0,
+                "Crushing": 0,
+                "Fire": 0,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 40,
+                "MentalFortification": 0,
+                "MagicFortification": 0
+            },
             "apCost": 0,
             "manaCost": 10,
             "range": 12,
             "radius": 0,
-            "vfxType": "basicHeal",
-            "baseDamage": 100.0
+            "vfxType": "basicHeal"
         }
     ]
 }

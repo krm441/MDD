@@ -27,10 +27,12 @@ public interface IGameState
 public abstract class GameStateBase : IGameState
 {
     protected GameManagerMDD gameManager;
+    protected PartyManager partyManager;
 
     public GameStateBase(GameManagerMDD manager)
     {
         gameManager = manager;
+        partyManager = manager.partyManager;
     }
 
     public virtual void Enter() { }
@@ -116,11 +118,16 @@ public class ExplorationState : GameStateBase
 
 public class TurnBasedState : GameStateBase
 {
-    public Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
+    //public Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
 
     private CharacterUnit selectedUnitBeforeCombat; // used on exit to set it as active again
 
-    public TurnBasedState(GameManagerMDD manager) : base(manager) { }
+    private SpellMap spellMap;
+
+    public TurnBasedState(GameManagerMDD manager) : base(manager) 
+    {
+        spellMap = manager.spellMap;
+    }
 
     private CombatManager combatManager = new CombatManager();
 
@@ -134,7 +141,7 @@ public class TurnBasedState : GameStateBase
         // short wait for all animations to finish
         yield return new WaitForSeconds(1f);
         yield return new WaitUntil(() => !gameManager.AreAnyCombatCoroutinesRunning()); // also ends all coroutines if not ended
-        GameManagerMDD.ExitCombat(); 
+        gameManager.ExitCombat(); 
     }
 
 
@@ -149,29 +156,27 @@ public class TurnBasedState : GameStateBase
 
         EnemyManager.OnAllEnemiesDefeated += HandleCombatEnded;
 
-        combatManager.EnterCombat();
-
         // save the active unit
-        selectedUnitBeforeCombat = PartyManager.CurrentSelected;
+        selectedUnitBeforeCombat = partyManager.CurrentSelected;
 
         //var party = PartyManager.GetParty();
         //turnQueue = new Queue<CharacterUnit>(party.OrderByDescending(p => p.stats.Initiative));
 
-        PartyManager.StopAllMovement();
-        PartyManager.ResetAllActionPoints(); // zero them
+        partyManager.StopAllMovement();
+        partyManager.ResetAllActionPoints(); // zero them
 
         // Concat the multiparty in one array
-        var combatants = PartyManager.GetParty()
+        var combatants = partyManager.GetParty()
             .Concat(EnemyManager.GetEnemies())
-            .OrderByDescending(p => p.stats.Initiative);
+            .OrderByDescending(p => p.attributeSet.stats.Initiative);
 
-        turnQueue = new Queue<CharacterUnit>(combatants);
+        gameManager.combatQueue.unitQueue = new Queue<CharacterUnit>(combatants);
 
         // set queue in manager = for reference
-        CombatManager.turnQueue = turnQueue;
+        //CombatManager.turnQueue = turnQueue;
 
         // portrait queue building
-        PartyPortraitManagerUI.BuildTurnQueuePortraits(turnQueue);
+        PartyPortraitManagerUI.BuildTurnQueuePortraits(gameManager.combatQueue.unitQueue);
 
         
 
@@ -182,20 +187,22 @@ public class TurnBasedState : GameStateBase
 
     private void NextTurn()
     {
+        var turnQueue = gameManager.combatQueue.unitQueue;
+
         // next unit
         CharacterUnit unit = turnQueue.Dequeue();
 
         if (unit.isPlayerControlled)
         {
-            PartyManagement.PartyManager.CurrentSelected = unit;
-            turnQueue.Enqueue(PartyManagement.PartyManager.CurrentSelected);
-            Console.Error("start turn", PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints);
-            PartyManagement.PartyManager.CurrentSelected.AddActionPointsStart();
+            partyManager.CurrentSelected = unit;
+            turnQueue.Enqueue(partyManager.CurrentSelected);
+            Console.Error("start turn", partyManager.CurrentSelected.attributeSet.stats.ActionPoints);
+            partyManager.CurrentSelected.AddActionPointsStart();
 
             // select new unit in the party = selects its abilities in the left icon
-            PartyManagement.PartyManager.SelectMember(PartyManagement.PartyManager.CurrentSelected);
-            SpellMap.BuildIconBar(PartyManagement.PartyManager.CurrentSelected);
-            Console.ScrLog($"New Turn Player: {PartyManagement.PartyManager.CurrentSelected.unitName}", "\nturn Q volume:", turnQueue.Count);
+            partyManager.SelectMember(partyManager.CurrentSelected);
+            spellMap.BuildIconBar(partyManager.CurrentSelected, gameManager);
+            //Console.ScrLog($"New Turn Player: {partyManager.CurrentSelected.unitName}", "\nturn Q volume:", turnQueue.Count);
 
             // set substate to turn movement
             SetSubstate(new TurnBasedMovement(gameManager));
@@ -248,7 +255,10 @@ public class TurnBasedState : GameStateBase
         EnemyManager.OnAllEnemiesDefeated -= HandleCombatEnded;
 
         // Clean turn queue
-        turnQueue.Clear();
+        gameManager.combatQueue.unitQueue.Clear();
+
+        // restore ap
+        gameManager.partyManager.SetStartActionPoints();
 
         Console.Error("Exiting Combat");
     }

@@ -7,6 +7,8 @@ public class TurnBasedModeUIController : MonoBehaviour
 {
     private Text buttonText;
 
+    [SerializeField] private GameManagerMDD gameManager;
+
     private string goToTurnMode = "Enter Turn Based Mode";
     private string goToExploreMode = "Enter Exploration Mode";
 
@@ -26,12 +28,12 @@ public class TurnBasedModeUIController : MonoBehaviour
         if (isTurnMode)
         {
             buttonText.text = goToExploreMode;
-            GameManagerMDD.EnterCombat();
+            gameManager.EnterCombat();
         }
         else
         {
             buttonText.text = goToTurnMode;
-            GameManagerMDD.ExitCombat();
+            gameManager.ExitCombat();
         }
     }
 }
