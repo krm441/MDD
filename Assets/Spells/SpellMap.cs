@@ -35,6 +35,15 @@ public enum SpellPhysicsType
     Static,
     Linear,
     Parabolic, // arc like
+    Chain
+}
+
+public enum SpellDPSType
+{
+    AOE,
+    DOT,
+    Melee,
+    CC,
 }
 
 [System.Serializable]
@@ -106,12 +115,16 @@ public class Spell
     public string shotcutKey;
     public string prefabMeshEffect; // mesh or effect prefab path
     public SpellPhysicsType physicsType;
+    public SpellDPSType dPSType;
     public DamageResistenceContainer baseDamage;
     public int apCost;
     public int manaCost;
     public int range;
     public int radius;
     public string vfxType;
+    public string sfxOnStart;
+    public string sfxOnFly;
+    public string sfxOnImpact;
 }
 
 /// <summary>
@@ -126,7 +139,7 @@ public class SpellListWrapper
 // Container that contains spells
 public class SpellMap : MonoBehaviour
 {
-    [SerializeField] private static Transform iconBarParent;
+    [SerializeField] private Transform iconBarParent;
 
     private static bool isInitialized = false;
     private void Start()
@@ -150,6 +163,13 @@ public class SpellMap : MonoBehaviour
             iconBarParent = parentObj.transform;
         }
     }
+
+    public void HideIconBar()
+    {
+        foreach (Transform child in iconBarParent)
+            Destroy(child.gameObject);
+    }
+
 
     public void BuildIconBar(PartyManagement.CharacterUnit unit, GameManagerMDD gameManager)
     {       
@@ -179,13 +199,22 @@ public class SpellMap : MonoBehaviour
             
             Button button = btn.GetComponent<Button>();
             button.onClick.AddListener(() =>
-            { 
-                unit.StopMovement();
-                unit.SelectSpell(spell);
+            {
+                ButtonEvent buttonEvent = new ButtonEvent
+                {
+                    eventType = EventTypeButton.SpellClick,
+                    spell = spell,
+                    targetUnit = unit,
+                };
 
-                gameManager.GetCurrentState().SetCastingSubState();
-                //GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
-                Debug.Log("Selected spell: " + spell.name);
+                gameManager.GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
+
+                //unit.StopMovement();
+                //unit.SelectSpell(spell);
+                //
+                //gameManager.GetCurrentState().SetCastingSubState();
+                ////GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
+                //Debug.Log("Selected spell: " + spell.name);
             });
 
             // tool tip:
@@ -201,7 +230,7 @@ public class SpellMap : MonoBehaviour
             entryEnter.callback.AddListener((eventData) =>
             {
                 UITooltip.Instance.Show(spell.description, Input.mousePosition);
-                Debug.Log("entry");
+                //Debug.Log("entry");
             });
             trigger.triggers.Add(entryEnter);
 
@@ -213,7 +242,7 @@ public class SpellMap : MonoBehaviour
             entryExit.callback.AddListener((eventData) =>
             {
                 UITooltip.Instance.Hide();
-                Debug.Log("Exit");
+                //Debug.Log("Exit");
             });
             trigger.triggers.Add(entryExit);
         }

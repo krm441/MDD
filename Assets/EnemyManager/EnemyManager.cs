@@ -31,6 +31,7 @@ public class EnemyManager : MonoBehaviour
     private bool isInitiated = false;
 
     [SerializeField] private PartyManager partyManager;
+    [SerializeField] public AiManager aiManager;
 
     /// <summary>
     /// Gloval game-wide signal. Static for simplicity
@@ -109,6 +110,7 @@ public class EnemyManager : MonoBehaviour
     ///////////////////////////////////////////////////////////////////////// 
     ///spawner///
 
+    
 
     public void SpawnDebugPack(Vector3 center, float areaRadius, string enemyType = "NpcSimple", string partyName = "DebugParty")
     {
@@ -175,6 +177,12 @@ public class EnemyManager : MonoBehaviour
             unit.attributeSet.armorStat = new ArmorStat(npcDef.armorStat);
             unit.attributeSet.resistances = new DamageResistenceContainer(npcDef.damageResistenceContainer);
 
+            // register BTs
+            aiManager.SetupAI_BT(unit);
+
+            // spell
+            unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic piercing arrow
+
             // portrait
             Sprite portrait = Resources.Load<Sprite>(npcDef.portraitPath);
             if (portrait == null)
@@ -236,7 +244,7 @@ public static class EnemyDatabase
         foreach (var e in enemyList.list)
             NPCs[e.id] = e;
 
-        Debug.Log($"Loaded {NPCs.Count} enemy definitions.");
+        //Debug.Log($"Loaded {NPCs.Count} enemy definitions.");
     }
 
     [System.Serializable]

@@ -24,6 +24,10 @@ public class CombatManager //: MonoBehaviour
         // Rotate to face the target:
         caster.LookAtTarget(targetPosition);
 
+        // SFX - start
+        SoundPlayer.PlayClipAtPoint(spell.sfxOnStart, targetPosition);
+
+        // VFX
         SpellVisualEffectsManager.LaunchSpellVFX(spell, caster, targetPosition, () =>
         {
             var targets = FindTargetsInRadius(targetPosition, spell.radius);
@@ -31,6 +35,20 @@ public class CombatManager //: MonoBehaviour
             {
                 foreach (var target in targets)
                 {
+                    if (spell.dPSType == SpellDPSType.Melee)
+                    {
+                        if (
+                            target.TryGetComponent<CharacterUnit>(out var isSelf) ||
+                            target.transform.parent?.TryGetComponent<CharacterUnit>(out isSelf) == true
+                        )
+                        {
+                            if(isSelf == caster)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+
                     if (target.TryGetComponent<AttributeSet>(out var unit) ||
                         target.transform.parent?.TryGetComponent<AttributeSet>(out unit) == true)
                     {
@@ -51,6 +69,9 @@ public class CombatManager //: MonoBehaviour
             {
                 Debug.Log("ApplySpell::No hits");
             }
+
+            // SFX - finish
+            SoundPlayer.PlayClipAtPoint(spell.sfxOnImpact, targetPosition);
 
             onImpactComplete?.Invoke();
         });       

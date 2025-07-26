@@ -44,9 +44,12 @@ public class GameManagerMDD : MonoBehaviour
     [SerializeField] public CombatQueue combatQueue;
     [SerializeField] public SpellMap spellMap;
     [SerializeField] public PartyManagement.PartyManager partyManager;
+    [SerializeField] private GridPathGenerator gridPathGenerator;
 
     public PlayerData playerData = new PlayerData();
     public CombatManager CombatManager = new CombatManager();
+
+    public AiManager aiManager;
    
     // references for the states:
     public Pathfinding.GridSystem gridSystem; // pathfinder
@@ -57,11 +60,14 @@ public class GameManagerMDD : MonoBehaviour
     private Dictionary<GameStateEnum, IGameState> states;
     private IGameState currentState;
 
+    public bool IsCombat() => currentStateEnum != GameStateEnum.Exploration;
+
     public IGameState GetCurrentState() => currentState;
 
     // Start is called before the first frame update
     void Start()
     {
+        gridPathGenerator.Initialise();
         states = new Dictionary<GameStateEnum, IGameState>
         {
             { GameStateEnum.Exploration, new ExplorationState(this, gridSystem) },
@@ -120,6 +126,14 @@ public class GameManagerMDD : MonoBehaviour
     {
         coroutineHandlers[name] = new CoroutineHandle(this, coroutine);
     }
+    public void RemoveCoroutine(string name)
+    {
+        if (coroutineHandlers.TryGetValue(name, out var handle))
+        {
+            handle.Stop(); // Just to be safe
+            coroutineHandlers.Remove(name);
+        }
+    }
 
     public CoroutineHandle GetCoroutine(string name) 
     { 
@@ -130,7 +144,7 @@ public class GameManagerMDD : MonoBehaviour
 
     public void StopAllCoroutinesMDD() // MDD since it is ambiguous with Monobehaviour
     {
-        foreach(CoroutineHandle handle in coroutineHandlers.Values)
+        foreach (CoroutineHandle handle in coroutineHandlers.Values)
         {
             handle.Stop();
         }

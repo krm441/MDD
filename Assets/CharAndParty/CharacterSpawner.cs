@@ -107,7 +107,17 @@ public class CharacterSpawner : MonoBehaviour
 
         };
 
+        unit.attributeSet.armorStat = new ArmorStat
+        {
+            maxMagicArmor = 100,
+            magicArmor = 100,
+            physicalArmor = 100,
+            maxPhysicalArmor = 100,
+            moraleLevel = 100,
+        };
+
         unit.spellBook.AddSpell(SpellMap.idSpellPairs[0]); // basic magic cast
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic arrow cast
 
         if (capsuleBlue != null)
         {
@@ -131,7 +141,7 @@ public class CharacterSpawner : MonoBehaviour
 
         unit.portraitSprite = warriorPortrait;
 
-         unit.attributeSet.stats = new StatBlock
+        unit.attributeSet.stats = new StatBlock
         {
             Willpower = 17,
             Initiative = 4,
@@ -142,7 +152,17 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 200
         };
 
+        unit.attributeSet.armorStat = new ArmorStat
+        {
+            maxMagicArmor = 100,
+            magicArmor = 100,
+            physicalArmor = 100,
+            maxPhysicalArmor = 100,
+            moraleLevel = 100,
+        };
+
         unit.spellBook.AddSpell(SpellMap.idSpellPairs[1]); // basic melee cast
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic arrow cast
 
         // init body
         if (capsuleRed != null)
@@ -175,6 +195,15 @@ public class CharacterSpawner : MonoBehaviour
             Speed = 2,
             HP = 150,
             MaxHP = 150
+        };
+
+        unit.attributeSet.armorStat = new ArmorStat
+        {
+            maxMagicArmor = 100,
+            magicArmor = 100,
+            physicalArmor = 100,
+            maxPhysicalArmor = 100,
+            moraleLevel = 100,
         };
 
         unit.spellBook.AddSpell(SpellMap.idSpellPairs[2]); // basic heal streamlet

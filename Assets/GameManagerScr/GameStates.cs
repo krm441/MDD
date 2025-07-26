@@ -14,6 +14,8 @@ public interface IGameState
     void Update();
     void Exit();
 
+    void NextTurn();
+
     // dop
     void SetCastingSubState();
     void SetMovementSubState();
@@ -38,6 +40,7 @@ public abstract class GameStateBase : IGameState
     public virtual void Enter() { }
     public virtual void Update() { }
     public virtual void Exit() { }
+    public virtual void NextTurn() { }
 
     // ==== Substates ====
     protected ISubstate currentSubstate;
@@ -82,8 +85,11 @@ public class ExplorationState : GameStateBase
 
         // ui debug
         GameObject statusTextObject = GameObject.Find("StatusText");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "Status: Exploration";
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "Status: Exploration";
+        }
 
 
         SetSubstate(new MovementSubstate(gameManager));
@@ -151,8 +157,12 @@ public class TurnBasedState : GameStateBase
 
         // ui debug
         GameObject statusTextObject = GameObject.Find("StatusText");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "Status: Combat";
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "Status: Combat";
+        }
+       
 
         EnemyManager.OnAllEnemiesDefeated += HandleCombatEnded;
 
@@ -185,12 +195,34 @@ public class TurnBasedState : GameStateBase
 
     private bool enemyTurn = false;
 
-    private void NextTurn()
+    public override void NextTurn()
     {
         var turnQueue = gameManager.combatQueue.unitQueue;
 
         // next unit
-        CharacterUnit unit = turnQueue.Dequeue();
+        //CharacterUnit unit = turnQueue.Dequeue();
+
+        CharacterUnit unit = null;
+
+        // keep skipping until finds a live unit or queue is empty
+        while (gameManager.combatQueue.unitQueue.Count > 0)
+        {
+            var candidate = gameManager.combatQueue.unitQueue.Dequeue();
+            if (!candidate.IsDead)
+            {
+                unit = candidate;
+                break;
+            }
+        }
+
+        // if no live units left
+        if (unit == null)
+        {
+            Debug.LogWarning("No valid units left in turn queue.");
+            return;
+        }
+
+
 
         if (unit.isPlayerControlled)
         {
@@ -211,15 +243,12 @@ public class TurnBasedState : GameStateBase
         }
         else
         {
-            if(unit.IsDead)
-            {
-                NextTurn();
-            }
-
+            spellMap.HideIconBar();
+            partyManager.CurrentSelected = unit;
             enemyTurn = true;
             SetSubstate(new AITurnSubstate(gameManager, EndTurnAI));
             turnQueue.Enqueue(unit);
-            Console.ScrLog($"New Turn AI: {unit.unitName}", "\nturn Q volume:", turnQueue.Count);
+            Console.Error($"New Turn AI: {unit.unitName}", "\nturn Q volume:", turnQueue.Count);
         }
     }
 

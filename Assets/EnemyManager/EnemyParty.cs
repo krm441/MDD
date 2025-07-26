@@ -11,6 +11,8 @@ public class EnemyParty : MonoBehaviour
 
     public GameManagerMDD gameManager;
 
+    [SerializeField] private AiManager aiManager;
+
     private EnemyManager enemyPartyManager;
     private PartyManager playerPartyManager;
 
@@ -27,6 +29,7 @@ public class EnemyParty : MonoBehaviour
         enemiesInPack = members;
         enemyPartyManager = manager;
         this.playerPartyManager = playerPartyManager;
+        this.aiManager = manager.aiManager;
 
         manager.RegisterParty(this);
     }
@@ -45,9 +48,15 @@ public class EnemyParty : MonoBehaviour
         if (State == PartyState.Idle)
             foreach (var enemy in enemiesInPack)
             {
+                aiManager?.TickAI(enemy);
                 if (IsPlayerVisible(enemy))
                 {
                     Console.Log("Combat triggered by " + enemy.unitName);
+                    foreach (var unit in enemiesInPack) // unelegant solution - need to move coroutines to game manager/ or better a coroutine manager singleton
+                    {
+                        unit.StopMovement();
+                    }
+                    gameManager.StopAllCoroutinesMDD();
                     gameManager.EnterCombat();
                     State = PartyState.Combat;
                     break;
@@ -61,7 +70,11 @@ public class EnemyParty : MonoBehaviour
                 var enemy = enemiesInPack[i];
                 if (enemy.IsDead)
                 {
-                    GameObject.Destroy(enemy.gameObject);
+                    //GameObject.Destroy(enemy.gameObject);
+                    // Instead of destroying game object, i will make it 'play dead' the enemy by rotating 90 degrees on X
+                    enemy.transform.rotation = Quaternion.Euler(-90f, enemy.transform.rotation.eulerAngles.x, enemy.transform.rotation.eulerAngles.z);
+                    enemy.transform.position += Vector3.up;
+
                     enemiesInPack.RemoveAt(i);
                     //enemyPartyManager.allParties.Remove(enemy);
                     PartyPortraitManagerUI portraitUI = GameManagerMDD.FindObjectOfType<PartyPortraitManagerUI>();

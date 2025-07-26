@@ -41,6 +41,11 @@ namespace PartyManagement
             }
         }
 
+        public List<CharacterUnit> GetPlayerControlledUnits()
+        {
+            return partyMembers;
+        }
+
         public void StopAllMovement()
         {
             foreach(CharacterUnit member in partyMembers)

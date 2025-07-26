@@ -18,11 +18,11 @@ public class PartyPortraitManagerUI : MonoBehaviour
     [SerializeField] private SpellMap spellMap;
     [SerializeField] private GameManagerMDD gameManager;
 
-    private PartyManager partyManager;
+    [SerializeField] private PartyManager partyManager;
 
     private void Start()
     {
-        partyManager = gameManager.partyManager;
+        //partyManager = gameManager.partyManager;
     }
 
     public static void ClearHorisontal()
@@ -81,6 +81,14 @@ public class PartyPortraitManagerUI : MonoBehaviour
 
             btn.GetComponentInChildren<Button>().onClick.AddListener(() =>
             {
+                ButtonEvent buttonEvent = new ButtonEvent
+                {
+                    targetUnit = unit,
+                    eventType = EventTypeButton.EnemyPortratClick
+
+                };
+                UnityEngine.Object.FindObjectOfType<GameManagerMDD>().GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
+
                 // show stats in a tooltip
             });
         }
@@ -142,9 +150,16 @@ public class PartyPortraitManagerUI : MonoBehaviour
 
             btn.GetComponentInChildren<Button>().onClick.AddListener(() =>
             {
-                partyManager.SelectMember(index);
-                spellMap.BuildIconBar(unit, gameManager);
-                Console.Log("Selected:", unit.unitName);
+                ButtonEvent buttonEvent = new ButtonEvent
+                {
+                    targetUnit = unit,
+                    eventType = EventTypeButton.CharPortratClick
+
+                };
+                gameManager.GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
+                //partyManager.SelectMember(index);
+                //spellMap.BuildIconBar(unit, gameManager);
+                //Console.Log("Selected:", unit.unitName);
             });
         }
         /*

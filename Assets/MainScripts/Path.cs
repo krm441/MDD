@@ -26,7 +26,7 @@ namespace Pathfinding
         public float CalculateDistance(Vector3 start)
         {
             // calculate distance
-            if (pathNodes == null)
+            if (pathNodes == null || pathNodes.Count == 0)
                 return 0f;
 
             distance = 0f;

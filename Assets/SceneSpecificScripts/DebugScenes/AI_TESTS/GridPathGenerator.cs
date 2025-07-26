@@ -9,16 +9,18 @@ public class GridPathGenerator : MonoBehaviour
     [Tooltip("Reference to the pathfinding system.")]
     public Pathfinding.GridSystem pathFinder;
 
+    [SerializeField] private Vector2Int dimentions = new Vector2Int(62, 20);
+
     // Start is called before the first frame update
     void Start()
     {
-        pathFinder.GeneratePathThetta(100, 100, true);
-        Debug.Log("generated");
+        //pathFinder.GeneratePathThetta(100, 100, true);
+        
+        //Console.Log("generated", dimentions);
     }
 
-    // Update is called once per frame
-    void Update()
+    public void Initialise()
     {
-        
+        pathFinder.GeneratePathThetta(dimentions.x, dimentions.y, true);
     }
 }

@@ -47,6 +47,10 @@ public static class SpellVisualEffectsManager
                 ApplyPointHeal("HealingEffectSimple", caster, targetPosition, onImpact);
                 break;
 
+            case "basicarrow":
+                LaunchArrow("BasicArrow", caster, targetPosition, onImpact);
+                break;
+
             default:
                 Debug.LogWarning($"Unknown spell VFX type: {spell.vfxType}. Falling back to default.");
                 LaunchProjectile("FireballPref", caster, targetPosition, onImpact); // for now default will be the fireball visuals
@@ -63,7 +67,7 @@ public static class SpellVisualEffectsManager
             return;
         }
 
-        Vector3 origin = caster.transform.position + Vector3.up * 1.5f;
+        Vector3 origin = caster.GetChestPos();//     .transform.position + Vector3.up * 1.5f;
         GameObject proj = GameObject.Instantiate(prefab, origin, Quaternion.identity);
 
         if (proj.TryGetComponent<ProjectileBallistic>(out var ballistic))
@@ -120,5 +124,28 @@ public static class SpellVisualEffectsManager
         onImpact?.Invoke();
 
         GameObject.Destroy(proj, 2f); // spell duration !
+    }
+
+    private static void LaunchArrow(string prefabName, CharacterUnit caster, Vector3 targetPosition, Action onImpact)
+    {
+        GameObject prefab = Resources.Load<GameObject>($"Projectiles/{prefabName}");
+        if (prefab == null)
+        {
+            Debug.LogError($"Spell VFX prefab '{prefabName}' not found.");
+            return;
+        }
+
+        Vector3 origin = caster.transform.position + Vector3.up * 1.5f;
+        GameObject proj = GameObject.Instantiate(prefab, origin, Quaternion.identity);
+
+        if (proj.TryGetComponent<ProjectileLinear>(out var ballistic))
+        {
+            ballistic.Launch(origin, targetPosition, () => onImpact?.Invoke());
+        }
+        else
+        {
+            Debug.LogWarning($"Prefab '{prefabName}' missing ProjectileLinear.");
+            GameObject.Destroy(proj);
+        }
     }
 }

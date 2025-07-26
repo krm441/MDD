@@ -1,4 +1,6 @@
 ﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// Controls an isometric-style camera with smooth movement, rotation, and zoom.
@@ -42,6 +44,68 @@ public class IsometricCameraController : MonoBehaviour
         // Always look at target; for arc ball effect around the pivot point
         mCamera.LookAt(target.position);
     }
+
+    public void SnapToCharacter(Transform charTransform)
+    {
+        if (charTransform == null) return;
+
+        // Move pivot to character's feet
+        transform.position = charTransform.position;
+
+        // Ensure the target pivot follows as well
+        target.position = charTransform.position;
+
+        // Recalculate camera position based on current zoom
+        Vector3 zoomDir = (mCamera.position - target.position).normalized;
+        mCamera.position = target.position + zoomDir * currentZoom;
+
+        // Reapply look direction
+        mCamera.LookAt(target.position);
+    }
+
+    private Coroutine moveCoroutine;
+
+    public void LerpToCharacter(Transform charTransform, float duration = 0.5f)
+    {
+        if (charTransform == null) return;
+
+        if (moveCoroutine != null)
+            StopCoroutine(moveCoroutine);
+
+        moveCoroutine = StartCoroutine(LerpToTargetPosition(charTransform.position, duration));
+    }
+
+    private IEnumerator LerpToTargetPosition(Vector3 targetPosition, float duration)
+    {
+        Vector3 start = transform.position;
+        Vector3 end = targetPosition;
+
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            transform.position = Vector3.Lerp(start, end, elapsed / duration);
+            target.position = transform.position;
+
+            // Update camera position to maintain zoom
+            Vector3 zoomDir = (mCamera.position - target.position).normalized;
+            mCamera.position = target.position + zoomDir * currentZoom;
+
+            mCamera.LookAt(target.position);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // Final alignment
+        transform.position = end;
+        target.position = end;
+        mCamera.position = target.position + (mCamera.position - target.position).normalized * currentZoom;
+        mCamera.LookAt(target.position);
+
+        moveCoroutine = null;
+    }
+
 
     /// <summary>
     /// Handles movement of the camera pivot using WASD input,

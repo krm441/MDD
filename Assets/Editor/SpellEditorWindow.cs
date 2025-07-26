@@ -46,7 +46,11 @@ public class SpellEditorWindow : EditorWindow
             spell.radius = EditorGUILayout.IntField("Radius", spell.radius);
             //spell.baseDamage = EditorGUILayout.FloatField("Base damage", spell.baseDamage);
             spell.vfxType = EditorGUILayout.TextField("VFX", spell.vfxType);
+            spell.sfxOnStart = EditorGUILayout.TextField("SFX Start", spell.sfxOnStart);
+            spell.sfxOnFly = EditorGUILayout.TextField("SFX Fly", spell.sfxOnFly);
+            spell.sfxOnImpact = EditorGUILayout.TextField("SFX Impact", spell.sfxOnImpact);
             spell.physicsType = (SpellPhysicsType)EditorGUILayout.EnumPopup("Physics Type", spell.physicsType);
+            spell.dPSType = (SpellDPSType)EditorGUILayout.EnumPopup("DPS Type", spell.dPSType);
 
             DrawDamageContainer(spell.baseDamage);
 

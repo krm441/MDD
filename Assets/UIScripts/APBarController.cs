@@ -18,7 +18,8 @@ public class APBarController : MonoBehaviour
     void Update()
     {
         var selected = partyManager.CurrentSelected;
-        if (selected == null || selected.IsDead) return;
+        if (selected == null || selected.IsDead) 
+            return;
 
         UpdateAPDisplay(selected.attributeSet.stats.ActionPoints, selected.attributeSet.stats.MaxActionPoints);
     }

@@ -9,6 +9,8 @@ namespace Pathfinding
         public Vector2Int gridPos;
         public Vector3 worldPos;
         public bool isWalkable = true;
+        public bool isOccupied = false;
+        public int ocupantID = -1;
 
         public float gCost, hCost;
         public Node parentNode;
@@ -22,6 +24,19 @@ namespace Pathfinding
             this.gridPos = gridPos;
             this.worldPos = worldPos;
             this.isWalkable = isWalkable;
+            this.isOccupied = false;
+        }
+
+        public void Occupy(int id)
+        {
+            this.isOccupied = true;
+            this.ocupantID = id;
+        }
+
+        public void UnOccupy()
+        {
+            this.isOccupied = false;
+            this.ocupantID = -1;
         }
     }
 

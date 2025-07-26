@@ -9,23 +9,23 @@ public class MovementController : MonoBehaviour
 
     public bool IsMoving => movementCoroutine != null;
 
-    public void MoveAlongPath(List<Node> path, float speed = 3f)
+    public void MoveAlongPath(List<Node> path, float margin = 1f, float speed = 3f) //0.05f
     {
         if (movementCoroutine != null)
         {
             StopCoroutine(movementCoroutine);
         }
 
-        movementCoroutine = StartCoroutine(FollowPath(path, speed));
+        movementCoroutine = StartCoroutine(FollowPath(path, margin, speed));
     }
-        public void MoveAlongPath(List<Vector3> path, float speed = 3f)
+    public void MoveAlongPath(List<Vector3> path, float margin = 1f, float speed = 3f) //0.05f
     {
         if (movementCoroutine != null)
         {
             StopCoroutine(movementCoroutine);
         }
 
-        movementCoroutine = StartCoroutine(FollowPath(path, speed));
+        movementCoroutine = StartCoroutine(FollowPath(path, margin, speed));
     }
 
     public void StopMovement()
@@ -36,7 +36,7 @@ public class MovementController : MonoBehaviour
         }
     }
 
-    private IEnumerator FollowPath(List<Node> path, float speed)
+    private IEnumerator FollowPath(List<Node> path, float margin, float speed)
     {
         foreach (Node node in path)
         {
@@ -44,7 +44,7 @@ public class MovementController : MonoBehaviour
 
             LookAtTarget(targetPos);
 
-            while (Vector3.Distance(transform.position, targetPos) > 0.05f)
+            while (Vector3.Distance(transform.position, targetPos) > margin) // 0.05f)
             {
                 transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
                 yield return null;
@@ -64,19 +64,19 @@ public class MovementController : MonoBehaviour
         }
     }
 
-    private IEnumerator FollowPath(List<Vector3> path, float speed)
+    private IEnumerator FollowPath(List<Vector3> path, float margin, float speed)
     {
         foreach (var node in path)
         {
             Vector3 targetPos = node;
             targetPos.y = transform.position.y;
 
-            if ((targetPos - transform.position).sqrMagnitude > 0.01f)
+            if ((targetPos - transform.position).sqrMagnitude > margin)// 0.01f)
             {
                 transform.rotation = Quaternion.LookRotation(targetPos - transform.position);
             }
 
-            while (Vector3.Distance(transform.position, targetPos) > 0.05f)
+            while (Vector3.Distance(transform.position, targetPos) > margin)// 0.05f)
             {
                 transform.position = Vector3.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
                 yield return null;

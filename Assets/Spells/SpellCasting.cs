@@ -14,6 +14,8 @@ using UnityEngine;
 using System.Linq;
 using Pathfinding;
 using UnityEditor;
+using TMPro;
+using System.Threading;
 
 /// <summary>
 /// Static backend utilities for path and spell range calculations
@@ -35,7 +37,7 @@ public static class SpellRangeBackend
     }
 
     
-    public static Path calculateRangeWalk(Vector3 start, Vector3 end, int ap, float speed, out bool inRange)
+    public static Path calculateRangeWalk(Vector3 start, Vector3 end, int ap, float speed, int agentID, int targetId, out bool inRange)
     {
         inRange = false;
         if (grid == null)
@@ -44,7 +46,7 @@ public static class SpellRangeBackend
             return null;
         }
 
-        var nodes = grid.FindPathTo(end, start);
+        var nodes = grid.FindPathTo(end, start, agentID, targetId);
         if (nodes == null || nodes.Count == 0)
             return null;
 
@@ -64,6 +66,27 @@ public static class SpellRangeBackend
         return new Path { pathNodes = nodes };
     }
 
+    public static Path calculateRangeSpell(
+        float castRange,
+        int spellCost,
+        int availableAP,
+        float speed,
+        CharacterUnit caster,
+        Vector3 target,
+        out bool inRange
+    )
+    {
+        //var points = target.ComputeFootprintPoints();
+
+        //UnityEngine.Object.FindObjectOfType<GameManagerMDD>().gridSystem.FreeFootPrintPoints(points);
+
+        var path = calculateRangeSpell(castRange, spellCost, availableAP, speed, caster.GetFeetPos(), target, caster, null, out inRange);
+
+        //UnityEngine.Object.FindObjectOfType<GameManagerMDD>().gridSystem.MarkFootPrintPoints(points);
+
+        return path;
+    }
+
     // SpellRangeBackend.cs
     public static Path calculateRangeSpell(
         float castRange,
@@ -72,6 +95,8 @@ public static class SpellRangeBackend
         float speed,
         Vector3 start,
         Vector3 end,
+        CharacterUnit caster,
+        CharacterUnit target,
         out bool inRange
     )
     {
@@ -79,19 +104,38 @@ public static class SpellRangeBackend
         if (grid == null) { Console.Error("SpellRangeBackend::calculateRangeSpell::Err: grid == null"); return null; }
 
         // Special case: for non-combat state: if AP is negative, skip spell constraints — draw full walk path
-       //if (availableAP < 0)
+        //if (availableAP < 0)
+        //{
+        //    var nodes = grid.FindPathTo(end, start);
+        //    inRange = true;
+        //    return new Path { pathNodes = nodes };
+        //}
+
+        Vector3 position = end; // world-space center
+        float radius = 1.0f;
+
+        Collider[] colliders = Physics.OverlapSphere(position, radius);
+
+        //CharacterUnit unit = null;
+        List<Node> fullNodes = null;
+
+       //foreach (Collider col in colliders)
        //{
-       //    var nodes = grid.FindPathTo(end, start);
-       //    inRange = true;
-       //    return new Path { pathNodes = nodes };
+       //    //unit = col.GetComponent<CharacterUnit>();
+       //    unit = col.GetComponentInParent<CharacterUnit>();
+       //    if (unit != null)
+       //    { 
+       //        fullNodes = grid.FindPathTo(end, start, unit);
+       //        break;
+       //    }
        //}
 
-        var fullNodes = grid.FindPathTo(end, start);
+        fullNodes = grid.FindPathTo(end, start, caster.unitID, target? target.unitID : -1);
         if (fullNodes == null || fullNodes.Count == 0) return null;
 
         // Build cumulative distances
         var cumulative = new List<float>(fullNodes.Count);
-        float total = 0f, walked = 0f;
+        float total = 0f;//, walked = 0f;
         Vector3 prev = start;
         foreach (var n in fullNodes)
         {
@@ -212,10 +256,10 @@ public static class SpellVisualizer
     /// <summary>
     /// Draws movement preview for given start to end with AP and speed.
     /// </summary>
-    public static Pathfinding.Path VisualizePath(Vector3 start, Vector3 end, int ap, float speed, out bool inRange)
+    public static Pathfinding.Path VisualizePath(CharacterUnit starter, Vector3 end, int ap, float speed, out bool inRange)
     {
         //bool inRange;
-        var path = SpellRangeBackend.calculateRangeWalk(start, end, ap, speed, out inRange);
+        var path = SpellRangeBackend.calculateRangeWalk(starter.GetFeetPos(), end, ap, speed, starter.unitID, -1, out inRange);
         if (path?.pathNodes == null)
         {
             AimingVisualizer.ClearPathPreview();
@@ -223,7 +267,7 @@ public static class SpellVisualizer
         }
         float maxDist = ap * speed;
         
-        var res = AimingVisualizer.DrawPathPreview(start, end, path.pathNodes, maxDist);
+        var res = AimingVisualizer.DrawPathPreview(starter.GetFeetPos(), end, path.pathNodes, maxDist);
 
         return res;
     }
@@ -235,7 +279,7 @@ public static class SpellVisualizer
         Spell spell,
         int availableAP,
         float speed,
-        Vector3 start,
+        CharacterUnit start,
         Vector3 end,
         out bool inRange)
     {
@@ -252,7 +296,8 @@ public static class SpellVisualizer
         */
 
 
-        float dist = Vector3.Distance(start, end);
+
+        float dist = Vector3.Distance(start.GetFeetPos(), end);
         if (dist < spell.range)
         {
             inRange = true;
@@ -272,7 +317,7 @@ public static class SpellVisualizer
                 float maxDist = moveAP * speed;// - spellRadius / 2f;
                 if (availableAP < 0)
                     maxDist = float.MaxValue;
-                AimingVisualizer.DrawPathPreview(start, end, movePath.pathNodes, maxDist, true);
+                AimingVisualizer.DrawPathPreview(start.GetFeetPos(), end, movePath.pathNodes, maxDist, true);
                 inRange = canCast;
             }
         }
@@ -287,11 +332,20 @@ public static class SpellVisualizer
                     if (movePath != null && movePath.pathNodes.Count > 0)
                         AimingVisualizer.DrawProjectileArc(movePath.pathNodes.Last().worldPos, end, Color.green, out obstacle);
                     else
-                        AimingVisualizer.DrawProjectileArc(start, end, Color.green, out obstacle); // ballistic trajectory
+                        AimingVisualizer.DrawProjectileArc(start.GetFeetPos(), end, Color.green, out obstacle); // ballistic trajectory
                     inRange = !obstacle;
                 }
                 break;
-            case SpellPhysicsType.Linear: break;
+            case SpellPhysicsType.Linear:
+                {
+                    bool obstacle = false;
+                    if (movePath != null && movePath.pathNodes.Count > 0)
+                        AimingVisualizer.DrawStraightLine(movePath.pathNodes.Last().worldPos, end, Color.green, out obstacle);
+                    else
+                        AimingVisualizer.DrawStraightLine(start.GetFeetPos(), end, Color.green, out obstacle); // rectilinear trajectory
+                    inRange = !obstacle;
+                }
+                break;
             default:
                 Console.Warn("Unknown spell effect.");
                 break;

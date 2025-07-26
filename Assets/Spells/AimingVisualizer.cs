@@ -99,6 +99,9 @@ public static class AimingVisualizer
 
     public static void SpawnClickMarker(Vector3 position)
     {
+        //AimingVisualizer.DrawImpactCircle(position, 0.5f, Color.green); return;
+
+
         if (clickMarkerPrefab == null)
         {
             clickMarkerPrefab = Resources.Load<GameObject>("Markers/selector1");
@@ -242,6 +245,49 @@ public static class AimingVisualizer
         for (int i = 0; i < drawCount; i++)
             lineRenderer.SetPosition(i, points[i]);
     }
+
+    public static void DrawStraightLine(
+     Vector3 start,
+     Vector3 end,
+     Color baseColor,
+     out bool obstaclesHit,
+     float width = 0.05f
+ )
+    {
+        LayerMask mask = LayerMask.GetMask("Obstacles");
+
+        RaycastHit hitInfo;
+        bool hit = Physics.Raycast(start, (end - start).normalized, out hitInfo, Vector3.Distance(start, end), mask);
+
+        Vector3 finalEnd = hit ? hitInfo.point : end;
+        obstaclesHit = hit;
+
+        CreateAimingVisualiserParent();
+
+        if (lineProjectile == null)
+        {
+            lineProjectile = new GameObject("StraightLineRenderer");
+            SetParent(lineProjectile);
+            var lr = lineProjectile.AddComponent<LineRenderer>();
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+            lr.useWorldSpace = true;
+        }
+
+        var lineRenderer = lineProjectile.GetComponent<LineRenderer>();
+        lineRenderer.startWidth = width;
+        lineRenderer.endWidth = width;
+        lineRenderer.positionCount = 2;
+        lineRenderer.SetPosition(0, start);
+        lineRenderer.SetPosition(1, finalEnd);
+
+        Color lineColor = hit ? Color.red : baseColor;
+        lineRenderer.startColor = lineColor;
+        lineRenderer.endColor = lineColor;
+    }
+
+
 
     public static void DrawProjectileArc(
     Vector3 start,
@@ -439,7 +485,7 @@ public static class AimingVisualizer
         go.transform.SetParent(previewContainer.transform, worldPositionStays: true);
         var lr = go.AddComponent<LineRenderer>();
         lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.widthMultiplier = 0.1f;
+        lr.widthMultiplier = 0.05f;
         lr.useWorldSpace = true;
         lr.loop = false;
 

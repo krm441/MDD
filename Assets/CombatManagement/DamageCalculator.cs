@@ -150,24 +150,32 @@ public class DamageCalculator
 
     private void ApplyDamagePhysical(AttributeSet target, int totalPhy)
     {
-        int damage = target.armorStat.physicalArmor - totalPhy;
+        int armor = target.armorStat.physicalArmor;
 
-        // apply for HP
-        target.stats.HP -= target.armorStat.physicalArmor - damage;
+        // Calculate damage that armor can absorb
+        int damageToArmor = Mathf.Min(armor, totalPhy);
+        int damageToHP = totalPhy - damageToArmor;
 
-        // apply for armor
-        target.armorStat.physicalArmor = Mathf.Max(target.armorStat.physicalArmor - damage, 0);
+        // Apply armor damage
+        target.armorStat.physicalArmor = armor - damageToArmor;
+
+        // Apply remaining to HP
+        target.stats.HP -= damageToHP;
     }
 
     private void ApplyDamageMagical(AttributeSet target, int totalMag)
     {
-        int damage = target.armorStat.magicArmor - totalMag;
+        int armor = target.armorStat.magicArmor;
 
-        // apply for HP
-        target.stats.HP -= target.armorStat.magicArmor - damage;
+        // Calculate damage that armor can absorb
+        int damageToArmor = Mathf.Min(armor, totalMag);
+        int damageToHP = totalMag - damageToArmor;
 
-        // apply for armor
-        target.armorStat.magicArmor = Mathf.Max(target.armorStat.magicArmor - damage, 0);
+        // Apply armor damage
+        target.armorStat.magicArmor = armor - damageToArmor;
+
+        // Apply remaining to HP
+        target.stats.HP -= damageToHP;
     }
 
     /// <summary>

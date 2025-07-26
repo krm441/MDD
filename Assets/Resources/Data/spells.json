@@ -8,6 +8,7 @@
             "shotcutKey": "F",
             "prefabMeshEffect": "",
             "physicsType": 2,
+            "dPSType": 0,
             "baseDamage": {
                 "Slashing": 0,
                 "Piercing": 0,
@@ -29,7 +30,10 @@
             "manaCost": 10,
             "range": 10,
             "radius": 3,
-            "vfxType": "fireball"
+            "vfxType": "fireball",
+            "sfxOnStart": "",
+            "sfxOnFly": "",
+            "sfxOnImpact": "FireballBlast1"
         },
         {
             "id": 1,
@@ -39,6 +43,7 @@
             "shotcutKey": "R",
             "prefabMeshEffect": "",
             "physicsType": 0,
+            "dPSType": 2,
             "baseDamage": {
                 "Slashing": 40,
                 "Piercing": 0,
@@ -60,7 +65,10 @@
             "manaCost": 0,
             "range": 0,
             "radius": 1,
-            "vfxType": "sword"
+            "vfxType": "sword",
+            "sfxOnStart": "",
+            "sfxOnFly": "",
+            "sfxOnImpact": ""
         },
         {
             "id": 2,
@@ -70,6 +78,7 @@
             "shotcutKey": "H",
             "prefabMeshEffect": "",
             "physicsType": 2,
+            "dPSType": 1,
             "baseDamage": {
                 "Slashing": 0,
                 "Piercing": 0,
@@ -91,7 +100,45 @@
             "manaCost": 10,
             "range": 12,
             "radius": 0,
-            "vfxType": "basicHeal"
+            "vfxType": "basicHeal",
+            "sfxOnStart": "HealingType1",
+            "sfxOnFly": "",
+            "sfxOnImpact": ""
+        },
+        {
+            "id": 3,
+            "name": "BasicArrow",
+            "description": "Basic arrow attack",
+            "iconPath": "SpellIcons\\healingStreamlet",
+            "shotcutKey": "H",
+            "prefabMeshEffect": "",
+            "physicsType": 1,
+            "dPSType": 0,
+            "baseDamage": {
+                "Slashing": 0,
+                "Piercing": 10,
+                "Crushing": 0,
+                "Fire": 0,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 0,
+                "MentalFortification": 0,
+                "MagicFortification": 0
+            },
+            "apCost": 2,
+            "manaCost": 10,
+            "range": 12,
+            "radius": 1,
+            "vfxType": "basicArrow",
+            "sfxOnStart": "",
+            "sfxOnFly": "",
+            "sfxOnImpact": ""
         }
     ]
 }
