@@ -338,6 +338,7 @@ public class TurnBasedState : GameStateBase
     }
 }
 
+
 public class ScriptedSequencesState : GameStateBase
 {
     public ScriptedSequencesState(GameManagerMDD gameManager) : base(gameManager) { }

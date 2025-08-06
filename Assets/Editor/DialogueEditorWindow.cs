@@ -6,7 +6,7 @@ using static Codice.Client.Common.Connection.AskCredentialsToUser;
 
 public class DialogueEditorWindow : EditorWindow
 {
-    private DialogueData dialogueData = new DialogueData { lines = new List<DialogueLine>() };
+    private DialogueData dialogueData = new DialogueData { nodes = new List<DialogueNode>() };
     private Vector2 scroll;
     private string dialogueId = "new_dialogue";
     private string savePath = "Assets/Resources/Dialogues/";
@@ -23,9 +23,9 @@ public class DialogueEditorWindow : EditorWindow
         EditorGUILayout.Space();
         scroll = EditorGUILayout.BeginScrollView(scroll);
 
-        for (int i = 0; i < dialogueData.lines.Count; i++)
+        for (int i = 0; i < dialogueData.nodes.Count; i++)
         {
-            var line = dialogueData.lines[i];
+            var line = dialogueData.nodes[i];
             EditorGUILayout.BeginVertical("box");
             line.speaker = EditorGUILayout.TextField("Speaker", line.speaker);
             line.text = EditorGUILayout.TextField("Text", line.text);
@@ -33,7 +33,7 @@ public class DialogueEditorWindow : EditorWindow
 
             if (GUILayout.Button("Delete Line"))
             {
-                dialogueData.lines.RemoveAt(i);
+                dialogueData.nodes.RemoveAt(i);
                 break;
             }
             EditorGUILayout.EndVertical();
@@ -43,7 +43,7 @@ public class DialogueEditorWindow : EditorWindow
 
         if (GUILayout.Button("Add New Line"))
         {
-            dialogueData.lines.Add(new DialogueLine());
+            dialogueData.nodes.Add(new DialogueNode());
         }
 
         EditorGUILayout.Space(10);

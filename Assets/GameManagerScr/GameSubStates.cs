@@ -153,7 +153,19 @@ public class MovementSubstate : SubStateBase
             if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("PartyLayer")))
             {
                 // Switch to party chat layer
-
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        // Set selected object to interact with
+                        var targetChar = hit.collider.GetComponentInParent<CharacterUnit>(); // walks through tree and gets the CharacterUnit
+                        if (targetChar != null)
+                        {
+                            Console.Log("INTERACTING:", targetChar.name);
+                            gameManager.GetCurrentState().SetSubstate(new DialogueSubState(partyManager.CurrentSelected, targetChar, gameManager));
+                        }
+                    }
+                }
             }
             if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Interactables")))
             {
@@ -442,6 +454,36 @@ public class MovementSubstate : SubStateBase
         AimingVisualizer.Hide();
         Console.Log("Exited Casting Substate");
     }    
+}
+
+public class DialogueSubState : SubStateBase
+{
+    private CharacterUnit initiator;
+    private CharacterUnit target;
+
+    private DialogueUIController dialogueController;
+
+    public DialogueSubState(CharacterUnit initiator, CharacterUnit target, GameManagerMDD manager) : base(manager) 
+    {
+        this.initiator = initiator;
+        this.target = target;
+    }
+
+    public override void Enter() 
+    {
+        UIManager.SetState(UIStates.Dialogue);
+
+        dialogueController = gameManager.UIManager.LoadDialogueUI(initiator, target);
+        dialogueController.OnDialogueFinished = OnDialogueFinished;
+    }
+    public override void Exit()
+    {
+        gameManager.UIManager.HideDialogueUI();
+    }
+    private void OnDialogueFinished()
+    {
+        gameManager.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
+    }
 }
 
 public class ObjectInteractionSubstate : SubStateBase

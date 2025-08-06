@@ -120,8 +120,6 @@ public static class AimingVisualizer
         Quaternion rotation = Quaternion.Euler(90f, 0f, 0f);
         Vector3 pos = position + new Vector3(0f, 0.1f, 0f);
 
-        Debug.Log("marker pos: " + pos);
-
         currentClickMarker = GameObject.Instantiate(clickMarkerPrefab, pos, rotation);
         GameObject.Destroy(currentClickMarker, 1.5f);
     }

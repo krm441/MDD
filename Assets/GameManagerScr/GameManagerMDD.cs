@@ -43,6 +43,7 @@ public enum SpellCastingAnimationStates
 public class GameManagerMDD : MonoBehaviour
 {
     [SerializeField] public CombatQueue combatQueue;
+    [SerializeField] public UIManager UIManager;
     [SerializeField] public SpellMap spellMap;
     [SerializeField] public PartyManagement.PartyManager partyManager;
     [SerializeField] private GridPathGenerator gridPathGenerator;

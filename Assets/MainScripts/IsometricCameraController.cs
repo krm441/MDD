@@ -29,6 +29,12 @@ public class IsometricCameraController : MonoBehaviour
     public Vector2 xBounds = new Vector2(-30f, 30f);
     public Vector2 zBounds = new Vector2(-30f, 30f);
 
+    [Header("Mouse Drag Rotation")]
+    private Vector3 lastMousePosition;
+
+    [Header("Edge Scrolling")]
+    public int edgeThickness = 10; // in pixels
+
     void Start()
     {
         // Initialize zoom distance based on starting position
@@ -44,6 +50,8 @@ public class IsometricCameraController : MonoBehaviour
         HandleZoom();
         HandleMovement();
         HandleRotation();
+        HandleMouseDragRotation();
+        HandleEdgeScrolling();
 
         // Always look at target; for arc ball effect around the pivot point
         mCamera.LookAt(target.position);
@@ -68,6 +76,7 @@ public class IsometricCameraController : MonoBehaviour
     }
 
     private Coroutine moveCoroutine;
+        
 
     public void LerpToCharacter(Transform charTransform, float duration = 0.5f)
     {
@@ -161,6 +170,62 @@ public class IsometricCameraController : MonoBehaviour
             target.Rotate(0f, rotationInput * rotateSpeed * Time.deltaTime, 0f);
         }
     }
+
+    private void HandleMouseDragRotation()
+    {
+        if (Input.GetMouseButtonDown(2)) // Middle mouse button
+        {
+            lastMousePosition = Input.mousePosition;
+        }
+
+        if (Input.GetMouseButton(2))
+        {
+            Vector3 delta = Input.mousePosition - lastMousePosition;
+            float yaw = delta.x * rotateSpeed * Time.deltaTime;
+
+            target.Rotate(0f, yaw, 0f);
+            lastMousePosition = Input.mousePosition;
+        }
+    }
+
+    private void HandleEdgeScrolling()
+    {
+        // disavble edge scrolling if rotating wth mouse
+        if (Input.GetMouseButton(2)) return;
+
+        Vector3 moveDir = Vector3.zero;
+        Vector3 camForward = mCamera.forward;
+        Vector3 camRight = mCamera.right;
+        camForward.y = 0f;
+        camRight.y = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
+
+        Vector3 mousePos = Input.mousePosition;
+        if (mousePos.x <= edgeThickness)
+            moveDir -= camRight;
+        else if (mousePos.x >= Screen.width - edgeThickness)
+            moveDir += camRight;
+
+        if (mousePos.y <= edgeThickness)
+            moveDir -= camForward;
+        else if (mousePos.y >= Screen.height - edgeThickness)
+            moveDir += camForward;
+
+        if (moveDir != Vector3.zero)
+        {
+            transform.position += moveDir.normalized * moveSpeed * Time.deltaTime;
+
+            transform.position = new Vector3(
+                Mathf.Clamp(transform.position.x, xBounds.x, xBounds.y),
+                transform.position.y,
+                Mathf.Clamp(transform.position.z, zBounds.x, zBounds.y)
+            );
+
+            target.position = transform.position;
+        }
+    }
+
 
     /// <summary>
     /// Handles zooming the camera in and out using the mouse scroll wheel,

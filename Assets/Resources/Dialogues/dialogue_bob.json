@@ -1,0 +1,37 @@
+{
+  "id": "dialogue_bob",
+  "nodes": [
+    {
+      "id": "start",
+      "speaker": "Bob",
+      "text": "Hello adventurer and welcome!",
+      "choices": [
+        {
+          "text": "Hi Bob, what's up?",
+          "nextNodeId": "ask1"
+        },
+        {
+          "text": "Goodbye.",
+          "nextNodeId": "end"
+        }
+      ]
+    },
+    {
+      "id": "ask1",
+      "speaker": "Bob",
+      "text": "Not much, just guarding the gates.",
+      "choices": [
+        {
+          "text": "Great, carry on.",
+          "nextNodeId": "end"
+        }
+      ]
+    },
+    {
+      "id": "end",
+      "speaker": "Bob",
+      "text": "See you around!",
+      "choices": []
+    }
+  ]
+}

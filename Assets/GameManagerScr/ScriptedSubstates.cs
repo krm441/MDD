@@ -5,29 +5,29 @@ using UnityEngine;
 #region Dialogue Data
 
 [System.Serializable]
-public class DialogueChoice
-{
-    public string text;              // what player sees
-    public string nextLineId;        // ID of next line (optional)
-    public string action;            // e.g. "StartCombat", "GiveItem", etc.
-}
-
-[System.Serializable]
-public class DialogueLine
-{
-    public string id;                // Unique ID for jump targets
-    public string speaker;
-    public string text;
-    public string voiceClip;
-    public List<DialogueChoice> choices; // null if no choices
-}
-
-[System.Serializable]
 public class DialogueData
 {
     public string id;
-    public List<DialogueLine> lines;
+    public List<DialogueNode> nodes;
 }
+
+[System.Serializable]
+public class DialogueNode
+{
+    public string id;                       // unique ID for each line
+    public string speaker;                  // NPC or Player
+    public string text;                     // text shown in the dialogue
+    public string voiceClip;                // audio
+    public List<DialogueChoice> choices;    // null if it's a single line
+}
+
+[System.Serializable]
+public class DialogueChoice
+{
+    public string text;              // player's choice
+    public string nextNodeId;        // links to the next DialogueNode by ID
+}
+
 
 
 #endregion
