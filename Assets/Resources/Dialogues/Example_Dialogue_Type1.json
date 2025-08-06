@@ -1,0 +1,10 @@
+{
+    "id": "Example_Dialogue_Type1",
+    "lines": [
+        {
+            "speaker": "CaveGoblinBoss",
+            "text": "Comrades! To arms! We are invaded by ugly looking... capsules?!",
+            "voiceClip": ""
+        }
+    ]
+}

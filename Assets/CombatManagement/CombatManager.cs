@@ -8,14 +8,34 @@ using UnityEngine;
 
 
 
-public class CombatManager //: MonoBehaviour
+public class CombatManager : MonoBehaviour
 {
-   //private bool inCombat = false;
-   //public bool InCombat() => inCombat;
-   //public void SetInCombat() {  inCombat = true; }
-   //public void SetOutOfCombat() {  inCombat = false; }
+    //private bool inCombat = false;
+    //public bool InCombat() => inCombat;
+    //public void SetInCombat() {  inCombat = true; }
+    //public void SetOutOfCombat() {  inCombat = false; }
 
     //public static Queue<CharacterUnit> turnQueue;
+
+    [SerializeField] private GameObject floatingTextPrefab;
+
+    public void ShowDamage(int damage, Vector3 position, Color color)
+    {
+        Vector3 offset = new Vector3(0, 2.5f, 0);
+        Vector3 spawnPosition = position + offset;
+
+        GameObject textObj = Instantiate(floatingTextPrefab, spawnPosition, Quaternion.identity);
+        textObj.GetComponent<FloatingDamageText>().Setup(damage.ToString(), color);
+    }
+
+    public void ShowHealing(int healing, Vector3 position, Color color)
+    {
+        Vector3 offset = new Vector3(0, 2.5f, 0);
+        Vector3 spawnPosition = position + offset;
+
+        GameObject textObj = Instantiate(floatingTextPrefab, spawnPosition, Quaternion.identity);
+        textObj.GetComponent<FloatingDamageText>().Setup("+" + healing.ToString(), color);
+    }
 
     public void ApplySpell(CharacterUnit caster, Spell spell, Vector3 targetPosition, Action onImpactComplete)
     {
@@ -79,7 +99,7 @@ public class CombatManager //: MonoBehaviour
 
     private void CalculateDamage(CharacterUnit caster, Spell spell, AttributeSet target)
     {
-        damageCalculator.CalculateDamage(new DamageContext { Caster = caster, Spell = spell, Target = target});
+        damageCalculator.CalculateDamage(new DamageContext { Caster = caster, Spell = spell, Target = target, CombatManager = this});
 
         // example logic - mage for now, then adds to willpower. or just maybe should be converted to main stat
         //return spell.manaCost + caster.stats.Intelligence; 

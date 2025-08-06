@@ -25,6 +25,10 @@ public class IsometricCameraController : MonoBehaviour
     public float maxZoom = 20f;     // Furthest distance from target
     private float currentZoom = 5f; // Runtime zoom distance from target
 
+    [Header("Movement Bounds")]
+    public Vector2 xBounds = new Vector2(-30f, 30f);
+    public Vector2 zBounds = new Vector2(-30f, 30f);
+
     void Start()
     {
         // Initialize zoom distance based on starting position
@@ -129,6 +133,16 @@ public class IsometricCameraController : MonoBehaviour
 
         // Move the pivot - and not the camera itself
         transform.position += moveDirection * moveSpeed * Time.deltaTime;
+
+        // Clamp the camera pivot's position
+        transform.position = new Vector3(
+            Mathf.Clamp(transform.position.x, xBounds.x, xBounds.y),
+            transform.position.y, // should stay flat
+            Mathf.Clamp(transform.position.z, zBounds.x, zBounds.y)
+        );
+
+        // sync target
+        target.position = transform.position;
     }
 
     /// <summary>

@@ -31,6 +31,12 @@ public class CharacterSpawner : MonoBehaviour
         RebuildPartyFromData();
     }
 
+    private void Start()
+    {
+        SpellMap.InitializeSpells();
+        SpawnPartyTypeOne();
+    }
+
     private void RebuildPartyFromData()
     {
         List<CharacterUnit> party = partyManager.partyMembers;
@@ -71,6 +77,7 @@ public class CharacterSpawner : MonoBehaviour
     {
         GameObject obj = Instantiate(charPrefab, spawnPoints[0].position, Quaternion.identity);
         var unit = obj.GetComponent<CharacterUnit>();
+
 
         unit.unitName = "Magus";
         obj.name = "Magus";
@@ -134,8 +141,7 @@ public class CharacterSpawner : MonoBehaviour
         GameObject obj = Instantiate(charPrefab, spawnPoints[1].position, Quaternion.identity);
         var unit = obj.GetComponent<CharacterUnit>();
 
-        // somehow add the capsule here
-
+               
         unit.unitName = "Warrior";
         obj.name = "Warrior";
 
@@ -180,6 +186,7 @@ public class CharacterSpawner : MonoBehaviour
     {
         GameObject obj = Instantiate(charPrefab, spawnPoints[2].position, Quaternion.identity);
         var unit = obj.GetComponent<CharacterUnit>();
+
 
         unit.unitName = "Cleric";
         obj.name = "Cleric";

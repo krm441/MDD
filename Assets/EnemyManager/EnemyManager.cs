@@ -121,8 +121,8 @@ public class EnemyManager : MonoBehaviour
         }
 
         //GameObject prefab = Resources.Load<GameObject>(npcDef.prefabPath);
-        GameObject prefab = Resources.Load<GameObject>("Prefabs/CharPrefab");
-        GameObject visual = Resources.Load<GameObject>("Visuals/" + npcDef.visualPath);
+        GameObject prefab = Resources.Load<GameObject>("NPC/CharPrefab");
+        GameObject visual = Resources.Load<GameObject>("NPC/" + npcDef.visualPath);
 
         if (prefab == null || visual == null)
         {

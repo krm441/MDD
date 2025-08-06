@@ -3,13 +3,15 @@
         {
             "id": "NpcSimple",
             "displayName": "DebugSimple",
-            "prefabPath": "CapsuleEnemy",
-            "visualPath": "CapsuleEnemy",
+            "prefabPath": "NPCBase",
+            "visualPath": "NPCBase",
             "portraitPath": "Portraits/debugEnemyIcn",
             "hostility": 1,
             "armorStat": {
                 "physicalArmor": 0,
+                "maxPhysicalArmor": 0,
                 "magicArmor": 0,
+                "maxMagicArmor": 0,
                 "moraleLevel": 0
             },
             "statBlock": {

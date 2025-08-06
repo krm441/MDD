@@ -12,10 +12,4 @@ public class AiTesterCor : MonoBehaviour
         SpellMap.InitializeSpells();
         spawner.SpawnPartyTypeOne();
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
 }

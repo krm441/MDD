@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System;//.Drawing;
 using UnityEngine;
+using UnityEngine.AI;
+using PartyManagement;
 
 public static class AimingVisualizer
 {
@@ -49,6 +51,7 @@ public static class AimingVisualizer
 
     public static void Hide()
     {
+        ClearPathPreview();
         previewSegments.Clear();
         ClearHighlights();
         DestroyAllChildren(aimingVisualiserParent); return;
@@ -401,7 +404,213 @@ public static class AimingVisualizer
     public static List<Vector3> reachablePath = new List<Vector3>();  // Stores white path only
     private static GameObject previewContainer;
     private static List<LineRenderer> previewSegments = new List<LineRenderer>();
-    
+
+
+
+
+    public static void DrawNavMeshPathPreview(Vector3 start, NavMeshPath navPath)
+    {
+        ClearPathPreview();
+
+        if (navPath == null || navPath.corners.Length < 2)
+            return;
+
+        // Create container
+        if (previewContainer == null)
+            previewContainer = new GameObject("NavMeshPathPreview");
+
+        // Create line object
+        GameObject lineObj = new GameObject("PathLine");
+        lineObj.transform.SetParent(previewContainer.transform, worldPositionStays: true);
+
+        LineRenderer lr = lineObj.AddComponent<LineRenderer>();
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.widthMultiplier = 0.05f;
+        lr.useWorldSpace = true;
+        lr.loop = false;
+
+        // Apply path corners
+        lr.positionCount = navPath.corners.Length;
+        lr.SetPositions(navPath.corners);
+
+        // Solid white color
+        lr.startColor = Color.white;
+        lr.endColor = Color.white;
+
+        // Add spheres at each corner
+        foreach (Vector3 corner in navPath.corners)
+        {
+            GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.transform.position = corner + new Vector3(0, 0.1f, 0); // Slightly above ground
+            sphere.transform.localScale = Vector3.one * 0.2f;
+            sphere.GetComponent<Renderer>().material.color = Color.white;
+            sphere.transform.SetParent(previewContainer.transform, worldPositionStays: true);
+
+            // Remove collider
+            GameObject.Destroy(sphere.GetComponent<Collider>());
+        }
+    }
+
+    public static List<Vector3> DrawPathPreview(
+    //Vector3 start,
+    //Vector3 end,
+    NavMeshPath path,
+    float maxDistance,
+    bool drawToMaxOnly = false
+)
+    {
+        // 1 Clear last frame
+        ClearPathPreview();
+        reachablePath.Clear();
+
+        // 2 Early return
+        if (path == null)
+            return null;
+
+        // 3 Container != null
+        CreateAimingVisualiserParent();
+        if (previewContainer == null)
+        {
+            previewContainer = new GameObject("PathPreviewContainer");
+            SetParent(previewContainer);
+        }
+        else
+        {
+            DestroyAllChildren(previewContainer);
+        }
+
+        // 4 Flatten Pathfinding.Node list to Vec3
+        List<Vector3> pathPoints = new List<Vector3>(path.corners.Length + 1) { path.corners[0] };
+        foreach (var n in path.corners) pathPoints.Add(n);
+
+        // 5 Compute total path length
+        float totalDistance = 0f;
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+            totalDistance += Vector3.Distance(pathPoints[i], pathPoints[i + 1]);
+        if (totalDistance <= 0f) return null;
+
+        // 6 Sample along the path at fixed increments
+        float stepSize = 1f;
+        Vector3 elevation = new Vector3(0f, 0f, 0f);
+        float distanceSoFar = 0f;
+        Vector3 current = path.corners[0];
+        var sampled = new List<Vector3> { path.corners[0] + elevation };
+
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+        {
+            Vector3 a = pathPoints[i];
+            Vector3 b = pathPoints[i + 1];
+            float segLength = Vector3.Distance(a, b);
+            Vector3 dir = (b - a).normalized;
+
+            float walked = 0f;
+            while (walked < segLength)
+            {
+                float move = Mathf.Min(stepSize, segLength - walked);
+                walked += move;
+                distanceSoFar += move;
+                current = a + dir * walked;
+                var elevated = current + elevation;
+
+                // record the 'in-range' positions
+                if (distanceSoFar <= maxDistance)
+                    reachablePath.Add(elevated);
+
+                sampled.Add(elevated);
+
+                if (drawToMaxOnly && distanceSoFar >= maxDistance)
+                    break;
+            }
+            if (drawToMaxOnly && distanceSoFar >= maxDistance)
+                break;
+        }
+
+        if (sampled.Count < 2)
+            return null;
+
+        // 7 Create a single LineRenderer
+        var go = new GameObject("PathPreviewLine");
+        go.transform.SetParent(previewContainer.transform, worldPositionStays: true);
+        var lr = go.AddComponent<LineRenderer>();
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.widthMultiplier = 0.05f;
+        lr.useWorldSpace = true;
+        lr.loop = false;
+
+        lr.positionCount = sampled.Count;
+        lr.SetPositions(sampled.ToArray());
+
+        // 8 Build a 4-key gradient: white → blend → red
+        float split = Mathf.Clamp01(maxDistance / totalDistance);
+        var gradient = new Gradient();
+
+        if (split <= 0f)
+        {
+            // all red
+            gradient.SetKeys(
+                new[] {
+                new GradientColorKey(Color.red, 0f),
+                new GradientColorKey(Color.red, 1f)
+                },
+                new[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+                }
+            );
+        }
+        else if (split >= 1f)
+        {
+            // all white
+            gradient.SetKeys(
+                new[] {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+                },
+                new[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+                }
+            );
+        }
+        else
+        {
+            // white until split, then red (instant blend)
+            gradient.SetKeys(
+                new[] {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, split),
+                new GradientColorKey(Color.red,   split),
+                new GradientColorKey(Color.red,   1f)
+                },
+                new[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 1f)
+                }
+            );
+        }
+
+        lr.colorGradient = gradient;
+
+        // 9 Track for cleanup
+        previewSegments.Add(lr);
+
+        // 10  Add spheres at each corner
+        foreach (Vector3 corner in path.corners)
+        {
+            GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.transform.position = corner + new Vector3(0, 0f, 0); // Slightly above ground
+            sphere.transform.localScale = Vector3.one * 0.2f;
+            sphere.GetComponent<Renderer>().material.color = Color.white;
+            sphere.transform.SetParent(previewContainer.transform, worldPositionStays: true);
+
+            // Remove collider
+            GameObject.Destroy(sphere.GetComponent<Collider>());
+        }
+
+        //var ret = new NavMeshPath();
+        //NavMesh.CalculatePath(reachablePath[0], reachablePath[reachablePath.Count - 1], NavMesh.AllAreas, ret);
+        return reachablePath;
+    }
 
     public static Pathfinding.Path DrawPathPreview(
     Vector3 start,
@@ -552,21 +761,15 @@ public static class AimingVisualizer
 
     public static void ClearPathPreview()
     {
-        //if (pathLineRenderer != null)
-        //    pathLineRenderer.positionCount = 0;
-
-        //previewSegments.Clear();
-
-        // Destroy all existing segment objects
-        //if (previewContainer != null)
-        //{
-        //    for (int i = previewContainer.transform.childCount - 1; i >= 0; i--)
-        //        GameObject.Destroy(previewContainer.transform.GetChild(i).gameObject);
-        //}
-        //previewSegments.Clear();
+        if (previewContainer != null)
+        {
+            foreach (Transform child in previewContainer.transform)
+                GameObject.Destroy(child.gameObject);
+        }
     }
 
-   
+
+
 
 
     public static void DrawPath(List<Vector3> points)

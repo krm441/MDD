@@ -17,6 +17,7 @@ public enum GameStateEnum
     Paused,
     Exploration,
     TurnBasedMode,
+    ScriptedSequence, // cut-scenes, dialogues etc
 }
 
 public enum InteractionSubstate
@@ -45,9 +46,10 @@ public class GameManagerMDD : MonoBehaviour
     [SerializeField] public SpellMap spellMap;
     [SerializeField] public PartyManagement.PartyManager partyManager;
     [SerializeField] private GridPathGenerator gridPathGenerator;
+    [SerializeField] public IsometricCameraController isometricCamera;
 
     public PlayerData playerData = new PlayerData();
-    public CombatManager CombatManager = new CombatManager();
+    [SerializeField] public CombatManager CombatManager;//= new CombatManager();
 
     public AiManager aiManager;
    
@@ -64,14 +66,21 @@ public class GameManagerMDD : MonoBehaviour
 
     public IGameState GetCurrentState() => currentState;
 
+    public void NextTurn() // facade of the turn based state
+    {
+        if (currentState is TurnBasedState tbState)
+            tbState.NextTurn();
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-        gridPathGenerator.Initialise();
+        gridPathGenerator?.Initialise();
         states = new Dictionary<GameStateEnum, IGameState>
         {
             { GameStateEnum.Exploration, new ExplorationState(this, gridSystem) },
             { GameStateEnum.TurnBasedMode, new TurnBasedState(this) },            
+            { GameStateEnum.ScriptedSequence, new ScriptedSequencesState(this) },            
         };
 
         ChangeState(currentStateEnum); // start in exploration in debug

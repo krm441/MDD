@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Pathfinding;
 using UnityEngine;
+using UnityEngine.AI;
 
 [System.Serializable]
 public class StatBlock
@@ -63,6 +64,27 @@ namespace PartyManagement
 {
     public class CharacterUnit : MonoBehaviour
     {
+        public NavMeshAgent agent;
+        [SerializeField] private Animator animator;
+
+        void Start()
+        {
+            agent = GetComponent<NavMeshAgent>();
+            agent.stoppingDistance = 1.5f;
+
+            EnsureAgentIsOnNavMesh();
+        
+            // Auto-fetch if not set - need revision
+            //if (movementController == null)
+            //    movementController = GetComponent<MovementController>();
+            //
+            //gridSystem = FindObjectOfType<Pathfinding.GridSystem>();
+            //
+            //Vector2Int currentGridPos = gridSystem.GetNodeFromWorldPosition(transform.position).gridPos;
+            //lastGridPos = currentGridPos;
+            //gridSystem.MarkOccupied(currentGridPos, unitID, true); // Mark initial tile as occupied
+        }
+
         public static int unitIDCounter = -1;
 
         public int unitID = 0;
@@ -70,7 +92,48 @@ namespace PartyManagement
         {
             unitID = ++unitIDCounter;
         }
-              
+
+        public IEnumerator MoveTo(Vector3 targetPos)
+        {
+            agent.SetDestination(targetPos);
+            while (agent.pathPending || agent.remainingDistance > agent.stoppingDistance)
+            {
+                yield return null;
+            }
+            agent.ResetPath();
+        }
+
+        public IEnumerator PressButtonAnimation()
+        {
+            if (animator != null)
+            {
+                animator.SetTrigger("PressButton");
+            }
+            yield return new WaitForSeconds(1.0f); // Duration of animation
+        }
+        void EnsureAgentIsOnNavMesh()
+        {
+            if (agent == null)
+            {
+                Debug.LogError("Agent is null!");
+                return;
+            }
+
+            if (!agent.isOnNavMesh)
+            {
+                NavMeshHit hit;
+                if (NavMesh.SamplePosition(agent.transform.position, out hit, 2f, NavMesh.AllAreas))
+                {
+                    agent.Warp(hit.position);  // Snap agent to valid NavMesh location
+                    Debug.Log("Agent warped to NavMesh.");
+                }
+                else
+                {
+                    Debug.LogWarning("Could not find valid NavMesh position near agent.");
+                }
+            }
+
+        }
 
         public Vector3 GetChestPos()
         {
@@ -242,18 +305,7 @@ namespace PartyManagement
 
 
 
-        void Start()
-        {
-            // Auto-fetch if not set - need revision
-            if (movementController == null)
-                movementController = GetComponent<MovementController>();
-
-            gridSystem = FindObjectOfType<Pathfinding.GridSystem>();
-
-            Vector2Int currentGridPos = gridSystem.GetNodeFromWorldPosition(transform.position).gridPos;
-            lastGridPos = currentGridPos;
-            gridSystem.MarkOccupied(currentGridPos, unitID, true); // Mark initial tile as occupied
-        }
+        
 
         public List<Vector2Int> GetSectorCenters()
         {
@@ -281,19 +333,19 @@ namespace PartyManagement
         }
 
 
-        void OnDrawGizmosSelected()
-        {
-            // draw the sector centers
-            Gizmos.color = Color.white;
-            var centers = GetSectorCenters();
-            foreach (var gridPos in centers)
-            {
-                Vector3 world = gridSystem.GetNodeFromWorldPosition(
-                    new Vector3(gridPos.x * gridSystem.tileSize, 0, gridPos.y * gridSystem.tileSize)
-                ).worldPos + Vector3.up * 0.3f;
-                Gizmos.DrawSphere(world, gridSystem.tileSize * 0.2f);
-            }
-        }
+        //void OnDrawGizmosSelected()
+        //{
+        //    // draw the sector centers
+        //    Gizmos.color = Color.white;
+        //    var centers = GetSectorCenters();
+        //    foreach (var gridPos in centers)
+        //    {
+        //        Vector3 world = gridSystem.GetNodeFromWorldPosition(
+        //            new Vector3(gridPos.x * gridSystem.tileSize, 0, gridPos.y * gridSystem.tileSize)
+        //        ).worldPos + Vector3.up * 0.3f;
+        //        Gizmos.DrawSphere(world, gridSystem.tileSize * 0.2f);
+        //    }
+        //}
 
 
         private void Update()
@@ -318,6 +370,39 @@ namespace PartyManagement
                     lastFootprint.Add(n.gridPos);
                 }
             }
+        }
+
+        public bool wasCarved = false;
+        private Vector3 positionBeforeCarve;
+
+        public void MemorizePosition()
+        {
+            positionBeforeCarve = transform.position;
+        }
+
+        public void ReturnMemorizedPosition()
+        {
+            transform.position = positionBeforeCarve;
+        }
+
+        public void Carve()
+        {
+            wasCarved = true;
+            MemorizePosition();
+            agent.GetComponent<NavMeshAgent>().enabled = false;
+            agent.GetComponent<NavMeshObstacle>().enabled = true;
+        }
+
+        public void Uncarve()
+        {
+            agent.GetComponent<NavMeshObstacle>().enabled = false;
+            agent.GetComponent<NavMeshAgent>().enabled = true;
+            if (agent.isOnNavMesh && agent.enabled)
+            {
+                agent.isStopped = true;
+            }
+            wasCarved = false;
+            ReturnMemorizedPosition();
         }
 
         public IEnumerator WaitForMovement()

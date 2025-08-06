@@ -44,6 +44,7 @@ public class DamageContext
     public CharacterUnit Caster;
     public AttributeSet Target;
     public Spell Spell;
+    public CombatManager CombatManager;
 }
 
 /// <summary>
@@ -138,18 +139,23 @@ public class DamageCalculator
         int totalPhy = damage.TotalPhysical;
         int totalMag = damage.TotalElemental;
 
-        ApplyDamagePhysical(context.Target, totalPhy);
-        ApplyDamageMagical(context.Target, totalMag);
-        Heal(context.Target, damage.Healing);
+        ApplyDamagePhysical(context.Target, totalPhy, context);
+        ApplyDamageMagical(context.Target, totalMag, context);
+        Heal(context.Target, damage.Healing, context);
     }
 
-    private void Heal(AttributeSet target, int healing)
+    private void Heal(AttributeSet target, int healing, DamageContext context)
     {
+        if (healing <= 0) return; // early return
+
         target.stats.HP += healing;
+        context.CombatManager.ShowHealing(healing, target.transform.position + new Vector3(-0.5f, 0), Color.green);
     }
 
-    private void ApplyDamagePhysical(AttributeSet target, int totalPhy)
+    private void ApplyDamagePhysical(AttributeSet target, int totalPhy, DamageContext context)
     {
+        if (totalPhy <= 0) return; // early return
+
         int armor = target.armorStat.physicalArmor;
 
         // Calculate damage that armor can absorb
@@ -161,10 +167,17 @@ public class DamageCalculator
 
         // Apply remaining to HP
         target.stats.HP -= damageToHP;
+
+        if (damageToHP > 0)
+            context.CombatManager.ShowDamage(damageToHP * -1, target.transform.position + new Vector3(0.5f, 0), Color.red);
+        else
+            context.CombatManager.ShowDamage(damageToArmor * -1, target.transform.position + new Vector3(0.5f, 0), Color.grey);
     }
 
-    private void ApplyDamageMagical(AttributeSet target, int totalMag)
+    private void ApplyDamageMagical(AttributeSet target, int totalMag, DamageContext context)
     {
+        if(totalMag <= 0) return; // early return
+
         int armor = target.armorStat.magicArmor;
 
         // Calculate damage that armor can absorb
@@ -176,6 +189,11 @@ public class DamageCalculator
 
         // Apply remaining to HP
         target.stats.HP -= damageToHP;
+
+        if(damageToHP > 0)
+            context.CombatManager.ShowDamage(damageToHP * -1, target.transform.position + new Vector3(0.5f, 0), Color.red);
+        else
+            context.CombatManager.ShowDamage(damageToArmor * -1, target.transform.position + new Vector3(0.5f, 0), Color.blue);
     }
 
     /// <summary>

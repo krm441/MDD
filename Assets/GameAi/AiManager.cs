@@ -30,7 +30,7 @@ public class AiManager : MonoBehaviour
                 //Console.Log("result", result);
 
                 // Turn over
-                gameManager.GetCurrentState().NextTurn();
+                //gameManager.GetCurrentState().NextTurn();
             }
         }
     }
@@ -47,13 +47,12 @@ public class AiManager : MonoBehaviour
                     new MoveToResource(),
                     new HarvestResource(),
                     new MoveToStockpile()
-                ),
+                )
+                ,
                 new Sequence // combat state
                 (
                     new CheckCombatStateTrue(),
                     new PickTargetRadius(),
-                    //new CalculateSpellPath(),
-                    //new CastSpell(),
                     new Selector // OR logic
                     (
                         new Sequence( // AND logic
@@ -61,22 +60,7 @@ public class AiManager : MonoBehaviour
                             new CastSpell()
                         ),
                         new PursueTarget()
-                    
-                        //new PursueTarget(),
-                        //new CastSpell()
-                        //new Sequence(
-                        //    //new CalculateSpellPath(), // checks LoS
-                        //    
-                        //)
-                        //new Sequence
-                        //(
-                        //     // if can't cast move closer and try again next tick
-                        //    new CalculateSpellPath(), // checks LoS
-                        //    new CastSpell()
-                        //)
                     ),
-                    //new CalculateSpellPath(),
-                    //new CastSpell(),
                     new EndTurn()
                 )
             );

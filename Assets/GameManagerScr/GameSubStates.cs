@@ -10,6 +10,8 @@ using System.Linq;
 using UnityEngine.Analytics;
 using UnityEditor.Experimental.GraphView;
 using System.Reflection;
+using UnityEngine.AI;
+using Pathfinding;
 
 public enum EventTypeButton
 {
@@ -123,10 +125,91 @@ public class MovementSubstate : SubStateBase
         GetIntoFormation();
     }
 
+    PathVisualiser pathVisualiser;// = new PathVisualiser();
+    NavMeshPath currentPath = null;
     public override void Update() 
     {
         if (EventSystem.current.IsPointerOverGameObject()) return;
         if (partyManager.CurrentSelected == null || !partyManager.CurrentSelected.isPlayerControlled) return;
+
+        var agent = partyManager.CurrentSelected.agent;
+
+        GetIntoFormation();
+
+        if (Input.GetMouseButtonDown(1)) // Cancel with right-click
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            pathVisualiser.Reset();
+            return;
+        }
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            currentPath = new NavMeshPath();
+
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("PartyLayer")))
+            {
+                // Switch to party chat layer
+
+            }
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Interactables")))
+            {
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        // Set selected object to interact with
+                        var CurrentInteractable = hit.collider.gameObject;
+
+                        // Switch substate to interaction
+                        if (CurrentInteractable.TryGetComponent<IInteractable>(out var target))
+                        {
+                            target.Interact(partyManager.CurrentSelected);
+                        }
+                        //gameManager.GetCurrentState().SetSubstate(new ObjectInteractionSubstate(gameManager, CurrentInteractable));
+                        return;
+                    }
+                }
+            }
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Walkable")))
+            {
+                // Try to calculate path to clicked point
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        agent.SetPath(currentPath);
+                        AimingVisualizer.SpawnClickMarker(hit.point - new Vector3(0.5f, 0, 0.5f));
+                    }
+                }
+            }
+        }
+        pathVisualiser?.PreviewPath(currentPath);
+        return;
+
+        if (Input.GetMouseButtonDown(0)) // Left-click
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit))
+            {
+                agent.SetDestination(hit.point);
+                AimingVisualizer.SpawnClickMarker(hit.point - new Vector3(0.5f, 0, 0.5f));
+            }
+        }
+        if (Input.GetMouseButtonDown(1))
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            GetIntoFormation();
+        }
+        return;
+        //agent.SetDestination(hit.point);
+
 
         var followPathCoroutine = gameManager.GetCoroutine("party_path");
 
@@ -305,14 +388,22 @@ public class MovementSubstate : SubStateBase
             if (followerIndex >= formationTargets.Count) break;
 
             Vector3 targetPos = formationTargets[followerIndex++];
-            var path = gameManager.gridSystem.FindPathTo(targetPos, follower.transform.position, follower.unitID, -1);
-            if (path != null)
-            {
-                follower.MoveAlongPath(path);
-            }
+            follower.agent.isStopped = false;
+            follower.agent.SetDestination(targetPos);
+            //NavMeshHit navHit;
+            //if (NavMesh.SamplePosition(targetPos, out navHit, 2f, NavMesh.AllAreas))
+            //{
+            //    var destination = 
+            //    Console.Log(destination);
+            //}
+            //var path = gameManager.gridSystem.FindPathTo(targetPos, follower.transform.position, follower.unitID, -1);
+            //if (path != null)
+            //{
+            //    follower.MoveAlongPath(path);
+            //}
         }
 
-        gameManager.StartCoroutine(LookAtRoutine(party, leader, sharedLookTarget));
+        //gameManager.StartCoroutine(LookAtRoutine(party, leader, sharedLookTarget));
     }
 
     private IEnumerator LookAtRoutine(List<CharacterUnit> party, CharacterUnit leader, Vector3 sharedLookTarget)
@@ -341,6 +432,10 @@ public class MovementSubstate : SubStateBase
 
     public override void Exit()
     {
+        partyManager.CurrentSelected.agent.isStopped = true;
+        partyManager.CurrentSelected.agent.ResetPath();
+
+
         Console.Log($"{partyManager.CurrentSelected.unitName} ends their turn.");
         partyManager.CurrentSelected.StopMovement();
         //AimingVisualizer.ClearState();
@@ -363,7 +458,7 @@ public class ObjectInteractionSubstate : SubStateBase
     {
         //Vector3 interactionTarget = GetAdjacentPosition(targetObject.transform.position);
         Vector3 interactionTarget = targetObject.transform.Find("Pivot").transform.position;
-        Console.Error("targ", interactionTarget);
+        
         var leader = partyManager.CurrentSelected;
 
         var path = gameManager.gridSystem.FindPathTo(interactionTarget, partyManager.CurrentSelected.transform.position, leader.unitID, -1);
@@ -376,6 +471,15 @@ public class ObjectInteractionSubstate : SubStateBase
     }
     public override void Update()
     {
+        //var agent = partyManager.CurrentSelected.agent;
+        //
+        //if (agent.remainingDistance <= agent.stoppingDistance)
+        //{
+        //    var button = targetObject.GetComponent
+        //    TryActivateButton(currentTargetCollider);
+        //}
+
+
         var interactCoroutine = gameManager.GetCoroutine("interact_move");
 
         if (Input.GetMouseButtonDown(1)) // Cancel with right-click
@@ -476,14 +580,110 @@ public class TurnBasedMovement : SubStateBase
             Text statusText = statusTextObject.GetComponent<Text>();
             statusText.text = "SubStatus: TurnBasedM";
         }
-       
+
+        // stop the agent
+        //var unit = partyManager.CurrentSelected;
+        //unit.GetComponent<NavMeshAgent>().enabled = true;
+        //unit.GetComponent<NavMeshObstacle>().enabled = false;
+        //unit.agent.isStopped = true;
+        partyManager.CurrentSelected.Uncarve();
+        isCarvedResolved = false;
     }
 
+    NavMeshPath currentPath = null;
+    List<Vector3> traversablePath = null;
+    private bool isHolding = false;
+
+    // position return logical controll flow
+    private bool isCarvedResolved = false;
     public override void Update()
     {
         if (EventSystem.current.IsPointerOverGameObject()) return;
         if (partyManager.CurrentSelected == null || !partyManager.CurrentSelected.isPlayerControlled) return;
 
+        // restore position - carving unity bug
+        if (!isCarvedResolved)
+        {
+            partyManager.CurrentSelected.ReturnMemorizedPosition();
+            isCarvedResolved = true;
+        }
+
+        // On mouse down
+        if (Input.GetMouseButtonDown(0))
+        {
+            isHolding = true;
+            OnMousePress();
+        }
+
+        // While holding
+        if (Input.GetMouseButton(0) && isHolding)
+        {
+            OnMouseHold();
+        }
+
+        // On mouse release
+        if (Input.GetMouseButtonUp(0))
+        {
+            isHolding = false;
+            OnMouseRelease();
+        }
+
+        
+
+        var followPathCoroutine = gameManager.GetCoroutine("following_path");
+
+        if (Input.GetMouseButtonDown(1)) // Cancel with right-click
+        {
+            if (followPathCoroutine?.IsRunning == true)
+            {
+                var agent = partyManager.CurrentSelected.agent;
+                followPathCoroutine.Stop();
+                agent.isStopped = true;
+                agent.ResetPath();
+                AimingVisualizer.Hide();
+            }
+            return;
+        }
+
+        /*
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            currentPath = new NavMeshPath();
+
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Walkable")))
+            {
+                // Try to calculate path to clicked point
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        var availableAP = partyManager.CurrentSelected.attributeSet.stats.ActionPoints;
+                        var speed = partyManager.CurrentSelected.attributeSet.stats.Speed;
+                        var spell = partyManager.CurrentSelected.GetSelectedSpell();
+
+                        float moveAP = Mathf.Max(0, availableAP - spell.apCost);
+                        float maxDist = moveAP * speed;
+
+                        AimingVisualizer.DrawPathPreview(currentPath, maxDist);
+                        agent.SetPath(currentPath);                        
+                    }
+                }
+            }
+        }
+
+        
+
+
+
+        if(currentPath != null)
+            
+
+        pathVisualiser.PreviewPath(currentPath);
+
+        
+        return;
         var followPathCoroutine = gameManager.GetCoroutine("following_path");
 
         if (Input.GetMouseButtonDown(1)) // Cancel with right-click
@@ -534,7 +734,99 @@ public class TurnBasedMovement : SubStateBase
             // Start following coroutine and register it
             gameManager.CreateCoroutine("following_path", FollowPathCoroutine(path, 3f));
         }
+        */
     }
+
+    void OnMousePress()
+    {
+        
+    }
+
+    void OnMouseHold()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+        currentPath = new NavMeshPath();
+
+        if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Walkable")))
+        {
+            // Try to calculate path to clicked point
+            if (NavMesh.CalculatePath(partyManager.CurrentSelected.agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+            { 
+                if (currentPath.status == NavMeshPathStatus.PathComplete)
+                {
+                    var availableAP = partyManager.CurrentSelected.attributeSet.stats.ActionPoints;
+                    var speed = partyManager.CurrentSelected.attributeSet.stats.Speed;
+                    var spell = partyManager.CurrentSelected.GetSelectedSpell();
+
+                    float moveAP = Mathf.Max(0, availableAP - spell.apCost);
+                    float maxDist = moveAP * speed;
+
+                    traversablePath = AimingVisualizer.DrawPathPreview(currentPath, maxDist);
+                }    
+            }
+        }
+    }
+
+    void OnMouseRelease()
+    {
+        if(traversablePath != null)
+            gameManager.CreateCoroutine("following_path", FollowPath(partyManager.CurrentSelected, traversablePath, 3f));
+    }
+
+    public static IEnumerator FollowPath(CharacterUnit unit, List<Vector3> path, float speed)
+    {
+        var pathNodes = path;
+        float remainingAP = unit.attributeSet.stats.ActionPoints;
+        float costPerStep = 1f / unit.attributeSet.stats.Speed;
+
+        // this setup assures the smooth movement
+        unit.agent.speed = speed;
+        unit.agent.isStopped = false;
+        var defaultAcceleration = unit.agent.acceleration;
+        unit.agent.acceleration = 9999f;
+        unit.agent.autoBraking = false;
+        var defaultStoppingDistance = unit.agent.stoppingDistance;
+        unit.agent.stoppingDistance = 0f;
+
+        for (int i = 0; i < pathNodes.Count; i++)
+        //foreach (var point in path)
+        {
+            var point = pathNodes[i];
+
+            if(i == pathNodes.Count - 1)
+            {
+                // return defaults to agent at the end
+                unit.agent.autoBraking = true;
+            }
+
+            unit.agent.SetDestination(point);
+
+            unit.LookAtTarget(point); // Facing the target
+            remainingAP -= costPerStep;
+            unit.attributeSet.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
+
+            while (Vector3.Distance(unit.agent.transform.position, point) > unit.agent.stoppingDistance + 0.1f)
+            {
+                yield return null;
+            }
+
+            if (remainingAP < 0)
+            {
+                break;
+            }
+        }
+
+        // return defaults to agent        
+        unit.agent.acceleration = defaultAcceleration;
+        unit.agent.stoppingDistance = defaultStoppingDistance;
+
+        // Finalize state
+        unit.agent.isStopped = true;
+        unit.attributeSet.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
+        AimingVisualizer.Hide();
+    }
+
 
     private IEnumerator FollowPathCoroutine(Pathfinding.Path path, float speed)
     {
@@ -578,7 +870,10 @@ public class TurnBasedMovement : SubStateBase
     }
      
     public override void Exit() 
-    { 
+    {
+        //var unit = partyManager.CurrentSelected;
+        //unit.GetComponent<NavMeshAgent>().enabled = false;
+        //unit.GetComponent<NavMeshObstacle>().enabled = true;
         remaining?.Clear(); 
         AimingVisualizer.Hide();
         //AimingVisualizer.ClearState();
@@ -645,6 +940,10 @@ public class CastingSubstate : SubStateBase
             Text statusText = statusTextObject.GetComponent<Text>();
             statusText.text = "SubStatus: Casting";
         }
+
+
+        // action points
+        partyManager.CurrentSelected.attributeSet.stats.ActionPoints = 9999;
     }
 
     public override void Update()
@@ -664,8 +963,32 @@ public class CastingSubstate : SubStateBase
         }
 
         bool inRange = false;
-        Pathfinding.Path path = null;
+        NavMeshPath path = null;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out var hit))
+        {
+            path = SpellVisualizer.VisualizeSpell(
+                partyManager.CurrentSelected.GetSelectedSpell(),
+                9999,
+                partyManager.CurrentSelected.attributeSet.stats.Speed,
+                partyManager.CurrentSelected.GetFeetPos(),
+                hit.point,
+                out inRange
+                );
+        }
 
+        if (Input.GetMouseButtonDown(0) && inRange)
+        {
+            var target = hit.point;
+            gameManager.CreateCoroutine("casting_spell", CastSelectedSpell
+                (caster, gameManager, path, target,() =>                
+                    {
+                        gameManager.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
+                    })
+                );
+        }
+        /*
+        Pathfinding.Path path = null;
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (Physics.Raycast(ray, out var hit))
         {
@@ -691,7 +1014,35 @@ public class CastingSubstate : SubStateBase
         {
             var target = hit.point;
             gameManager.CreateCoroutine("casting_spell", CastSpell(caster, path, target, gameManager));
-        }
+        }*/
+    }
+
+    public static IEnumerator CastSelectedSpell(CharacterUnit caster, GameManagerMDD gameManager, NavMeshPath path, Vector3 targetPoint, Action onImpact)
+    {
+        // variables:
+        var spell = caster.GetSelectedSpell();
+
+        // 1- Walk first
+        if (path != null)
+            yield return gameManager.StartCoroutine(TurnBasedMovement.FollowPath(caster, new List<Vector3>(path.corners), 3f));
+
+        bool done = false; // simple bool will block the immediate return
+
+        // 2- Cast at targetPoint when walk is over
+        // onComplete callback is passed to ApplySpell in Combat manager
+        gameManager.CombatManager.ApplySpell(caster, spell, targetPoint, () =>
+        {
+            // only after the animation spell is over
+            AimingVisualizer.DrawImpactCircle(targetPoint, spell.radius, Color.red);
+            caster.DeductActionPoints(spell.apCost);
+            done = true;
+            //onComplete?.Invoke();
+            AimingVisualizer.Hide();
+        });
+
+        yield return new WaitUntil(() => done);
+
+        onImpact?.Invoke();
     }
 
     public IEnumerator CastSpell(CharacterUnit caster, Pathfinding.Path path, Vector3 target, GameManagerMDD gameManager)
@@ -798,6 +1149,13 @@ public class TurnBasedCasting : SubStateBase
             Text statusText = statusTextObject.GetComponent<Text>();
             statusText.text = "SubStatus: TurnCasting";
         }
+
+        //unit.agent.isStopped = true;
+        //unit.GetComponent<NavMeshAgent>().enabled = true;
+        //unit.GetComponent<NavMeshObstacle>().enabled = false;
+
+        var unit = partyManager.CurrentSelected;
+        unit.MemorizePosition();
     }
 
     public override void Update()
@@ -811,6 +1169,50 @@ public class TurnBasedCasting : SubStateBase
             return;
         }
 
+        var caster = partyManager.CurrentSelected;
+        var castingSpellCoroutine = gameManager.GetCoroutine("casting_spell");
+
+        // Prevent path preview while moving
+        if (castingSpellCoroutine?.IsRunning == true)
+        {
+            AimingVisualizer.Hide();
+            return;
+        }
+
+        bool inRange = false;
+        NavMeshPath path = null;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out var hit))
+        {
+            path = SpellVisualizer.VisualizeSpell(
+                partyManager.CurrentSelected.GetSelectedSpell(),
+                partyManager.CurrentSelected.attributeSet.stats.ActionPoints,
+                partyManager.CurrentSelected.attributeSet.stats.Speed,
+                partyManager.CurrentSelected.GetFeetPos(),
+                hit.point,
+                out inRange
+                );
+        }
+
+        if (Input.GetMouseButtonDown(0) && inRange)
+        {
+            var target = hit.point;
+            gameManager.CreateCoroutine("casting_spell", CastingSubstate.CastSelectedSpell
+                (caster, gameManager, path, target, () =>
+                    {
+                        gameManager.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+                    })
+                );
+        }
+
+        if (Input.GetMouseButtonDown(1))
+        {
+            AimingVisualizer.Hide();
+            gameManager.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+            return;
+        }
+
+        /*
         var caster = partyManager.CurrentSelected;
         var castingSpellCoroutine = gameManager.GetCoroutine("casting_spell");
 
@@ -866,7 +1268,7 @@ public class TurnBasedCasting : SubStateBase
         {
             var target = hit.point;
             gameManager.CreateCoroutine("casting_spell", CastSpell(caster, path, target, gameManager));
-        }
+        }*/
     }
 
     public IEnumerator CastSpell(CharacterUnit caster, Pathfinding.Path path, Vector3 target, GameManagerMDD gameManager)
@@ -897,6 +1299,7 @@ public class TurnBasedCasting : SubStateBase
 
     public override void Exit()
     {
+        partyManager.CurrentSelected.MemorizePosition();
         AimingVisualizer.Hide();
         Console.Log("Exited Casting Substate");
     }
@@ -924,6 +1327,12 @@ public class AITurnSubstate : SubStateBase
 
         var aiUnit = partyManager.CurrentSelected;
         Console.ScrLog("AI turn", aiUnit.unitID);
+
+        aiUnit.GetComponent<NavMeshAgent>().enabled = true;
+        aiUnit.GetComponent<NavMeshObstacle>().enabled = false;
+        //aiUnit.agent.isStopped = true;
+
+        aiUnit.attributeSet.stats.ActionPoints = 10;
     }
     public override void Update() 
     {
@@ -941,5 +1350,11 @@ public class AITurnSubstate : SubStateBase
 
     private bool called = false;
 
-    public override void Exit() { }
+    public override void Exit() 
+    {
+        var aiUnit = partyManager.CurrentSelected;
+        //aiUnit.agent.isStopped = true;
+        aiUnit.GetComponent<NavMeshAgent>().enabled = false;
+        aiUnit.GetComponent<NavMeshObstacle>().enabled = true;
+    }
 }

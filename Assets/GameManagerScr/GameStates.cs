@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Linq; // for sorting
 using UnityEngine.UI;
+using UnityEngine.AI;
+using static UnityEngine.UI.CanvasScaler;
 
 // game states
 // interface:
@@ -13,8 +15,6 @@ public interface IGameState
     void Enter();
     void Update();
     void Exit();
-
-    void NextTurn();
 
     // dop
     void SetCastingSubState();
@@ -40,7 +40,7 @@ public abstract class GameStateBase : IGameState
     public virtual void Enter() { }
     public virtual void Update() { }
     public virtual void Exit() { }
-    public virtual void NextTurn() { }
+    //public virtual void NextTurn() { }
 
     // ==== Substates ====
     protected ISubstate currentSubstate;
@@ -135,7 +135,7 @@ public class TurnBasedState : GameStateBase
         spellMap = manager.spellMap;
     }
 
-    private CombatManager combatManager = new CombatManager();
+    //private CombatManager combatManager = new CombatManager();
 
     private void HandleCombatEnded()
     {
@@ -180,6 +180,16 @@ public class TurnBasedState : GameStateBase
             .Concat(EnemyManager.GetEnemies())
             .OrderByDescending(p => p.attributeSet.stats.Initiative);
 
+        // making all agents into obstacles, for pathfinder to carve path around them
+        foreach (var combatant in combatants) 
+        {
+            combatant.Carve();
+            //var agent = combatant.agent;
+            //agent.isStopped = true;
+            //agent.GetComponent<NavMeshAgent>().enabled = false;
+            //agent.GetComponent<NavMeshObstacle>().enabled = true;
+        } 
+
         gameManager.combatQueue.unitQueue = new Queue<CharacterUnit>(combatants);
 
         // set queue in manager = for reference
@@ -195,8 +205,20 @@ public class TurnBasedState : GameStateBase
 
     private bool enemyTurn = false;
 
-    public override void NextTurn()
+    public void NextTurn()
     {
+        // if last turn - return ai agent to defaults
+        if(partyManager.CurrentSelected != null)
+        {
+            partyManager.CurrentSelected.Carve();
+           //NavMeshAgent agent_ = partyManager.CurrentSelected.agent;
+           //
+           //agent_.GetComponent<NavMeshAgent>().enabled = false;
+           //agent_.GetComponent<NavMeshObstacle>().enabled = true;
+            //agent_.GetComponent<NavMeshObstacle>().carving = true;
+        }
+        
+        
         var turnQueue = gameManager.combatQueue.unitQueue;
 
         // next unit
@@ -222,7 +244,18 @@ public class TurnBasedState : GameStateBase
             return;
         }
 
+        //unit.GetComponent<NavMeshAgent>().enabled = true;
 
+        // Setup nav mesh agent parameters
+        unit.Uncarve();
+        NavMeshAgent agent = unit.agent;
+        //agent.isStopped = false;
+        //agent.GetComponent<NavMeshObstacle>().enabled = false;
+        //agent.GetComponent<NavMeshAgent>().enabled = true;
+        //if (agent.isOnNavMesh && agent.enabled)
+        //{
+        //    agent.isStopped = true;
+        //}
 
         if (unit.isPlayerControlled)
         {
@@ -250,6 +283,12 @@ public class TurnBasedState : GameStateBase
             turnQueue.Enqueue(unit);
             Console.Error($"New Turn AI: {unit.unitName}", "\nturn Q volume:", turnQueue.Count);
         }
+
+        // lerp camera to unit
+        gameManager.isometricCamera.LerpToCharacter(unit.transform);
+
+        // sfx end of turn effect
+        SoundPlayer.PlayClipAtPoint("EndTurnType1", unit.transform.position);
     }
 
     public override void SetCastingSubState()
@@ -289,6 +328,17 @@ public class TurnBasedState : GameStateBase
         // restore ap
         gameManager.partyManager.SetStartActionPoints();
 
+        // uncarve - and let walk
+        foreach (var item in gameManager.partyManager.partyMembers)
+        {
+            item.Uncarve();
+        }
+
         Console.Error("Exiting Combat");
     }
+}
+
+public class ScriptedSequencesState : GameStateBase
+{
+    public ScriptedSequencesState(GameManagerMDD gameManager) : base(gameManager) { }
 }

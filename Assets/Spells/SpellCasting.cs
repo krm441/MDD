@@ -16,6 +16,8 @@ using Pathfinding;
 using UnityEditor;
 using TMPro;
 using System.Threading;
+using UnityEngine.AI;
+using static UnityEngine.UI.GridLayoutGroup;
 
 /// <summary>
 /// Static backend utilities for path and spell range calculations
@@ -87,6 +89,39 @@ public static class SpellRangeBackend
         return path;
     }
 
+    
+
+
+    public static NavMeshPath calculateRangeSpell(
+        float castRange,
+        int spellCost,
+        int availableAP,
+        float speed,
+        Vector3 start,
+        Vector3 end,
+        out bool inRange
+    )
+    {
+        inRange = false;
+        var path = new NavMeshPath();
+        if (!NavMesh.CalculatePath(start, end, NavMesh.AllAreas, path))
+        {
+            
+            return null;
+        }
+
+        // Cumulative distance
+        float total = 0f;//, walked = 0f;
+        Vector3 prev = start;
+        foreach (var n in path.corners)
+        {
+            total += Vector3.Distance(prev, n);
+            prev = n;
+        }
+
+        return path;
+    }
+
     // SpellRangeBackend.cs
     public static Path calculateRangeSpell(
         float castRange,
@@ -101,7 +136,7 @@ public static class SpellRangeBackend
     )
     {
         inRange = false;
-        if (grid == null) { Console.Error("SpellRangeBackend::calculateRangeSpell::Err: grid == null"); return null; }
+        //if (grid == null) { Console.Error("SpellRangeBackend::calculateRangeSpell::Err: grid == null"); return null; }
 
         // Special case: for non-combat state: if AP is negative, skip spell constraints — draw full walk path
         //if (availableAP < 0)
@@ -111,13 +146,13 @@ public static class SpellRangeBackend
         //    return new Path { pathNodes = nodes };
         //}
 
-        Vector3 position = end; // world-space center
-        float radius = 1.0f;
-
-        Collider[] colliders = Physics.OverlapSphere(position, radius);
+       //Vector3 position = end; // world-space center
+       //float radius = 1.0f;
+       //
+       //Collider[] colliders = Physics.OverlapSphere(position, radius);
 
         //CharacterUnit unit = null;
-        List<Node> fullNodes = null;
+        List<Vector3> fullNodes = null;
 
        //foreach (Collider col in colliders)
        //{
@@ -130,8 +165,16 @@ public static class SpellRangeBackend
        //    }
        //}
 
-        fullNodes = grid.FindPathTo(end, start, caster.unitID, target? target.unitID : -1);
-        if (fullNodes == null || fullNodes.Count == 0) return null;
+        //fullNodes = grid.FindPathTo(end, start, caster.unitID, target? target.unitID : -1);
+        var path = new NavMeshPath();
+        if(!NavMesh.CalculatePath(start, end, NavMesh.AllAreas, path))
+        {
+            return null;
+        }
+
+        fullNodes = new List<Vector3>(path.corners);
+
+        //if (fullNodes == null || fullNodes.Count == 0) return null;
 
         // Build cumulative distances
         var cumulative = new List<float>(fullNodes.Count);
@@ -139,9 +182,9 @@ public static class SpellRangeBackend
         Vector3 prev = start;
         foreach (var n in fullNodes)
         {
-            total += Vector3.Distance(prev, n.worldPos);
+            total += Vector3.Distance(prev, n);
             cumulative.Add(total);
-            prev = n.worldPos;
+            prev = n;
         }
 
         // How far we must go to be in casting range
@@ -165,21 +208,21 @@ public static class SpellRangeBackend
 
             foreach (var n in fullNodes)
             {
-                float segLen = Vector3.Distance(prevPos, n.worldPos);
+                float segLen = Vector3.Distance(prevPos, n);
                 if (remaining >= segLen)
                 {
                     // We can reach this node fully
-                    moveNodes.Add(n);
+                    moveNodes.Add( new Node { worldPos = n });
                     remaining -= segLen;
-                    prevPos = n.worldPos;
+                    prevPos = n;
                 }
                 else
                 {
                     // We run out of budget mid‐segment: make a partial node
                     Vector3 partialPos = prevPos
-                        + (n.worldPos - prevPos).normalized * remaining;
+                        + (n - prevPos).normalized * remaining;
                     // Use partial node - accurate
-                    var partialNode = new Pathfinding.Node(n.gridPos, partialPos, n.isWalkable);
+                    var partialNode = new Pathfinding.Node { worldPos = n };//      (n.gridPos, partialPos, n.isWalkable);
                     moveNodes.Add(partialNode);
                     break;
                 }
@@ -253,6 +296,12 @@ public static class SpellRangeBackend
 /// </summary>
 public static class SpellVisualizer
 {
+    public static void VisualizePath(NavMeshPath path)
+    {
+
+    }
+
+
     /// <summary>
     /// Draws movement preview for given start to end with AP and speed.
     /// </summary>
@@ -270,6 +319,122 @@ public static class SpellVisualizer
         var res = AimingVisualizer.DrawPathPreview(starter.GetFeetPos(), end, path.pathNodes, maxDist);
 
         return res;
+    }
+
+    public static NavMeshPath GetPathAtDistance(Vector3 start, Vector3 end, float targetDistance, float maximumDistance = -1f)
+    {
+        NavMeshPath fullPath = new NavMeshPath();
+
+        // early returns
+        if (!NavMesh.CalculatePath(start, end, NavMesh.AllAreas, fullPath))
+            return null;
+
+
+
+        float accumulated = 0f;
+        Vector3 finalPoint = Vector3.zero;
+
+        for (int i = fullPath.corners.Length - 1; i > 0; i--)
+        {
+            Vector3 p0 = fullPath.corners[i];
+            Vector3 p1 = fullPath.corners[i - 1];
+            float segmentLength = Vector3.Distance(p0, p1);
+
+            if (accumulated + segmentLength >= targetDistance)
+            {
+                float remaining = targetDistance - accumulated;
+                float t = remaining / segmentLength;
+                finalPoint = Vector3.Lerp(p0, p1, t);
+                break;
+            }
+
+            accumulated += segmentLength;
+        }
+
+        if (finalPoint == Vector3.zero) return null;
+
+        if (!NavMesh.CalculatePath(start, finalPoint, NavMesh.AllAreas, fullPath))
+            return null;
+
+        if (maximumDistance != -1f)
+        {
+            var pathDistance = MathMDD.CalculatePathDistance(fullPath);
+            if (pathDistance > maximumDistance)
+                return null;
+        }
+
+        return fullPath;
+    }
+
+    public static NavMeshPath VisualizeSpell(
+        Spell spell,
+        int availableAP,
+        float speed,
+        Vector3 start,
+        Vector3 end,
+        out bool inRange)
+    {
+        inRange = false;
+        NavMeshPath path = null;
+
+        float dist = Vector3.Distance(start, end);
+        if (dist < spell.range)
+        {
+            inRange = true;
+        }
+        else
+        {
+            inRange = false;
+            var maxDistance = (availableAP - spell.apCost) * speed;
+            
+            path = GetPathAtDistance(start, end, spell.range, maxDistance);
+            if (path != null)
+            {
+                AimingVisualizer.DrawPathPreview(path, maxDistance, false);
+                inRange = true;
+            }
+        }
+
+        if (inRange)
+            switch (spell.physicsType)
+            {
+                case SpellPhysicsType.Parabolic:
+                    {
+                        bool obstacle = false;
+                        if (path != null && path.corners.Length > 0)
+                            AimingVisualizer.DrawProjectileArc(path.corners[path.corners.Length - 1], end, Color.green, out obstacle);
+                        else
+                            AimingVisualizer.DrawProjectileArc(start, end, Color.green, out obstacle); // ballistic trajectory
+                        inRange = !obstacle;
+                    }
+                    break;
+                case SpellPhysicsType.Linear:
+                    {
+                        bool obstacle = false;
+                        if (path != null && path.corners.Length > 0)
+                            AimingVisualizer.DrawStraightLine(path.corners[path.corners.Length - 1], end, Color.green, out obstacle);
+                        else
+                            AimingVisualizer.DrawStraightLine(start, end, Color.green, out obstacle); // rectilinear trajectory
+                        inRange = !obstacle;
+                    }
+                    break;
+                default:
+                    Console.Warn("Unknown spell effect.");
+                    break;
+            }
+        else
+            AimingVisualizer.Hide();
+
+        // Draw spell radius at target
+        var circleColor = inRange
+            ? Color.green
+            : Color.red;
+        AimingVisualizer.ShowAimingCircle(end, spell.radius, circleColor);
+
+        if (inRange)
+            AimingVisualizer.HighlightTargets(end, spell.radius);
+
+        return path;
     }
 
     /// <summary>
