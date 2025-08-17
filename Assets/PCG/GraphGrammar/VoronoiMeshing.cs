@@ -4,23 +4,11 @@ using UnityEngine;
 
 public class VoronoiMeshing : MonoBehaviour
 {
-    // VoronoiMeshing.cs (add at top of class)
-    [Header("Labels / Coloring")]
-    public bool colorByLabel = true;
-    public Color colorA = new Color(0.8f, 0.9f, 0.2f);
-    public Color colorNone = new Color(0.2f, 0.2f, 0.2f);
-
-
     [HideInInspector] public GG.Graph activeGraph;     // set from your controller
     [HideInInspector] public GG.NodeLabel[] cellLabels; // computed by mapper
 
     [Header("Source")]
     public VoronoiLayoutGenerator generator;
-
-   // [Header("Render")]
-   // public Material materialA;        // for label A
-    //public Material materialCorridor;
-    //public Material materialDefault;  // for everything else
 
     public bool combineIntoSingleMesh = false;
 
@@ -440,101 +428,6 @@ public class VoronoiMeshing : MonoBehaviour
             default:
                 return materialDefault;
         }
-    }
-
-
-    void BuildPerCellhh(IReadOnlyList<VoronoiLayoutGenerator.Cell> cells)
-    {
-        for (int i = 0; i < cells.Count; i++)
-        {
-            var poly = cells[i].polygon;
-            if (poly == null || poly.Count < 3) continue;
-
-            //var mesh = BuildCellMesh(poly);
-            var mesh = BuildExtrudedCellMesh(poly, cellHeight);
-
-            var go = new GameObject($"Cell_{i}");
-            go.transform.SetParent(cellsParent, false);
-
-            var mf = go.AddComponent<MeshFilter>(); mf.sharedMesh = mesh;
-            var mr = go.AddComponent<MeshRenderer>();
-
-            // choose material by label
-           // var label = (cellLabels != null && i < cellLabels.Length) ? cellLabels[i] : GG.NodeLabel.None;
-            //mr.sharedMaterial = (label == GG.NodeLabel.A && materialA != null) ? materialA : materialDefault;
-
-            var label = (cellLabels != null && i < cellLabels.Length)
-            ? cellLabels[i] : GG.NodeLabel.None;
-
-            mr.sharedMaterial =
-                (label == GG.NodeLabel.A && materialA) ? materialA :
-                (label == GG.NodeLabel.Corridor && materialCorridor) ? materialCorridor :
-                materialDefault;
-
-        }
-    }
-
-   
-
-
-    void BuildPerCell7(IReadOnlyList<VoronoiLayoutGenerator.Cell> cells)
-    {
-        var mpb = new MaterialPropertyBlock();
-        for (int i = 0; i < cells.Count; i++)
-        {
-            var poly = cells[i].polygon; if (poly == null || poly.Count < 3) continue;
-            var mesh = BuildCellMesh(poly);
-            var go = new GameObject($"Cell_{i}");
-            go.transform.SetParent(cellsParent, false);
-            var mf = go.AddComponent<MeshFilter>(); mf.sharedMesh = mesh;
-            //var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = cellMaterial;
-
-            if (colorByLabel && cellLabels != null && i < cellLabels.Length)
-            {
-                var col = (cellLabels[i] == GG.NodeLabel.A) ? colorA : colorNone;
-                mpb.SetColor("_Color", col);  // works with Standard/Lit if it uses _Color
-               // mr.SetPropertyBlock(mpb);
-            }
-        }
-    }
-
-
-    void BuildPerCell2(IReadOnlyList<VoronoiLayoutGenerator.Cell> cells)
-    {
-        for (int i = 0; i < cells.Count; i++)
-        {
-            var poly = cells[i].polygon; if (poly == null || poly.Count < 3) continue;
-            var mesh = BuildCellMesh(poly);
-            var go = new GameObject($"Cell_{i}");
-            go.transform.SetParent(cellsParent, false);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-           // go.AddComponent<MeshRenderer>().sharedMaterial = cellMaterial;
-        }
-    }
-
-    Mesh BuildCellMesh(List<Vector2> poly)
-    {
-        var verts = new List<Vector3>(poly.Count + 1);
-        for (int i = 0; i < poly.Count; i++)
-            verts.Add(new Vector3(poly[i].x, 0f, poly[i].y));
-
-        var c = PolygonCentroid(poly);
-        verts.Add(new Vector3(c.x, 0f, c.y));
-        int cIdx = verts.Count - 1;
-
-        var tris = new List<int>(poly.Count * 3);
-        for (int i = 0; i < poly.Count; i++)
-        {
-            int a = i, b = (i + 1) % poly.Count;
-            tris.Add(cIdx); tris.Add(b); tris.Add(a);
-        }
-
-        var mesh = new Mesh();
-        mesh.SetVertices(verts);
-        mesh.SetTriangles(tris, 0, true);
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-        return mesh;
     }
 
     static Vector2 PolygonCentroid(List<Vector2> P)
