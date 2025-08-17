@@ -28,13 +28,7 @@ public class CAGenerator : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        GenerateDungeon();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        //GenerateDungeon();
     }
 
     [ContextMenu("Generate Dungeon")]

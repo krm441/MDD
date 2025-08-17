@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿
+
+using System.Collections.Generic;
 using System;//.Drawing;
 using UnityEngine;
 using UnityEngine.AI;
@@ -538,7 +540,7 @@ public static class AimingVisualizer
         lr.positionCount = sampled.Count;
         lr.SetPositions(sampled.ToArray());
 
-        // 8 Build a 4-key gradient: white → blend → red
+        // 8 Build a 4-key gradient: passable - blended - blocked
         float split = Mathf.Clamp01(maxDistance / totalDistance);
         var gradient = new Gradient();
 
@@ -699,7 +701,7 @@ public static class AimingVisualizer
         lr.positionCount = sampled.Count;
         lr.SetPositions(sampled.ToArray());
 
-        // 8 Build a 4-key gradient: white → blend → red
+        // 8 Build a 4-key gradient: passable - blended - blocked
         float split = Mathf.Clamp01(maxDistance / totalDistance);
         var gradient = new Gradient();
 

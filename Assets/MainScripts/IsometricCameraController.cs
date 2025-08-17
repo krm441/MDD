@@ -28,12 +28,14 @@ public class IsometricCameraController : MonoBehaviour
     [Header("Movement Bounds")]
     public Vector2 xBounds = new Vector2(-30f, 30f);
     public Vector2 zBounds = new Vector2(-30f, 30f);
+    public bool setBounds = false;
 
     [Header("Mouse Drag Rotation")]
     private Vector3 lastMousePosition;
 
     [Header("Edge Scrolling")]
     public int edgeThickness = 10; // in pixels
+    public bool moveEdge = false;
 
     void Start()
     {
@@ -143,12 +145,13 @@ public class IsometricCameraController : MonoBehaviour
         // Move the pivot - and not the camera itself
         transform.position += moveDirection * moveSpeed * Time.deltaTime;
 
-        // Clamp the camera pivot's position
-        transform.position = new Vector3(
-            Mathf.Clamp(transform.position.x, xBounds.x, xBounds.y),
-            transform.position.y, // should stay flat
-            Mathf.Clamp(transform.position.z, zBounds.x, zBounds.y)
-        );
+        if(setBounds)
+            // Clamp the camera's pivots position
+            transform.position = new Vector3(
+                Mathf.Clamp(transform.position.x, xBounds.x, xBounds.y),
+                transform.position.y,
+                Mathf.Clamp(transform.position.z, zBounds.x, zBounds.y)
+            );
 
         // sync target
         target.position = transform.position;
@@ -191,7 +194,7 @@ public class IsometricCameraController : MonoBehaviour
     private void HandleEdgeScrolling()
     {
         // disavble edge scrolling if rotating wth mouse
-        if (Input.GetMouseButton(2)) return;
+        if (Input.GetMouseButton(2) || !moveEdge) return;
 
         Vector3 moveDir = Vector3.zero;
         Vector3 camForward = mCamera.forward;

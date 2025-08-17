@@ -139,7 +139,8 @@ public class SpellListWrapper
 // Container that contains spells
 public class SpellMap : MonoBehaviour
 {
-    [SerializeField] private Transform iconBarParent;
+    //[SerializeField] 
+    private Transform iconBarParent;
 
     private static bool isInitialized = false;
     private void Start()

@@ -10,6 +10,8 @@ namespace Pathfinding
         private int gridWidth;
         private int gridHeight;
 
+        public bool allowDiagonals = true;
+
         public void SetGrid(Node[,] grid)
         {
             this.grid = grid;
@@ -17,6 +19,7 @@ namespace Pathfinding
             gridHeight = grid.GetLength(1);
         }
 
+       
 
         public List<Node> FindPath(Node start, Node target)
         {
@@ -64,7 +67,7 @@ namespace Pathfinding
                 }
 
                 //if we haven't reached our target, then we need to start looking the neighbours
-                foreach (Node neighbour in GetNeighbours(currentNode, true))
+                foreach (Node neighbour in GetNeighbours(currentNode, allowDiagonals))
                 {
                     if (!closedSet.Contains(neighbour))
                     {
@@ -157,6 +160,99 @@ namespace Pathfinding
                 return 14 * dstX + 10 * (dstY - dstX);
         }
 
+        public static bool IsStaircaseLikePath(IList<Node> path, int tolerance = 2)
+        {
+            if (path == null || path.Count < 3) return false;
+            if (tolerance < 0) tolerance = 0;
 
+            // Helpers
+            bool IsCardinal(Vector2Int v) => (v.x == 0) ^ (v.y == 0);
+            bool IsPerpendicular(Vector2Int a, Vector2Int b) => (a.x * b.x + a.y * b.y) == 0;
+
+            // Compute normalized step between two nodes (-1/0/1 per axis)
+            Vector2Int Step(Node a, Node b)
+            {
+                var d = b.gridPos - a.gridPos;
+                int sx = d.x == 0 ? 0 : (d.x > 0 ? 1 : -1);
+                int sy = d.y == 0 ? 0 : (d.y > 0 ? 1 : -1);
+                return new Vector2Int(sx, sy);
+            }
+
+            bool hasPrev = false;
+            Vector2Int prev = default;
+
+            // Current alternating pair we are tracking (e.g., Right and Up with fixed signs)
+            bool havePair = false;
+            Vector2Int dirA = default; // first direction of the pair
+            Vector2Int dirB = default; // second direction of the pair
+            int alternations = 0;      // count of consecutive alternations in the current run
+
+            for (int i = 1; i < path.Count; i++)
+            {
+                Vector2Int dir = Step(path[i - 1], path[i]);
+                if (dir == Vector2Int.zero) continue;           // duplicate node; ignore
+
+                if (!IsCardinal(dir))                           // diagonals break staircase runs
+                {
+                    hasPrev = true; prev = dir;
+                    havePair = false; alternations = 0;
+                    continue;
+                }
+
+                if (!hasPrev)
+                {
+                    hasPrev = true; prev = dir;
+                    havePair = false; alternations = 0;
+                    continue;
+                }
+
+                if (dir == prev)
+                {
+                    // Straight segment -> break the consecutive zig-zag run
+                    havePair = false; alternations = 0;
+                }
+                else if (IsPerpendicular(dir, prev))
+                {
+                    if (!havePair)
+                    {
+                        // First perpendicular turn defines the pair
+                        dirA = prev;
+                        dirB = dir;
+                        havePair = true;
+                        alternations = 1;
+                    }
+                    else
+                    {
+                        // Must alternate strictly between the same two directions
+                        bool validFlip =
+                            (dir == dirA && prev == dirB) ||
+                            (dir == dirB && prev == dirA);
+
+                        if (validFlip)
+                        {
+                            alternations++;
+                        }
+                        else
+                        {
+                            // Different turn -> start new run
+                            dirA = prev;
+                            dirB = dir;
+                            alternations = 1;
+                        }
+                    }
+
+                    if (alternations > tolerance) return true;
+                }
+                else
+                {
+                    // Backtrack or other non-perpendicular change -> reset
+                    havePair = false; alternations = 0;
+                }
+
+                prev = dir; hasPrev = true;
+            }
+
+            return false;
+        }
     }
 }
