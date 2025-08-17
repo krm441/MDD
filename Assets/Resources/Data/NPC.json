@@ -3,13 +3,15 @@
         {
             "id": "NpcSimple",
             "displayName": "DebugSimple",
-            "prefabPath": "CapsuleEnemy",
-            "visualPath": "CapsuleEnemy",
+            "prefabPath": "NPCBase",
+            "visualPath": "NPCBase",
             "portraitPath": "Portraits/debugEnemyIcn",
             "hostility": 1,
             "armorStat": {
                 "physicalArmor": 0,
+                "maxPhysicalArmor": 0,
                 "magicArmor": 0,
+                "maxMagicArmor": 0,
                 "moraleLevel": 0
             },
             "statBlock": {
@@ -23,6 +25,23 @@
                 "ActionPoints": 0,
                 "MaxActionPoints": 4,
                 "StartActionPoints": 2
+            },
+            "damageResistenceContainer": {
+                "Slashing": 0,
+                "Piercing": 0,
+                "Crushing": 0,
+                "Fire": 0,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 0,
+                "MentalFortification": 0,
+                "MagicFortification": 0
             }
         }
     ]

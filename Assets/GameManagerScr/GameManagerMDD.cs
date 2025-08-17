@@ -17,6 +17,7 @@ public enum GameStateEnum
     Paused,
     Exploration,
     TurnBasedMode,
+    ScriptedSequence, // cut-scenes, dialogues etc
 }
 
 public enum InteractionSubstate
@@ -41,27 +42,46 @@ public enum SpellCastingAnimationStates
 // singleton - persistent
 public class GameManagerMDD : MonoBehaviour
 {
+    [SerializeField] public CombatQueue combatQueue;
+    [SerializeField] public UIManager UIManager;
+    [SerializeField] public SpellMap spellMap;
+    [SerializeField] public PartyManagement.PartyManager partyManager;
+    [SerializeField] private GridPathGenerator gridPathGenerator;
+    [SerializeField] public IsometricCameraController isometricCamera;
 
-    public static PlayerData playerData = new PlayerData();
+    public PlayerData playerData = new PlayerData();
+    [SerializeField] public CombatManager CombatManager;//= new CombatManager();
+
+    public AiManager aiManager;
    
     // references for the states:
     public Pathfinding.GridSystem gridSystem; // pathfinder
         
     // controll from outside the scene - for simplicity
-    public static GameStateEnum currentStateEnum = GameStateEnum.Exploration;
-    public static GameStateEnum GetCurrentStateType() => currentStateEnum;
-    private static Dictionary<GameStateEnum, IGameState> states;
-    private static IGameState currentState;
+    public GameStateEnum currentStateEnum = GameStateEnum.Exploration;
+    public GameStateEnum GetCurrentStateType() => currentStateEnum;
+    private Dictionary<GameStateEnum, IGameState> states;
+    private IGameState currentState;
 
-    public static IGameState GetCurrentState() => currentState;
+    public bool IsCombat() => currentStateEnum != GameStateEnum.Exploration;
+
+    public IGameState GetCurrentState() => currentState;
+
+    public void NextTurn() // facade of the turn based state
+    {
+        if (currentState is TurnBasedState tbState)
+            tbState.NextTurn();
+    }
 
     // Start is called before the first frame update
     void Start()
     {
+        gridPathGenerator?.Initialise();
         states = new Dictionary<GameStateEnum, IGameState>
         {
             { GameStateEnum.Exploration, new ExplorationState(this, gridSystem) },
             { GameStateEnum.TurnBasedMode, new TurnBasedState(this) },            
+            { GameStateEnum.ScriptedSequence, new ScriptedSequencesState(this) },            
         };
 
         ChangeState(currentStateEnum); // start in exploration in debug
@@ -74,7 +94,7 @@ public class GameManagerMDD : MonoBehaviour
         MouseTracker.Update();
     }
 
-    public static void ChangeState(GameStateEnum newState)
+    public void ChangeState(GameStateEnum newState)
     {
         currentState?.Exit();
 
@@ -84,19 +104,19 @@ public class GameManagerMDD : MonoBehaviour
     }
     
     // public methods for button logic
-    public static void EnterCombat()
+    public void EnterCombat()
     {
         ChangeState(GameStateEnum.TurnBasedMode);
     }
 
-    public static void ExitCombat()
+    public void ExitCombat()
     {
         if (currentStateEnum == GameStateEnum.Exploration) return;
 
         ChangeState(GameStateEnum.Exploration);
 
         // set the main character as selected
-        PartyManagement.PartyManager.SetMainAsSelected();
+        partyManager.SetMainAsSelected();
 
         // clear turn based queue
         PartyPortraitManagerUI.ClearHorisontal();
@@ -116,6 +136,14 @@ public class GameManagerMDD : MonoBehaviour
     {
         coroutineHandlers[name] = new CoroutineHandle(this, coroutine);
     }
+    public void RemoveCoroutine(string name)
+    {
+        if (coroutineHandlers.TryGetValue(name, out var handle))
+        {
+            handle.Stop(); // Just to be safe
+            coroutineHandlers.Remove(name);
+        }
+    }
 
     public CoroutineHandle GetCoroutine(string name) 
     { 
@@ -126,7 +154,7 @@ public class GameManagerMDD : MonoBehaviour
 
     public void StopAllCoroutinesMDD() // MDD since it is ambiguous with Monobehaviour
     {
-        foreach(CoroutineHandle handle in coroutineHandlers.Values)
+        foreach (CoroutineHandle handle in coroutineHandlers.Values)
         {
             handle.Stop();
         }

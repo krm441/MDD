@@ -66,7 +66,7 @@ public class CAMeshing : MonoBehaviour
                     Instantiate(prefab, pos, rotation, parent);
                 }
 
-                if (noFloorCase) { Instantiate(floorPrefab, pos, rotation, parent); Debug.Log("floor " + pos); }
+                if (noFloorCase) { Instantiate(floorPrefab, pos, rotation, parent); }
             }
         }
     }

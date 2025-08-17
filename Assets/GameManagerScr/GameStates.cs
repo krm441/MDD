@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Linq; // for sorting
 using UnityEngine.UI;
+using UnityEngine.AI;
+using static UnityEngine.UI.CanvasScaler;
 
 // game states
 // interface:
@@ -27,15 +29,18 @@ public interface IGameState
 public abstract class GameStateBase : IGameState
 {
     protected GameManagerMDD gameManager;
+    protected PartyManager partyManager;
 
     public GameStateBase(GameManagerMDD manager)
     {
         gameManager = manager;
+        partyManager = manager.partyManager;
     }
 
     public virtual void Enter() { }
     public virtual void Update() { }
     public virtual void Exit() { }
+    //public virtual void NextTurn() { }
 
     // ==== Substates ====
     protected ISubstate currentSubstate;
@@ -80,8 +85,11 @@ public class ExplorationState : GameStateBase
 
         // ui debug
         GameObject statusTextObject = GameObject.Find("StatusText");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "Status: Exploration";
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "Status: Exploration";
+        }
 
 
         SetSubstate(new MovementSubstate(gameManager));
@@ -116,13 +124,18 @@ public class ExplorationState : GameStateBase
 
 public class TurnBasedState : GameStateBase
 {
-    public Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
+    //public Queue<CharacterUnit> turnQueue = new Queue<CharacterUnit>();
 
     private CharacterUnit selectedUnitBeforeCombat; // used on exit to set it as active again
 
-    public TurnBasedState(GameManagerMDD manager) : base(manager) { }
+    private SpellMap spellMap;
 
-    private CombatManager combatManager = new CombatManager();
+    public TurnBasedState(GameManagerMDD manager) : base(manager) 
+    {
+        spellMap = manager.spellMap;
+    }
+
+    //private CombatManager combatManager = new CombatManager();
 
     private void HandleCombatEnded()
     {
@@ -134,7 +147,7 @@ public class TurnBasedState : GameStateBase
         // short wait for all animations to finish
         yield return new WaitForSeconds(1f);
         yield return new WaitUntil(() => !gameManager.AreAnyCombatCoroutinesRunning()); // also ends all coroutines if not ended
-        GameManagerMDD.ExitCombat(); 
+        gameManager.ExitCombat(); 
     }
 
 
@@ -144,34 +157,46 @@ public class TurnBasedState : GameStateBase
 
         // ui debug
         GameObject statusTextObject = GameObject.Find("StatusText");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "Status: Combat";
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "Status: Combat";
+        }
+       
 
         EnemyManager.OnAllEnemiesDefeated += HandleCombatEnded;
 
-        combatManager.EnterCombat();
-
         // save the active unit
-        selectedUnitBeforeCombat = PartyManager.CurrentSelected;
+        selectedUnitBeforeCombat = partyManager.CurrentSelected;
 
         //var party = PartyManager.GetParty();
         //turnQueue = new Queue<CharacterUnit>(party.OrderByDescending(p => p.stats.Initiative));
 
-        PartyManager.StopAllMovement();
-        PartyManager.ResetAllActionPoints(); // zero them
+        partyManager.StopAllMovement();
+        partyManager.ResetAllActionPoints(); // zero them
 
         // Concat the multiparty in one array
-        var combatants = PartyManager.GetParty()
+        var combatants = partyManager.GetParty()
             .Concat(EnemyManager.GetEnemies())
-            .OrderByDescending(p => p.stats.Initiative);
+            .OrderByDescending(p => p.attributeSet.stats.Initiative);
 
-        turnQueue = new Queue<CharacterUnit>(combatants);
+        // making all agents into obstacles, for pathfinder to carve path around them
+        foreach (var combatant in combatants) 
+        {
+            combatant.Carve();
+            //var agent = combatant.agent;
+            //agent.isStopped = true;
+            //agent.GetComponent<NavMeshAgent>().enabled = false;
+            //agent.GetComponent<NavMeshObstacle>().enabled = true;
+        } 
+
+        gameManager.combatQueue.unitQueue = new Queue<CharacterUnit>(combatants);
 
         // set queue in manager = for reference
-        CombatManager.turnQueue = turnQueue;
+        //CombatManager.turnQueue = turnQueue;
 
         // portrait queue building
-        PartyPortraitManagerUI.BuildTurnQueuePortraits(turnQueue);
+        PartyPortraitManagerUI.BuildTurnQueuePortraits(gameManager.combatQueue.unitQueue);
 
         
 
@@ -180,22 +205,69 @@ public class TurnBasedState : GameStateBase
 
     private bool enemyTurn = false;
 
-    private void NextTurn()
+    public void NextTurn()
     {
+        // if last turn - return ai agent to defaults
+        if(partyManager.CurrentSelected != null)
+        {
+            partyManager.CurrentSelected.Carve();
+           //NavMeshAgent agent_ = partyManager.CurrentSelected.agent;
+           //
+           //agent_.GetComponent<NavMeshAgent>().enabled = false;
+           //agent_.GetComponent<NavMeshObstacle>().enabled = true;
+            //agent_.GetComponent<NavMeshObstacle>().carving = true;
+        }
+        
+        
+        var turnQueue = gameManager.combatQueue.unitQueue;
+
         // next unit
-        CharacterUnit unit = turnQueue.Dequeue();
+        //CharacterUnit unit = turnQueue.Dequeue();
+
+        CharacterUnit unit = null;
+
+        // keep skipping until finds a live unit or queue is empty
+        while (gameManager.combatQueue.unitQueue.Count > 0)
+        {
+            var candidate = gameManager.combatQueue.unitQueue.Dequeue();
+            if (!candidate.IsDead)
+            {
+                unit = candidate;
+                break;
+            }
+        }
+
+        // if no live units left
+        if (unit == null)
+        {
+            Debug.LogWarning("No valid units left in turn queue.");
+            return;
+        }
+
+        //unit.GetComponent<NavMeshAgent>().enabled = true;
+
+        // Setup nav mesh agent parameters
+        unit.Uncarve();
+        NavMeshAgent agent = unit.agent;
+        //agent.isStopped = false;
+        //agent.GetComponent<NavMeshObstacle>().enabled = false;
+        //agent.GetComponent<NavMeshAgent>().enabled = true;
+        //if (agent.isOnNavMesh && agent.enabled)
+        //{
+        //    agent.isStopped = true;
+        //}
 
         if (unit.isPlayerControlled)
         {
-            PartyManagement.PartyManager.CurrentSelected = unit;
-            turnQueue.Enqueue(PartyManagement.PartyManager.CurrentSelected);
-            Console.Error("start turn", PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints);
-            PartyManagement.PartyManager.CurrentSelected.AddActionPointsStart();
+            partyManager.CurrentSelected = unit;
+            turnQueue.Enqueue(partyManager.CurrentSelected);
+            Console.Error("start turn", partyManager.CurrentSelected.attributeSet.stats.ActionPoints);
+            partyManager.CurrentSelected.AddActionPointsStart();
 
             // select new unit in the party = selects its abilities in the left icon
-            PartyManagement.PartyManager.SelectMember(PartyManagement.PartyManager.CurrentSelected);
-            SpellMap.BuildIconBar(PartyManagement.PartyManager.CurrentSelected);
-            Console.ScrLog($"New Turn Player: {PartyManagement.PartyManager.CurrentSelected.unitName}", "\nturn Q volume:", turnQueue.Count);
+            partyManager.SelectMember(partyManager.CurrentSelected);
+            spellMap.BuildIconBar(partyManager.CurrentSelected, gameManager);
+            //Console.ScrLog($"New Turn Player: {partyManager.CurrentSelected.unitName}", "\nturn Q volume:", turnQueue.Count);
 
             // set substate to turn movement
             SetSubstate(new TurnBasedMovement(gameManager));
@@ -204,16 +276,19 @@ public class TurnBasedState : GameStateBase
         }
         else
         {
-            if(unit.IsDead)
-            {
-                NextTurn();
-            }
-
+            spellMap.HideIconBar();
+            partyManager.CurrentSelected = unit;
             enemyTurn = true;
             SetSubstate(new AITurnSubstate(gameManager, EndTurnAI));
             turnQueue.Enqueue(unit);
-            Console.ScrLog($"New Turn AI: {unit.unitName}", "\nturn Q volume:", turnQueue.Count);
+            Console.Error($"New Turn AI: {unit.unitName}", "\nturn Q volume:", turnQueue.Count);
         }
+
+        // lerp camera to unit
+        gameManager.isometricCamera.LerpToCharacter(unit.transform);
+
+        // sfx end of turn effect
+        SoundPlayer.PlayClipAtPoint("EndTurnType1", unit.transform.position);
     }
 
     public override void SetCastingSubState()
@@ -248,8 +323,23 @@ public class TurnBasedState : GameStateBase
         EnemyManager.OnAllEnemiesDefeated -= HandleCombatEnded;
 
         // Clean turn queue
-        turnQueue.Clear();
+        gameManager.combatQueue.unitQueue.Clear();
+
+        // restore ap
+        gameManager.partyManager.SetStartActionPoints();
+
+        // uncarve - and let walk
+        foreach (var item in gameManager.partyManager.partyMembers)
+        {
+            item.Uncarve();
+        }
 
         Console.Error("Exiting Combat");
     }
+}
+
+
+public class ScriptedSequencesState : GameStateBase
+{
+    public ScriptedSequencesState(GameManagerMDD gameManager) : base(gameManager) { }
 }

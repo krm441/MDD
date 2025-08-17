@@ -5,6 +5,31 @@ using PartyManagement;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using static UnityEngine.UI.CanvasScaler;
+using System.Linq;
+using UnityEngine.Analytics;
+using UnityEditor.Experimental.GraphView;
+using System.Reflection;
+using UnityEngine.AI;
+using Pathfinding;
+
+public enum EventTypeButton
+{
+    None = 0,
+    CharPortratClick,
+    EnemyPortratClick,
+    SpellClick
+}
+
+public class ButtonEvent
+{
+    public CharacterUnit targetUnit;
+    public EventTypeButton eventType;
+    public Spell spell;
+
+    public bool isConsumed = false;
+    public void Consume() => isConsumed = true;
+}
 
 /// <summary>
 /// Substate also needs a standalone FSM
@@ -16,19 +41,22 @@ public interface ISubstate
     void Update();
     void Exit();
 
+    void HandleButtonEvent(ButtonEvent customEvent);
+
     InteractionSubstate Type { get; }
 
-    //bool AnimationFinished { get; set; }
     SpellCastingAnimationStates SpellcastingAnimationState { get; set; }
 }
 
 public abstract class SubStateBase : ISubstate
 {
     protected GameManagerMDD gameManager;
+    protected PartyManager partyManager;
 
     public SubStateBase(GameManagerMDD manager)
     {
         gameManager = manager;
+        partyManager = gameManager.partyManager;
     }
 
     protected InteractionSubstate substate;
@@ -39,7 +67,7 @@ public abstract class SubStateBase : ISubstate
     public virtual void Update() { }
     public virtual void Exit() { }
 
-    //public bool AnimationFinished { get; set; }
+    public virtual void HandleButtonEvent(ButtonEvent customEvent) { }
 
     public SpellCastingAnimationStates SpellcastingAnimationState { get; set; }
 }
@@ -50,31 +78,200 @@ public class MovementSubstate : SubStateBase
     {
         substate = InteractionSubstate.Default;
     }
+
+    public override void HandleButtonEvent(ButtonEvent customEvent)
+    {
+        if (customEvent.isConsumed == true) return;
+
+        switch (customEvent.eventType)
+        {
+            case EventTypeButton.CharPortratClick:
+                {
+                    customEvent.Consume();
+                    partyManager.SelectMember(customEvent.targetUnit);
+                    //UnityEngine.Object.FindObjectOfType<IsometricCameraController>().SnapToCharacter(customEvent.targetUnit.transform);
+                    UnityEngine.Object.FindObjectOfType<IsometricCameraController>().LerpToCharacter(customEvent.targetUnit.transform);
+                    UnityEngine.Object.FindObjectOfType<SpellMap>().BuildIconBar(customEvent.targetUnit, gameManager);
+                }
+                break;
+
+            case EventTypeButton.SpellClick:
+                {
+                    customEvent.Consume();
+                    var unit = customEvent.targetUnit;
+                    unit.StopMovement();
+                    unit.SelectSpell(customEvent.spell);
+
+                    gameManager.GetCurrentState().SetCastingSubState();
+                }
+                break;
+
+            default: 
+                break;
+        }               
+    }
+
     public override void Enter()
     {
         Console.Log("Entered Movement Substate");
         // ui debug
         GameObject statusTextObject = GameObject.Find("Substatus");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "SubStatus: Movement";
+        if(statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "SubStatus: Movement";
+        }
+
+        GetIntoFormation();
     }
 
+    PathVisualiser pathVisualiser;// = new PathVisualiser();
+    NavMeshPath currentPath = null;
     public override void Update() 
     {
         if (EventSystem.current.IsPointerOverGameObject()) return;
-        if (PartyManagement.PartyManager.CurrentSelected == null || !PartyManagement.PartyManager.CurrentSelected.isPlayerControlled) return;
-                
-        if (Input.GetMouseButtonDown(0)) // this needs to be changed to event system unity
+        if (partyManager.CurrentSelected == null || !partyManager.CurrentSelected.isPlayerControlled) return;
+
+        var agent = partyManager.CurrentSelected.agent;
+
+        GetIntoFormation();
+
+        if (Input.GetMouseButtonDown(1)) // Cancel with right-click
         {
-            var path = gameManager.gridSystem.FindPathToClick(PartyManagement.PartyManager.CurrentSelected.transform);
+            agent.isStopped = true;
+            agent.ResetPath();
+            pathVisualiser.Reset();
+            return;
+        }
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            currentPath = new NavMeshPath();
+
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("PartyLayer")))
+            {
+                // Switch to party chat layer
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        // Set selected object to interact with
+                        var targetChar = hit.collider.GetComponentInParent<CharacterUnit>(); // walks through tree and gets the CharacterUnit
+                        if (targetChar != null)
+                        {
+                            Console.Log("INTERACTING:", targetChar.name);
+                            gameManager.GetCurrentState().SetSubstate(new DialogueSubState(partyManager.CurrentSelected, targetChar, gameManager));
+                        }
+                    }
+                }
+            }
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Interactables")))
+            {
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        // Set selected object to interact with
+                        var CurrentInteractable = hit.collider.gameObject;
+
+                        // Switch substate to interaction
+                        if (CurrentInteractable.TryGetComponent<IInteractable>(out var target))
+                        {
+                            target.Interact(partyManager.CurrentSelected);
+                        }
+                        //gameManager.GetCurrentState().SetSubstate(new ObjectInteractionSubstate(gameManager, CurrentInteractable));
+                        return;
+                    }
+                }
+            }
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Walkable")))
+            {
+                // Try to calculate path to clicked point
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        agent.SetPath(currentPath);
+                        AimingVisualizer.SpawnClickMarker(hit.point - new Vector3(0.5f, 0, 0.5f));
+                    }
+                }
+            }
+        }
+        pathVisualiser?.PreviewPath(currentPath);
+        return;
+
+        if (Input.GetMouseButtonDown(0)) // Left-click
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit))
+            {
+                agent.SetDestination(hit.point);
+                AimingVisualizer.SpawnClickMarker(hit.point - new Vector3(0.5f, 0, 0.5f));
+            }
+        }
+        if (Input.GetMouseButtonDown(1))
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            GetIntoFormation();
+        }
+        return;
+        //agent.SetDestination(hit.point);
+
+
+        var followPathCoroutine = gameManager.GetCoroutine("party_path");
+
+        if (Input.GetMouseButtonDown(1)) // Cancel with right-click
+        {
+            if (followPathCoroutine?.IsRunning == true)
+            {
+                followPathCoroutine.Stop();
+
+                foreach (var unit in partyManager.GetParty())
+                {
+                    unit.StopMovement();
+                }
+
+                AimingVisualizer.Hide();
+            }
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, LayerMask.GetMask("Interactables")))
+            {
+                Debug.Log("Interactable clicked: " + hit.collider.name);
+
+                // Stop ongoing movements
+                followPathCoroutine?.Stop();
+                foreach (var unit in partyManager.GetParty())
+                {
+                    unit.StopMovement();
+                }
+
+                // Set selected object to interact with
+                var CurrentInteractable = hit.collider.gameObject;
+
+                // Switch substate to interaction
+                gameManager.GetCurrentState().SetSubstate(new ObjectInteractionSubstate(gameManager, CurrentInteractable));
+                return;
+            }
+
+            var path = gameManager.gridSystem.FindPathToClick(partyManager.CurrentSelected.transform, partyManager.CurrentSelected.unitID);
             if (path != null)
             {
-                PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path);
-                AimingVisualizer.SpawnClickMarker(gameManager.gridSystem.LastClickPosition);
+                
+                AimingVisualizer.SpawnClickMarker(gameManager.gridSystem.LastClickPosition - new Vector3(0.5f, 0, 0.5f));
 
-                // Get leader's final target point
+                // Get leader's final target point 
                 Vector3 leaderTarget = path[path.Count - 1].worldPos;
-                gameManager.StartCoroutine(FollowPartyTogether(leaderTarget));
+                gameManager.CreateCoroutine("party_path", FollowPartyTogether(leaderTarget, path));
             }
         }
     }
@@ -105,10 +302,13 @@ public class MovementSubstate : SubStateBase
         return formationTargets;
     }
 
-    private IEnumerator FollowPartyTogether(Vector3 leaderTarget)
+    private IEnumerator FollowPartyTogether(Vector3 leaderTarget, List<Pathfinding.Node> path_leader)
     {
-        var party = PartyManager.GetParty();
-        var leader = PartyManager.CurrentSelected;
+        // set leader to target
+        if(path_leader != null) partyManager.CurrentSelected.MoveAlongPath(path_leader);
+
+        var party = partyManager.GetParty();
+        var leader = partyManager.CurrentSelected;
         Vector3 leaderForward = (leaderTarget - leader.transform.position).normalized;
 
         // Followers should look at a forward point, 13 units ahead of the leader's destination
@@ -134,7 +334,7 @@ public class MovementSubstate : SubStateBase
             Vector3 followerGoal = formationTargets[followerIndex];
             followerIndex++;
 
-            var path = gameManager.gridSystem.FindPathTo(followerGoal, follower.transform.position);
+            var path = gameManager.gridSystem.FindPathTo(followerGoal, follower.transform.position, follower.unitID, -1);
             if (path != null)
             {
                 follower.MoveAlongPath(path);
@@ -152,6 +352,86 @@ public class MovementSubstate : SubStateBase
         }
     }
 
+    /// <summary>
+    /// For early return: checks if party is in formation
+    /// </summary>
+    /// <param name="leaderTarget"></param>
+    /// <param name="leaderForward"></param>
+    /// <returns></returns>
+    private bool IsPartyInFormation(float maxDistance = 4f)
+    {
+        var party = partyManager.GetParty();
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            for (int j = i + 1; j < party.Count; j++)
+            {
+                float distance = Vector3.Distance(party[i].transform.position, party[j].transform.position);
+                if (distance > maxDistance)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    public void GetIntoFormation()
+    {
+        if (IsPartyInFormation()) // early return
+        {
+            return;
+        }
+
+        List<CharacterUnit> party = partyManager.GetParty();
+        var leader = partyManager.CurrentSelected;
+
+        Vector3 leaderForward = leader.transform.forward;
+        Vector3 leaderTarget = leader.transform.position;
+        Vector3 sharedLookTarget = leaderTarget + leaderForward * 13f;
+
+
+
+        List<Vector3> formationTargets = GetFormationTargets(leaderTarget, leaderForward);
+
+        int followerIndex = 0;
+        foreach (var follower in party)
+        {
+            if (follower == leader) continue;
+            if (followerIndex >= formationTargets.Count) break;
+
+            Vector3 targetPos = formationTargets[followerIndex++];
+            follower.agent.isStopped = false;
+            follower.agent.SetDestination(targetPos);
+            //NavMeshHit navHit;
+            //if (NavMesh.SamplePosition(targetPos, out navHit, 2f, NavMesh.AllAreas))
+            //{
+            //    var destination = 
+            //    Console.Log(destination);
+            //}
+            //var path = gameManager.gridSystem.FindPathTo(targetPos, follower.transform.position, follower.unitID, -1);
+            //if (path != null)
+            //{
+            //    follower.MoveAlongPath(path);
+            //}
+        }
+
+        //gameManager.StartCoroutine(LookAtRoutine(party, leader, sharedLookTarget));
+    }
+
+    private IEnumerator LookAtRoutine(List<CharacterUnit> party, CharacterUnit leader, Vector3 sharedLookTarget)
+    {
+        yield return new WaitUntil(() =>
+            party.Where(u => u != leader).All(u => u.movementController != null && !u.movementController.IsMoving)
+        );
+
+        foreach (var follower in party)
+        {
+            if (follower != leader)
+                follower.LookAtTarget(sharedLookTarget);
+        }
+    }
+
+
     private bool AllFollowersStopped(List<PartyManagement.CharacterUnit> followers)
     {
         foreach (var unit in followers)
@@ -164,12 +444,143 @@ public class MovementSubstate : SubStateBase
 
     public override void Exit()
     {
-        Console.Log($"{PartyManagement.PartyManager.CurrentSelected.unitName} ends their turn.");
-        PartyManagement.PartyManager.CurrentSelected.StopMovement();
+        partyManager.CurrentSelected.agent.isStopped = true;
+        partyManager.CurrentSelected.agent.ResetPath();
+
+
+        Console.Log($"{partyManager.CurrentSelected.unitName} ends their turn.");
+        partyManager.CurrentSelected.StopMovement();
         //AimingVisualizer.ClearState();
         AimingVisualizer.Hide();
         Console.Log("Exited Casting Substate");
     }    
+}
+
+public class DialogueSubState : SubStateBase
+{
+    private CharacterUnit initiator;
+    private CharacterUnit target;
+
+    private DialogueUIController dialogueController;
+
+    public DialogueSubState(CharacterUnit initiator, CharacterUnit target, GameManagerMDD manager) : base(manager) 
+    {
+        this.initiator = initiator;
+        this.target = target;
+    }
+
+    public override void Enter() 
+    {
+        UIManager.SetState(UIStates.Dialogue);
+
+        dialogueController = gameManager.UIManager.LoadDialogueUI(initiator, target);
+        dialogueController.OnDialogueFinished = OnDialogueFinished;
+    }
+    public override void Exit()
+    {
+        gameManager.UIManager.HideDialogueUI();
+    }
+    private void OnDialogueFinished()
+    {
+        gameManager.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
+    }
+}
+
+public class ObjectInteractionSubstate : SubStateBase
+{
+    public ObjectInteractionSubstate(GameManagerMDD manager, GameObject targetobject) : base(manager)
+    {
+        substate = InteractionSubstate.Interaction;
+        targetObject = targetobject;
+    }
+
+    private GameObject targetObject;
+
+    public override void Enter() 
+    {
+        //Vector3 interactionTarget = GetAdjacentPosition(targetObject.transform.position);
+        Vector3 interactionTarget = targetObject.transform.Find("Pivot").transform.position;
+        
+        var leader = partyManager.CurrentSelected;
+
+        var path = gameManager.gridSystem.FindPathTo(interactionTarget, partyManager.CurrentSelected.transform.position, leader.unitID, -1);
+
+        if (path != null)
+        {
+            leader.LookAtTarget(targetObject.transform.position);
+            gameManager.CreateCoroutine("interact_move", InteractWithObject(path, targetObject));
+        }
+    }
+    public override void Update()
+    {
+        //var agent = partyManager.CurrentSelected.agent;
+        //
+        //if (agent.remainingDistance <= agent.stoppingDistance)
+        //{
+        //    var button = targetObject.GetComponent
+        //    TryActivateButton(currentTargetCollider);
+        //}
+
+
+        var interactCoroutine = gameManager.GetCoroutine("interact_move");
+
+        if (Input.GetMouseButtonDown(1)) // Cancel with right-click
+        {
+            if (interactCoroutine?.IsRunning == true)
+            {
+                interactCoroutine.Stop();
+
+                partyManager.CurrentSelected.StopMovement();
+
+                // Return to movement or idle substate
+                gameManager.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
+
+                AimingVisualizer.Hide();
+            }
+            return;
+        }
+    }
+    public override void Exit() { }
+
+    private Vector3 GetAdjacentPosition(Vector3 center)
+    {
+        // sample positions around center to find a valid walkable spot
+        Vector3[] offsets = new Vector3[]
+        {
+        Vector3.forward,
+        Vector3.back,
+        Vector3.left,
+        Vector3.right
+        };
+
+        foreach (var offset in offsets)
+        {
+            Vector3 candidate = center + offset;
+            var node = gameManager.gridSystem.GetNodeFromWorldPosition(candidate);
+            if (node != null && node.isWalkable)
+                return node.worldPos;
+        }
+
+        // fallback: just return the center
+        return center;
+    }
+
+
+    private IEnumerator InteractWithObject(List<Pathfinding.Node> path, GameObject interactable)
+    {
+        var leader = partyManager.CurrentSelected;
+        leader.MoveAlongPath(path);
+
+        yield return new WaitUntil(() => !leader.movementController.IsMoving);
+
+        // face the object
+        leader.LookAtTarget(interactable.transform.position);
+
+       
+        // Return to movement or idle substate
+        gameManager.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
+    }
+
 }
 
 public class TurnBasedMovement : SubStateBase
@@ -179,19 +590,142 @@ public class TurnBasedMovement : SubStateBase
         substate = InteractionSubstate.TurnBased;
     }
 
+    public override void HandleButtonEvent(ButtonEvent customEvent)
+    {
+        if (customEvent.isConsumed == true) return;
+
+        switch (customEvent.eventType)
+        {
+            case EventTypeButton.SpellClick:
+                {
+                    if (partyManager.CurrentSelected == null || !partyManager.CurrentSelected.isPlayerControlled) return;
+                    customEvent.Consume();
+                    var unit = partyManager.CurrentSelected;
+                    unit.StopMovement();
+                    unit.SelectSpell(customEvent.spell);
+
+                    gameManager.GetCurrentState().SetCastingSubState();
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
     public override void Enter()
     {
         // ui debug
         GameObject statusTextObject = GameObject.Find("Substatus");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "SubStatus: TurnBasedM";
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "SubStatus: TurnBasedM";
+        }
+
+        // stop the agent
+        //var unit = partyManager.CurrentSelected;
+        //unit.GetComponent<NavMeshAgent>().enabled = true;
+        //unit.GetComponent<NavMeshObstacle>().enabled = false;
+        //unit.agent.isStopped = true;
+        partyManager.CurrentSelected.Uncarve();
+        isCarvedResolved = false;
     }
 
+    NavMeshPath currentPath = null;
+    List<Vector3> traversablePath = null;
+    private bool isHolding = false;
+
+    // position return logical controll flow
+    private bool isCarvedResolved = false;
     public override void Update()
     {
         if (EventSystem.current.IsPointerOverGameObject()) return;
-        if (PartyManager.CurrentSelected == null || !PartyManager.CurrentSelected.isPlayerControlled) return;
+        if (partyManager.CurrentSelected == null || !partyManager.CurrentSelected.isPlayerControlled) return;
 
+        // restore position - carving unity bug
+        if (!isCarvedResolved)
+        {
+            partyManager.CurrentSelected.ReturnMemorizedPosition();
+            isCarvedResolved = true;
+        }
+
+        // On mouse down
+        if (Input.GetMouseButtonDown(0))
+        {
+            isHolding = true;
+            OnMousePress();
+        }
+
+        // While holding
+        if (Input.GetMouseButton(0) && isHolding)
+        {
+            OnMouseHold();
+        }
+
+        // On mouse release
+        if (Input.GetMouseButtonUp(0))
+        {
+            isHolding = false;
+            OnMouseRelease();
+        }
+
+        
+
+        var followPathCoroutine = gameManager.GetCoroutine("following_path");
+
+        if (Input.GetMouseButtonDown(1)) // Cancel with right-click
+        {
+            if (followPathCoroutine?.IsRunning == true)
+            {
+                var agent = partyManager.CurrentSelected.agent;
+                followPathCoroutine.Stop();
+                agent.isStopped = true;
+                agent.ResetPath();
+                AimingVisualizer.Hide();
+            }
+            return;
+        }
+
+        /*
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            currentPath = new NavMeshPath();
+
+            if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Walkable")))
+            {
+                // Try to calculate path to clicked point
+                if (NavMesh.CalculatePath(agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+                {
+                    if (currentPath.status == NavMeshPathStatus.PathComplete)
+                    {
+                        var availableAP = partyManager.CurrentSelected.attributeSet.stats.ActionPoints;
+                        var speed = partyManager.CurrentSelected.attributeSet.stats.Speed;
+                        var spell = partyManager.CurrentSelected.GetSelectedSpell();
+
+                        float moveAP = Mathf.Max(0, availableAP - spell.apCost);
+                        float maxDist = moveAP * speed;
+
+                        AimingVisualizer.DrawPathPreview(currentPath, maxDist);
+                        agent.SetPath(currentPath);                        
+                    }
+                }
+            }
+        }
+
+        
+
+
+
+        if(currentPath != null)
+            
+
+        pathVisualiser.PreviewPath(currentPath);
+
+        
+        return;
         var followPathCoroutine = gameManager.GetCoroutine("following_path");
 
         if (Input.GetMouseButtonDown(1)) // Cancel with right-click
@@ -210,6 +744,13 @@ public class TurnBasedMovement : SubStateBase
             AimingVisualizer.Hide();
             return;
         }
+        
+        if(!MouseTracker.MouseMovedThisFrame && !Input.GetMouseButtonDown(0))
+        {
+            return;
+        }
+
+        //partyManager.CurrentSelected.
 
         // Allow path preview
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -219,10 +760,10 @@ public class TurnBasedMovement : SubStateBase
         if (Physics.Raycast(ray, out var hit))
         {
             path = SpellVisualizer.VisualizePath(
-                PartyManager.CurrentSelected.transform.position,
+                partyManager.CurrentSelected,
                 hit.point,
-                PartyManager.CurrentSelected.stats.ActionPoints,
-                PartyManager.CurrentSelected.stats.Speed,
+                partyManager.CurrentSelected.attributeSet.stats.ActionPoints,
+                partyManager.CurrentSelected.attributeSet.stats.Speed,
                 out inRange
             );
         }
@@ -235,14 +776,106 @@ public class TurnBasedMovement : SubStateBase
             // Start following coroutine and register it
             gameManager.CreateCoroutine("following_path", FollowPathCoroutine(path, 3f));
         }
+        */
     }
+
+    void OnMousePress()
+    {
+        
+    }
+
+    void OnMouseHold()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+        currentPath = new NavMeshPath();
+
+        if (Physics.Raycast(ray, out hit, 100f, LayerMask.GetMask("Walkable")))
+        {
+            // Try to calculate path to clicked point
+            if (NavMesh.CalculatePath(partyManager.CurrentSelected.agent.transform.position, hit.point, NavMesh.AllAreas, currentPath))
+            { 
+                if (currentPath.status == NavMeshPathStatus.PathComplete)
+                {
+                    var availableAP = partyManager.CurrentSelected.attributeSet.stats.ActionPoints;
+                    var speed = partyManager.CurrentSelected.attributeSet.stats.Speed;
+                    var spell = partyManager.CurrentSelected.GetSelectedSpell();
+
+                    float moveAP = Mathf.Max(0, availableAP - spell.apCost);
+                    float maxDist = moveAP * speed;
+
+                    traversablePath = AimingVisualizer.DrawPathPreview(currentPath, maxDist);
+                }    
+            }
+        }
+    }
+
+    void OnMouseRelease()
+    {
+        if(traversablePath != null)
+            gameManager.CreateCoroutine("following_path", FollowPath(partyManager.CurrentSelected, traversablePath, 3f));
+    }
+
+    public static IEnumerator FollowPath(CharacterUnit unit, List<Vector3> path, float speed)
+    {
+        var pathNodes = path;
+        float remainingAP = unit.attributeSet.stats.ActionPoints;
+        float costPerStep = 1f / unit.attributeSet.stats.Speed;
+
+        // this setup assures the smooth movement
+        unit.agent.speed = speed;
+        unit.agent.isStopped = false;
+        var defaultAcceleration = unit.agent.acceleration;
+        unit.agent.acceleration = 9999f;
+        unit.agent.autoBraking = false;
+        var defaultStoppingDistance = unit.agent.stoppingDistance;
+        unit.agent.stoppingDistance = 0f;
+
+        for (int i = 0; i < pathNodes.Count; i++)
+        //foreach (var point in path)
+        {
+            var point = pathNodes[i];
+
+            if(i == pathNodes.Count - 1)
+            {
+                // return defaults to agent at the end
+                unit.agent.autoBraking = true;
+            }
+
+            unit.agent.SetDestination(point);
+
+            unit.LookAtTarget(point); // Facing the target
+            remainingAP -= costPerStep;
+            unit.attributeSet.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
+
+            while (Vector3.Distance(unit.agent.transform.position, point) > unit.agent.stoppingDistance + 0.1f)
+            {
+                yield return null;
+            }
+
+            if (remainingAP < 0)
+            {
+                break;
+            }
+        }
+
+        // return defaults to agent        
+        unit.agent.acceleration = defaultAcceleration;
+        unit.agent.stoppingDistance = defaultStoppingDistance;
+
+        // Finalize state
+        unit.agent.isStopped = true;
+        unit.attributeSet.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
+        AimingVisualizer.Hide();
+    }
+
 
     private IEnumerator FollowPathCoroutine(Pathfinding.Path path, float speed)
     {
-        var unit = PartyManager.CurrentSelected;
+        var unit = partyManager.CurrentSelected;
         var pathNodes = path.pathNodes;
-        float remainingAP = unit.stats.ActionPoints;
-        float costPerStep = 1f / unit.stats.Speed;
+        float remainingAP = unit.attributeSet.stats.ActionPoints;
+        float costPerStep = 1f / unit.attributeSet.stats.Speed;
 
         foreach (var node in pathNodes)
         {
@@ -250,13 +883,13 @@ public class TurnBasedMovement : SubStateBase
 
             unit.LookAtTarget(targetPos); // Facing the target
             remainingAP -= costPerStep;
-            unit.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
+            unit.attributeSet.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
 
             while (Vector3.Distance(unit.transform.position, targetPos) > 0.05f)
             {
                 if (Input.GetMouseButtonDown(1)) // Cancel move
                 {                    
-                    Console.Log("Movement cancelled.", unit.stats.ActionPoints);
+                    Console.Log("Movement cancelled.", unit.attributeSet.stats.ActionPoints);
                     yield break;
                 }
 
@@ -273,142 +906,25 @@ public class TurnBasedMovement : SubStateBase
         }
 
         // Finalize state
-        unit.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
-        Console.Log($"{unit.unitName} finished movement. Remaining AP: {unit.stats.ActionPoints}");
+        unit.attributeSet.stats.ActionPoints = Mathf.FloorToInt(remainingAP);
+        Console.Log($"{unit.unitName} finished movement. Remaining AP: {unit.attributeSet.stats.ActionPoints}");
         AimingVisualizer.Hide();
     }
-
-    public void Update2() 
-    {
-        if (EventSystem.current.IsPointerOverGameObject()) return;
-        if (PartyManagement.PartyManager.CurrentSelected == null || !PartyManagement.PartyManager.CurrentSelected.isPlayerControlled) return;
-
-        //OnMove();
-
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        Pathfinding.Path path = null;
-        bool inRange = false;
-        if(!gameManager.GetCoroutine("following_path").IsRunning)
-        {
-            if (Physics.Raycast(ray, out var hit))
-            {
-                path = SpellVisualizer.VisualizePath(
-                    PartyManagement.PartyManager.CurrentSelected.transform.position,
-                    hit.point,
-                    PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints,
-                    PartyManagement.PartyManager.CurrentSelected.stats.Speed,
-                    out inRange
-                );
-            }
-        }
-        else
-        {
-            AimingVisualizer.Hide();
-            //path = null;
-            //inRange = true;
-        }
-
-        Console.ScrLoopLog("APs:", PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints);
-
-
-        if (Input.GetMouseButtonDown(0))
-        {
-            if (path != null) //inRange && 
-            {
-                PartyManagement.PartyManager.CurrentSelected.DeductActionPoints(path);
-                PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path.pathNodes);
-                GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Animation;
-            }
-        }
-    }
-
+     
     public override void Exit() 
-    { 
-        internalState = 0; remaining?.Clear(); 
+    {
+        //var unit = partyManager.CurrentSelected;
+        //unit.GetComponent<NavMeshAgent>().enabled = false;
+        //unit.GetComponent<NavMeshObstacle>().enabled = true;
+        remaining?.Clear(); 
         AimingVisualizer.Hide();
         //AimingVisualizer.ClearState();
         gameManager.StopAllCoroutinesMDD();
         Console.Log("Exiting turn based mode");
     }
 
-    private int internalState = 0;
-    private List<Vector3> remaining;
-    private void OnMove()
-    {
-        if (internalState == 0)
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out var hit))
-            {
-                var path = gameManager.gridSystem.FindPathTo(hit.point, PartyManagement.PartyManager.CurrentSelected.transform.position);
-                if (path != null)
-                {
-                    float maxDist = PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints * PartyManagement.PartyManager.CurrentSelected.stats.Speed;
-                    if (maxDist > 0)
-                        AimingVisualizer.DrawPathPreview(PartyManagement.PartyManager.CurrentSelected.transform.position, hit.point, path, maxDist);
-                }
-                else
-                {
-                    Console.Error("path null");
-                }
-            }
-
-
-            // 1. Handle Movement
-            if (Input.GetMouseButtonDown(0))
-            {
-                var path = new List<Vector3>(AimingVisualizer.reachablePath);   //  gameManager.gridSystem.FindPathToClick(currentUnit.transform);
-
-                if (path == null || path.Count == 0)
-                {
-                    Console.Error("No valid path.");
-                    return;
-                }
-
-                PartyManagement.PartyManager.CurrentSelected.MoveAlongPath(path);
-                internalState = 1;
-
-                // populate the visible path
-                remaining = new List<Vector3>(AimingVisualizer.reachablePath);
-
-                // Subtract AP based on movement length
-                float walked = 0f;
-                for (int i = 1; i < path.Count; i++)
-                    walked += Vector3.Distance(path[i - 1], path[i]);
-
-                int apCost = Mathf.CeilToInt(walked / PartyManagement.PartyManager.CurrentSelected.stats.Speed);
-                PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints -= apCost;
-                Console.Log($"{PartyManagement.PartyManager.CurrentSelected.unitName} moved {walked:F1} units for {apCost} AP");
-            }
-        }
-        else if (internalState == 1)
-        {
-            // NOTE: needs more organic tolerence like prevTolerance > currentTolerance
-
-            float threshold = 0.7f; // tolerance for 'reached'
-
-            // If close enough to next point, remove it from the path
-            if (remaining.Count > 1)
-            {
-                float dist = Vector3.Distance(PartyManagement.PartyManager.CurrentSelected.transform.position, remaining[0]);
-                if (dist < threshold)
-                    remaining.RemoveAt(0);
-            }
-
-            //if(remaining.Count > 0) AimingVisualizer.DrawPath(remaining);
-
-            if (Vector3.Distance(PartyManagement.PartyManager.CurrentSelected.transform.position, remaining[remaining.Count - 1]) > threshold)
-            {
-                AimingVisualizer.DrawPath(remaining);
-            }
-            else internalState = 2;
-        }
-        else if (internalState == 2)
-        {
-            AimingVisualizer.Hide();
-            internalState = 0;
-        }
-    }
+    private List<Vector3> remaining;    
+    
 }
 
 public class CastingSubstate : SubStateBase
@@ -418,19 +934,67 @@ public class CastingSubstate : SubStateBase
         substate = InteractionSubstate.Casting;
     }
 
+    public override void HandleButtonEvent(ButtonEvent customEvent)
+    {
+        if (customEvent.isConsumed == true) return;
+
+        if (customEvent.eventType == EventTypeButton.CharPortratClick)
+        {
+            customEvent.Consume();
+
+            if (gameManager.GetCoroutine("casting_spell")?.IsRunning == true)
+                return;
+
+            var caster = partyManager.CurrentSelected;
+            var targetUnit = customEvent.targetUnit;
+            var spell = caster.GetSelectedSpell();
+
+            var path = SpellVisualizer.VisualizeSpell(
+                spell,
+                -1,
+                caster.attributeSet.stats.Speed,
+                caster,
+                targetUnit.transform.position,
+                out bool inRange
+            );
+
+            if (!inRange)
+            {
+                Console.Log("Target out of range.");
+                return;
+            }
+
+            Vector3 targetPos = targetUnit.GetFeetPos();
+
+            gameManager.CreateCoroutine("casting_spell",
+                CastSpell(caster, path, targetPos, gameManager));
+        }
+    }
+
+
     public override void Enter()
     {
         Console.Log("Entered Casting Substate");
         // ui debug
         GameObject statusTextObject = GameObject.Find("Substatus");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "SubStatus: Casting";
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "SubStatus: Casting";
+        }
+
+
+        // action points
+        partyManager.CurrentSelected.attributeSet.stats.ActionPoints = 9999;
     }
 
     public override void Update()
     {
-        if (Input.GetMouseButtonDown(1)) { AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); GameManagerMDD.GetCurrentState().SetMovementSubState(); return; }
+        if (Input.GetMouseButtonDown(1)) { AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); gameManager.GetCurrentState().SetMovementSubState(); return; }
 
+        if (EventSystem.current.IsPointerOverGameObject()) return;
+
+        var caster = partyManager.CurrentSelected;
         var castingSpellCoroutine = gameManager.GetCoroutine("casting_spell");
 
         // Prevent path preview while moving
@@ -441,8 +1005,32 @@ public class CastingSubstate : SubStateBase
         }
 
         bool inRange = false;
-        Pathfinding.Path path = null;
+        NavMeshPath path = null;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out var hit))
+        {
+            path = SpellVisualizer.VisualizeSpell(
+                partyManager.CurrentSelected.GetSelectedSpell(),
+                9999,
+                partyManager.CurrentSelected.attributeSet.stats.Speed,
+                partyManager.CurrentSelected.GetFeetPos(),
+                hit.point,
+                out inRange
+                );
+        }
 
+        if (Input.GetMouseButtonDown(0) && inRange)
+        {
+            var target = hit.point;
+            gameManager.CreateCoroutine("casting_spell", CastSelectedSpell
+                (caster, gameManager, path, target,() =>                
+                    {
+                        gameManager.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
+                    })
+                );
+        }
+        /*
+        Pathfinding.Path path = null;
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (Physics.Raycast(ray, out var hit))
         {
@@ -453,10 +1041,11 @@ public class CastingSubstate : SubStateBase
             if (mouseMoved || mouseClicked)
             {
                 path = SpellVisualizer.VisualizeSpell(
-                    PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell(),
+                    partyManager.CurrentSelected.GetSelectedSpell(),
                     -1,
-                    PartyManagement.PartyManager.CurrentSelected.stats.Speed,
-                    PartyManagement.PartyManager.CurrentSelected.transform.position,
+                    partyManager.CurrentSelected.attributeSet.stats.Speed,
+                    partyManager.CurrentSelected,
+                    //partyManager.CurrentSelected.GetSpellSpawnLocation(),
                     hit.point,
                     out inRange
                     );
@@ -465,27 +1054,55 @@ public class CastingSubstate : SubStateBase
 
         if (Input.GetMouseButtonDown(0) && inRange)
         {
-            var caster = PartyManagement.PartyManager.CurrentSelected;
             var target = hit.point;
             gameManager.CreateCoroutine("casting_spell", CastSpell(caster, path, target, gameManager));
-        }
+        }*/
     }
 
-    public static IEnumerator CastSpell(CharacterUnit caster, Pathfinding.Path path, Vector3 target, GameManagerMDD gameManager)
+    public static IEnumerator CastSelectedSpell(CharacterUnit caster, GameManagerMDD gameManager, NavMeshPath path, Vector3 targetPoint, Action onImpact)
+    {
+        // variables:
+        var spell = caster.GetSelectedSpell();
+
+        // 1- Walk first
+        if (path != null)
+            yield return gameManager.StartCoroutine(TurnBasedMovement.FollowPath(caster, new List<Vector3>(path.corners), 3f));
+
+        bool done = false; // simple bool will block the immediate return
+
+        // 2- Cast at targetPoint when walk is over
+        // onComplete callback is passed to ApplySpell in Combat manager
+        gameManager.CombatManager.ApplySpell(caster, spell, targetPoint, () =>
+        {
+            // only after the animation spell is over
+            AimingVisualizer.DrawImpactCircle(targetPoint, spell.radius, Color.red);
+            caster.DeductActionPoints(spell.apCost);
+            done = true;
+            //onComplete?.Invoke();
+            AimingVisualizer.Hide();
+        });
+
+        yield return new WaitUntil(() => done);
+
+        onImpact?.Invoke();
+    }
+
+    public IEnumerator CastSpell(CharacterUnit caster, Pathfinding.Path path, Vector3 target, GameManagerMDD gameManager)
     {
         Console.Log("Casitng spell called");
         
         yield return caster.CastSpellWithMovement(
                 caster,
-                //actualPath, 
+                gameManager.CombatManager,
                 path,
+                target,
                 target,
                 () =>
                 {
                     // only runs after move + cast are done (when spell animation is over)
                     AimingVisualizer.Hide();
                     //GameManagerMDD.GetCurrentState().GetSubstate().AnimationFinished = true;
-                    GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Finished;
+                    gameManager.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Finished;
 
 
                     // Special case : restore char's ap to maximin
@@ -493,93 +1110,7 @@ public class CastingSubstate : SubStateBase
                 }
             );
 
-        GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
-    }
-
-    public void Update2()
-    {
-        if (Input.GetMouseButtonDown(1)) { AimingVisualizer.Hide(); Debug.Log("Cast cancelled"); GameManagerMDD.GetCurrentState().SetMovementSubState(); return; }
-
-        //CombatManager.VisualiseSpellImpactArea();
-
-        bool inRange = false;
-        Pathfinding.Path path = null;
-
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-        if (Physics.Raycast(ray, out var hit))
-        {
-            if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState != SpellCastingAnimationStates.Animation)
-            {
-                // for optimisation, to alter the state of line renderer only if user is aiming
-                bool mouseMoved = MouseTracker.MouseMovedThisFrame;
-                bool mouseClicked = Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1);
-
-                if (mouseMoved || mouseClicked)
-                {
-                    path = SpellVisualizer.VisualizeSpell(
-                        PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell(),
-                        -1,
-                        PartyManagement.PartyManager.CurrentSelected.stats.Speed,
-                        PartyManagement.PartyManager.CurrentSelected.transform.position,
-                        hit.point,
-                        out inRange
-                        );
-                }
-            }
-            else
-            {
-                AimingVisualizer.Hide();
-                path = null;
-                inRange = true;
-            }
-        }
-
-        if (Input.GetMouseButtonDown(0))
-        {
-            if (inRange &&
-                GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState != SpellCastingAnimationStates.Animation)
-            {
-                var caster = PartyManagement.PartyManager.CurrentSelected;
-                var target = hit.point;
-
-                GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Animation;
-
-                // This will first walk the nodes
-                // Then call CombatManager.CastSpell
-                // then deduct AP, then finally invoke callback
-                gameManager.StartCoroutine(
-                    caster.CastSpellWithMovement(
-                        caster,
-                        //actualPath, 
-                        path,
-                        target,
-                        () => {
-                            // only runs after move + cast are done (when spell animation is over)
-                            AimingVisualizer.Hide();
-                            //GameManagerMDD.GetCurrentState().GetSubstate().AnimationFinished = true;
-                            GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Finished;
-
-
-                            // Special case : restore char's ap to maximin
-                            caster.SetActionPoints(caster.stats.StartActionPoints);
-                        }
-                    )
-                );
-            }
-        }
-        if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState == SpellCastingAnimationStates.Finished)
-        {
-            GameManagerMDD.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
-            //AnimationFinished = false;
-            GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.None;
-        }
-
-        //if (Input.GetMouseButtonDown(0))
-        //{
-        //    CombatManager.CastSelectedSpell();
-        //    GameManagerMDD.GetCurrentState().SetMovementSubState();
-        //}
+        gameManager.GetCurrentState().SetSubstate(new MovementSubstate(gameManager));
     }
 
     public override void Exit()
@@ -591,9 +1122,63 @@ public class CastingSubstate : SubStateBase
 
 public class TurnBasedCasting : SubStateBase
 {
+    private Vector3 lastHitPos;
+
     public TurnBasedCasting(GameManagerMDD manager) : base(manager)
     {
         substate = InteractionSubstate.CombatCasting;
+    }
+
+    public override void HandleButtonEvent(ButtonEvent customEvent)
+    {
+        if (customEvent.isConsumed == true) return;
+
+        switch (customEvent.eventType)
+        {
+            case EventTypeButton.CharPortratClick:
+            case EventTypeButton.EnemyPortratClick:
+                {
+                    if (gameManager.GetCoroutine("casting_spell")?.IsRunning == true)
+                        return;
+
+                    var caster = partyManager.CurrentSelected;
+                    var targetUnit = customEvent.targetUnit;
+                    var spell = caster.GetSelectedSpell();
+
+                    var path = SpellVisualizer.VisualizeSpell(
+                        spell,
+                        -1,
+                        caster.attributeSet.stats.Speed,
+                        caster,
+                        targetUnit.transform.position,
+                        out bool inRange
+                    );
+
+                    if (!inRange)
+                    {
+                        Console.Log("Target out of range.");
+                        return;
+                    }
+
+                    Vector3 targetPos = targetUnit.GetFeetPos();
+
+                    gameManager.CreateCoroutine("casting_spell",
+                        CastSpell(caster, path, targetPos, gameManager));
+                }
+                break;
+
+            case EventTypeButton.SpellClick:
+                {
+                    customEvent.Consume();
+                    var unit = customEvent.targetUnit;
+                    unit.StopMovement();
+                    unit.SelectSpell(customEvent.spell);
+                }
+                break;
+
+            default:
+                break;
+        }
     }
 
     public override void Enter()
@@ -601,21 +1186,32 @@ public class TurnBasedCasting : SubStateBase
         Console.Log("Entered CombatCasting Substate");
         // ui debug
         GameObject statusTextObject = GameObject.Find("Substatus");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "SubStatus: TurnCasting";
-    }
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "SubStatus: TurnCasting";
+        }
 
-    //private 
+        //unit.agent.isStopped = true;
+        //unit.GetComponent<NavMeshAgent>().enabled = true;
+        //unit.GetComponent<NavMeshObstacle>().enabled = false;
+
+        var unit = partyManager.CurrentSelected;
+        unit.MemorizePosition();
+    }
 
     public override void Update()
     {
+        if (EventSystem.current.IsPointerOverGameObject()) return;
+
         // early return
-        if (PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().apCost > PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints)
+        if (partyManager.CurrentSelected.GetSelectedSpell().apCost > partyManager.CurrentSelected.attributeSet.stats.ActionPoints)
         {
-            GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+            gameManager.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
             return;
         }
 
+        var caster = partyManager.CurrentSelected;
         var castingSpellCoroutine = gameManager.GetCoroutine("casting_spell");
 
         // Prevent path preview while moving
@@ -626,22 +1222,77 @@ public class TurnBasedCasting : SubStateBase
         }
 
         bool inRange = false;
+        NavMeshPath path = null;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out var hit))
+        {
+            path = SpellVisualizer.VisualizeSpell(
+                partyManager.CurrentSelected.GetSelectedSpell(),
+                partyManager.CurrentSelected.attributeSet.stats.ActionPoints,
+                partyManager.CurrentSelected.attributeSet.stats.Speed,
+                partyManager.CurrentSelected.GetFeetPos(),
+                hit.point,
+                out inRange
+                );
+        }
+
+        if (Input.GetMouseButtonDown(0) && inRange)
+        {
+            var target = hit.point;
+            gameManager.CreateCoroutine("casting_spell", CastingSubstate.CastSelectedSpell
+                (caster, gameManager, path, target, () =>
+                    {
+                        gameManager.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+                    })
+                );
+        }
+
+        if (Input.GetMouseButtonDown(1))
+        {
+            AimingVisualizer.Hide();
+            gameManager.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+            return;
+        }
+
+        /*
+        var caster = partyManager.CurrentSelected;
+        var castingSpellCoroutine = gameManager.GetCoroutine("casting_spell");
+
+        // Prevent path preview while moving
+        if (castingSpellCoroutine?.IsRunning == true)
+        {
+            AimingVisualizer.Hide();
+            return;
+        }
+
+        //if (!MouseTracker.MouseMovedThisFrame && !Input.GetMouseButtonDown(0))
+        //{
+        //    return;
+        //}
+
+        bool inRange = false;
         Pathfinding.Path path = null;
 
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (Physics.Raycast(ray, out var hit))
         {
+            if (lastHitPos == hit.point && !Input.GetMouseButtonDown(0)) // for optimisation
+                return;
+
+            lastHitPos = hit.point;
+
             // for optimisation, to alter the state of line renderer only if user is aiming
-            bool mouseMoved = MouseTracker.MouseMovedThisFrame;
+            bool mouseMoved = true;// MouseTracker.MouseMovedThisFrame;
             bool mouseClicked = Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1);
 
             if (mouseMoved || mouseClicked)
             {
                 path = SpellVisualizer.VisualizeSpell(
-                    PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell(),
+                    partyManager.CurrentSelected.GetSelectedSpell(),
                     -1,
-                    PartyManagement.PartyManager.CurrentSelected.stats.Speed,
-                    PartyManagement.PartyManager.CurrentSelected.transform.position,
+                    partyManager.CurrentSelected.attributeSet.stats.Speed,
+                    partyManager.CurrentSelected,//        .transform.position,
+                    //partyManager.CurrentSelected.GetSpellSpawnLocation(),
                     hit.point,
                     out inRange
                     );
@@ -651,104 +1302,46 @@ public class TurnBasedCasting : SubStateBase
         if (Input.GetMouseButtonDown(1))
         {
             AimingVisualizer.Hide();
-            GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
+            gameManager.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
             return;
         }
 
         if (Input.GetMouseButtonDown(0) && inRange)
         {
-            var caster = PartyManagement.PartyManager.CurrentSelected;
             var target = hit.point;
-            gameManager.CreateCoroutine("casting_spell", CastingSubstate.CastSpell(caster, path, target, gameManager));
-        }
+            gameManager.CreateCoroutine("casting_spell", CastSpell(caster, path, target, gameManager));
+        }*/
     }
 
-    public void Update2()
+    public IEnumerator CastSpell(CharacterUnit caster, Pathfinding.Path path, Vector3 target, GameManagerMDD gameManager)
     {
-        // early return
-        if(PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell().apCost > PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints)
-        {
-            GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
-            return;
-        }
+        Console.Log("Casitng spell called");
 
-
-        if (Input.GetMouseButtonDown(1))
-        {
-            AimingVisualizer.Hide();
-            GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
-            return;
-        }
-
-        bool inRange = false;
-        Pathfinding.Path path = null;
-
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        
-        if (Physics.Raycast(ray, out var hit))
-        {
-            if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState != SpellCastingAnimationStates.Animation)
-            {
-                // for optimisation, to alter the state of line renderer only if user is aiming
-                bool mouseMoved = MouseTracker.MouseMovedThisFrame;
-                bool mouseClicked = Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1);
-
-                if (mouseMoved || mouseClicked)
+        yield return caster.CastSpellWithMovement(
+                caster,
+                gameManager.CombatManager,
+                path,
+                target,
+                target,
+                () =>
                 {
-                    path = SpellVisualizer.VisualizeSpell(
-                        PartyManagement.PartyManager.CurrentSelected.GetSelectedSpell(),
-                        PartyManagement.PartyManager.CurrentSelected.stats.ActionPoints,
-                        PartyManagement.PartyManager.CurrentSelected.stats.Speed,
-                        PartyManagement.PartyManager.CurrentSelected.transform.position,
-                        hit.point,
-                        out inRange
-                        );
+                    // only runs after move + cast are done (when spell animation is over)
+                    AimingVisualizer.Hide();
+                    //GameManagerMDD.GetCurrentState().GetSubstate().AnimationFinished = true;
+                    gameManager.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Finished;
+
+
+                    // Special case : restore char's ap to maximin
+                    //caster.SetActionPoints(caster.stats.StartActionPoints);
                 }
-            }
-            else
-            {
-                AimingVisualizer.Hide();
-                path = null;
-                inRange = true;
-            }
-        }
+            );
 
-        if (Input.GetMouseButtonDown(0))
-        {
-            if (inRange)
-            {
-                var caster = PartyManagement.PartyManager.CurrentSelected;
-                var target = hit.point;
-
-                GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Animation;
-
-                // This will first walk the nodes
-                // Then call CombatManager.CastSpell
-                // then deduct AP, then finally invoke callback
-                gameManager.StartCoroutine(
-                    caster.CastSpellWithMovement(
-                        caster,
-                        path,//new Pathfinding.Path { pathNodes = path.pathNodes }, // passing path as copy
-                        target,
-                        () => {
-                            // only runs after move + cast are done (when spell animation is over)
-                            AimingVisualizer.Hide();
-                            //GameManagerMDD.GetCurrentState().GetSubstate().AnimationFinished = true;
-                            GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.Finished;
-                        }
-                    )
-                );
-            }            
-        }
-        if (GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState == SpellCastingAnimationStates.Finished)
-        {
-            GameManagerMDD.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
-            //AnimationFinished = false;
-            GameManagerMDD.GetCurrentState().GetSubstate().SpellcastingAnimationState = SpellCastingAnimationStates.None;
-        }
+        gameManager.GetCurrentState().SetSubstate(new TurnBasedMovement(gameManager));
     }
+
     public override void Exit()
     {
+        partyManager.CurrentSelected.MemorizePosition();
         AimingVisualizer.Hide();
         Console.Log("Exited Casting Substate");
     }
@@ -768,19 +1361,42 @@ public class AITurnSubstate : SubStateBase
     {
         // ui debug
         GameObject statusTextObject = GameObject.Find("Substatus");
-        Text statusText = statusTextObject.GetComponent<Text>();
-        statusText.text = "SubStatus: AITurn";
+        if (statusTextObject != null)
+        {
+            Text statusText = statusTextObject.GetComponent<Text>();
+            statusText.text = "SubStatus: AITurn";
+        }
+
+        var aiUnit = partyManager.CurrentSelected;
+        Console.ScrLog("AI turn", aiUnit.unitID);
+
+        aiUnit.GetComponent<NavMeshAgent>().enabled = true;
+        aiUnit.GetComponent<NavMeshObstacle>().enabled = false;
+        //aiUnit.agent.isStopped = true;
+
+        aiUnit.attributeSet.stats.ActionPoints = 10;
     }
     public override void Update() 
     {
-        Console.Log("AI turn");
+        var aiUnit = partyManager.CurrentSelected;
 
-        if(!called)
-            TimerUtility.WaitAndDo(gameManager, 2f, endTurn);
-        called = true;
+        // Run AI BT logic
+        gameManager.aiManager.TickAI(aiUnit);
+
+        
+
+        //if(!called)
+        //    TimerUtility.WaitAndDo(gameManager, 2f, endTurn);
+        //called = true;
     }
 
     private bool called = false;
 
-    public override void Exit() { }
+    public override void Exit() 
+    {
+        var aiUnit = partyManager.CurrentSelected;
+        //aiUnit.agent.isStopped = true;
+        aiUnit.GetComponent<NavMeshAgent>().enabled = false;
+        aiUnit.GetComponent<NavMeshObstacle>().enabled = true;
+    }
 }

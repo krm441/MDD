@@ -1,4 +1,6 @@
 ﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// Controls an isometric-style camera with smooth movement, rotation, and zoom.
@@ -23,6 +25,18 @@ public class IsometricCameraController : MonoBehaviour
     public float maxZoom = 20f;     // Furthest distance from target
     private float currentZoom = 5f; // Runtime zoom distance from target
 
+    [Header("Movement Bounds")]
+    public Vector2 xBounds = new Vector2(-30f, 30f);
+    public Vector2 zBounds = new Vector2(-30f, 30f);
+    public bool setBounds = false;
+
+    [Header("Mouse Drag Rotation")]
+    private Vector3 lastMousePosition;
+
+    [Header("Edge Scrolling")]
+    public int edgeThickness = 10; // in pixels
+    public bool moveEdge = false;
+
     void Start()
     {
         // Initialize zoom distance based on starting position
@@ -38,10 +52,75 @@ public class IsometricCameraController : MonoBehaviour
         HandleZoom();
         HandleMovement();
         HandleRotation();
+        HandleMouseDragRotation();
+        HandleEdgeScrolling();
 
         // Always look at target; for arc ball effect around the pivot point
         mCamera.LookAt(target.position);
     }
+
+    public void SnapToCharacter(Transform charTransform)
+    {
+        if (charTransform == null) return;
+
+        // Move pivot to character's feet
+        transform.position = charTransform.position;
+
+        // Ensure the target pivot follows as well
+        target.position = charTransform.position;
+
+        // Recalculate camera position based on current zoom
+        Vector3 zoomDir = (mCamera.position - target.position).normalized;
+        mCamera.position = target.position + zoomDir * currentZoom;
+
+        // Reapply look direction
+        mCamera.LookAt(target.position);
+    }
+
+    private Coroutine moveCoroutine;
+        
+
+    public void LerpToCharacter(Transform charTransform, float duration = 0.5f)
+    {
+        if (charTransform == null) return;
+
+        if (moveCoroutine != null)
+            StopCoroutine(moveCoroutine);
+
+        moveCoroutine = StartCoroutine(LerpToTargetPosition(charTransform.position, duration));
+    }
+
+    private IEnumerator LerpToTargetPosition(Vector3 targetPosition, float duration)
+    {
+        Vector3 start = transform.position;
+        Vector3 end = targetPosition;
+
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            transform.position = Vector3.Lerp(start, end, elapsed / duration);
+            target.position = transform.position;
+
+            // Update camera position to maintain zoom
+            Vector3 zoomDir = (mCamera.position - target.position).normalized;
+            mCamera.position = target.position + zoomDir * currentZoom;
+
+            mCamera.LookAt(target.position);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // Final alignment
+        transform.position = end;
+        target.position = end;
+        mCamera.position = target.position + (mCamera.position - target.position).normalized * currentZoom;
+        mCamera.LookAt(target.position);
+
+        moveCoroutine = null;
+    }
+
 
     /// <summary>
     /// Handles movement of the camera pivot using WASD input,
@@ -65,6 +144,17 @@ public class IsometricCameraController : MonoBehaviour
 
         // Move the pivot - and not the camera itself
         transform.position += moveDirection * moveSpeed * Time.deltaTime;
+
+        if(setBounds)
+            // Clamp the camera's pivots position
+            transform.position = new Vector3(
+                Mathf.Clamp(transform.position.x, xBounds.x, xBounds.y),
+                transform.position.y,
+                Mathf.Clamp(transform.position.z, zBounds.x, zBounds.y)
+            );
+
+        // sync target
+        target.position = transform.position;
     }
 
     /// <summary>
@@ -83,6 +173,62 @@ public class IsometricCameraController : MonoBehaviour
             target.Rotate(0f, rotationInput * rotateSpeed * Time.deltaTime, 0f);
         }
     }
+
+    private void HandleMouseDragRotation()
+    {
+        if (Input.GetMouseButtonDown(2)) // Middle mouse button
+        {
+            lastMousePosition = Input.mousePosition;
+        }
+
+        if (Input.GetMouseButton(2))
+        {
+            Vector3 delta = Input.mousePosition - lastMousePosition;
+            float yaw = delta.x * rotateSpeed * Time.deltaTime;
+
+            target.Rotate(0f, yaw, 0f);
+            lastMousePosition = Input.mousePosition;
+        }
+    }
+
+    private void HandleEdgeScrolling()
+    {
+        // disavble edge scrolling if rotating wth mouse
+        if (Input.GetMouseButton(2) || !moveEdge) return;
+
+        Vector3 moveDir = Vector3.zero;
+        Vector3 camForward = mCamera.forward;
+        Vector3 camRight = mCamera.right;
+        camForward.y = 0f;
+        camRight.y = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
+
+        Vector3 mousePos = Input.mousePosition;
+        if (mousePos.x <= edgeThickness)
+            moveDir -= camRight;
+        else if (mousePos.x >= Screen.width - edgeThickness)
+            moveDir += camRight;
+
+        if (mousePos.y <= edgeThickness)
+            moveDir -= camForward;
+        else if (mousePos.y >= Screen.height - edgeThickness)
+            moveDir += camForward;
+
+        if (moveDir != Vector3.zero)
+        {
+            transform.position += moveDir.normalized * moveSpeed * Time.deltaTime;
+
+            transform.position = new Vector3(
+                Mathf.Clamp(transform.position.x, xBounds.x, xBounds.y),
+                transform.position.y,
+                Mathf.Clamp(transform.position.z, zBounds.x, zBounds.y)
+            );
+
+            target.position = transform.position;
+        }
+    }
+
 
     /// <summary>
     /// Handles zooming the camera in and out using the mouse scroll wheel,

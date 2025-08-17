@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.AI;
 
 public static class TimerUtility
 {
@@ -14,6 +15,35 @@ public static class TimerUtility
         yield return new WaitForSeconds(delay);
         callback?.Invoke();
     }
+}
+
+public static class MathMDD
+{
+    public static float CalculatePathDistance(NavMeshPath path)
+    {
+        float ret = 0.0f;
+
+        if (path == null || path.corners == null || path.corners.Length < 2)
+            return 0.0f;
+
+        for (int i = 0; i < path.corners.Length - 1; i++)
+        {
+            ret += Vector3.Distance(path.corners[i], path.corners[i + 1]);
+        }
+
+        return ret;
+    }
+
+    public static Vector3 ProjectToNavMesh(Vector3 position, float maxDistance = 1f, int areaMask = NavMesh.AllAreas)
+    {
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(position, out hit, maxDistance, areaMask))
+            return hit.position;
+
+        // Fallback
+        return position;
+    }
+
 }
 
 public static class MouseTracker

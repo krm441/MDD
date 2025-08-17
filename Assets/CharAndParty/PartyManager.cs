@@ -6,12 +6,15 @@ namespace PartyManagement
     public class PartyManager : MonoBehaviour
     {        
         // ==== Party Logic ====
-        public static List<CharacterUnit> partyMembers = new List<CharacterUnit>();
-        public static List<CharacterUnit> GetParty() => partyMembers;
-        public static int selectedIndex = 0;
-        public static CharacterUnit CurrentSelected;// => partyMembers.Count > 0 ? partyMembers[selectedIndex] : null;
+        public List<CharacterUnit> partyMembers = new List<CharacterUnit>();
+        public List<CharacterUnit> GetParty() => partyMembers;
+        public int selectedIndex = 0;
+        public CharacterUnit CurrentSelected;// => partyMembers.Count > 0 ? partyMembers[selectedIndex] : null;
 
-        public static void SetMainAsSelected()
+        [SerializeField] private SpellMap spellMap;
+        [SerializeField] private GameManagerMDD gameManager;
+
+        public void SetMainAsSelected()
         {
             //int index = 0;
             foreach(CharacterUnit unit in partyMembers)
@@ -27,9 +30,9 @@ namespace PartyManagement
             }
         }
 
-        public static bool IsEmpty() => partyMembers.Count == 0;
+        public bool IsEmpty() => partyMembers.Count == 0;
 
-        public static void AddMember(CharacterUnit newMember)
+        public void AddMember(CharacterUnit newMember)
         {
             if (!partyMembers.Contains(newMember))
             {
@@ -38,7 +41,12 @@ namespace PartyManagement
             }
         }
 
-        public static void StopAllMovement()
+        public List<CharacterUnit> GetPlayerControlledUnits()
+        {
+            return partyMembers;
+        }
+
+        public void StopAllMovement()
         {
             foreach(CharacterUnit member in partyMembers)
             {
@@ -46,7 +54,7 @@ namespace PartyManagement
             }
         }
 
-        public static void ResetAllActionPoints()
+        public void ResetAllActionPoints()
         {
             foreach (CharacterUnit member in partyMembers)
             {
@@ -54,18 +62,18 @@ namespace PartyManagement
             }
         }
 
-        public static void SetStartActionPoints()
+        public void SetStartActionPoints()
         {
             if (partyMembers.Count > 0)
             {
                 foreach(var member in partyMembers)
                 {
-                    member.stats.ActionPoints = member.stats.StartActionPoints;
+                    member.attributeSet.stats.ActionPoints = member.attributeSet.stats.StartActionPoints;
                 }
             }
         }
 
-        public static void SelectMember(int index)
+        public void SelectMember(int index)
         {
             if (index < 0 || index >= partyMembers.Count)
             {
@@ -76,10 +84,10 @@ namespace PartyManagement
             selectedIndex = index;
             CurrentSelected = partyMembers[selectedIndex];
 
-            SpellMap.BuildIconBar(CurrentSelected);
+            spellMap.BuildIconBar(CurrentSelected, gameManager);
         }
 
-        public static void SelectMember(CharacterUnit member) 
+        public void SelectMember(CharacterUnit member) 
         {
             int index = partyMembers.IndexOf(member);
 
@@ -94,7 +102,7 @@ namespace PartyManagement
                 Debug.LogWarning($"PartyManager:: error: {member.unitName} is not in the party.");
             }
 
-            SpellMap.BuildIconBar(member);
+            spellMap.BuildIconBar(member, gameManager);
         }
     }
 }

@@ -18,9 +18,9 @@ TagManager:
   - Destructibles
   - Obstacles
   - HostileNPCs
-  - 
-  - 
-  - 
+  - Interactables
+  - Resources
+  - Walkable
   - 
   - 
   - 

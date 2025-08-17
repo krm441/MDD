@@ -13,12 +13,15 @@ public class APBarController : MonoBehaviour
     private Color availableColor = Color.green;
     private Color unavailableColor = Color.gray;
 
+    [SerializeField] private PartyManager partyManager;
+
     void Update()
     {
-        var selected = PartyManager.CurrentSelected;
-        if (selected == null || selected.IsDead) return;
+        var selected = partyManager.CurrentSelected;
+        if (selected == null || selected.IsDead) 
+            return;
 
-        UpdateAPDisplay(selected.stats.ActionPoints, selected.stats.MaxActionPoints);
+        UpdateAPDisplay(selected.attributeSet.stats.ActionPoints, selected.attributeSet.stats.MaxActionPoints);
     }
 
     public void UpdateAPDisplay(int currentAP, int maxAP)

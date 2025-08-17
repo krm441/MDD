@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
 
 namespace Pathfinding
 {
@@ -15,7 +16,7 @@ namespace Pathfinding
             height = grid.GetLength(1);
         }
 
-        public List<Node> FindPath(Node start, Node target)
+        public List<Node> FindPath(Node start, Node target, int agentId, int idTarget = -1)
         {
             var openSet = new List<Node> { start };
             var closedSet = new HashSet<Node>();
@@ -52,7 +53,11 @@ namespace Pathfinding
 
                 foreach (var neighbor in GetNeighbours(current))
                 {
+
                     if (!neighbor.isWalkable || closedSet.Contains(neighbor))
+                        continue;
+
+                    if (neighbor.isOccupied && neighbor.ocupantID != agentId && neighbor.ocupantID != idTarget)
                         continue;
 
                     // Ensure neighbor is initialized
@@ -61,7 +66,7 @@ namespace Pathfinding
 
                     Node currentParent = parent[current];
 
-                    if (currentParent != null && HasLineOfSight(currentParent, neighbor))
+                    if (currentParent != null && HasLineOfSight(currentParent, neighbor, agentId, idTarget))
                     {
                         float tentativeG = gCost[currentParent] + GetDistance(currentParent, neighbor);
                         if (tentativeG < gCost[neighbor])
@@ -103,7 +108,7 @@ namespace Pathfinding
             return path;
         }
 
-        private List<Node> GetNeighbours(Node node)
+        public List<Node> GetNeighbours(Node node)
         {
             List<Node> result = new List<Node>();
 
@@ -124,7 +129,7 @@ namespace Pathfinding
             return result;
         }
 
-        private bool HasLineOfSight(Node from, Node to)
+        private bool HasLineOfSight(Node from, Node to, int agentId, int idTarget)
         {
             Vector2Int a = from.gridPos;
             Vector2Int b = to.gridPos;
@@ -138,7 +143,12 @@ namespace Pathfinding
 
             while (a != b)
             {
-                if (!grid[a.x, a.y].isWalkable)
+                Node node = grid[a.x, a.y];
+
+                if (!node.isWalkable)
+                    return false;
+
+                if (node.isOccupied && node.ocupantID != agentId && node.ocupantID != idTarget)
                     return false;
 
                 int e2 = 2 * err;

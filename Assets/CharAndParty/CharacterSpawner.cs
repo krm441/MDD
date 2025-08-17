@@ -12,11 +12,15 @@ public class CharacterSpawner : MonoBehaviour
     [SerializeField] private GameObject capsuleBlue;
     [SerializeField] private GameObject capsuleRed;
     [SerializeField] private GameObject capsuleYellow;
+    [SerializeField] private GameManagerMDD gameManager;
+    [SerializeField] private SpellMap spellMap;
+    [SerializeField] private PartyManager partyManager;
 
     public Sprite magusPortrait;
     public Sprite warriorPortrait;
     public Sprite clericPortrait;
 
+    [SerializeField]
     public PartyPortraitManagerUI portraitManager;
 
     //public PartyManager partyManager;
@@ -27,9 +31,15 @@ public class CharacterSpawner : MonoBehaviour
         RebuildPartyFromData();
     }
 
+    private void Start()
+    {
+        SpellMap.InitializeSpells();
+        SpawnPartyTypeOne();
+    }
+
     private void RebuildPartyFromData()
     {
-        List<CharacterUnit> party = PartyManager.partyMembers;
+        List<CharacterUnit> party = partyManager.partyMembers;
 
         for (int i = 0; i < party.Count && i < spawnPoints.Length; i++)
         {
@@ -40,10 +50,10 @@ public class CharacterSpawner : MonoBehaviour
 
             // Copy data from stored unit into new one
             unit.unitName = logicData.unitName;
-            unit.stats = logicData.stats;
+            unit.attributeSet.stats = logicData.attributeSet.stats;
 
             // Replace PartyManager reference with the freshly spawned one
-            PartyManager.partyMembers[i] = unit;
+            partyManager.partyMembers[i] = unit;
 
             Debug.Log($"Re-spawned: {unit.unitName}");
         }
@@ -57,9 +67,9 @@ public class CharacterSpawner : MonoBehaviour
         SpawnClericDebug();
 
         // build ui
-        PartyPortraitManagerUI.BuildPortraitBar();
-        PartyManager.SelectMember(PartyManager.GetParty()[0]);
-        SpellMap.BuildIconBar(PartyManager.GetParty()[0]);
+        portraitManager.BuildPortraitBar();
+        partyManager.SelectMember(partyManager.GetParty()[0]);
+        spellMap.BuildIconBar(partyManager.GetParty()[0], gameManager);
     }
 
     // Debug spawner
@@ -67,6 +77,7 @@ public class CharacterSpawner : MonoBehaviour
     {
         GameObject obj = Instantiate(charPrefab, spawnPoints[0].position, Quaternion.identity);
         var unit = obj.GetComponent<CharacterUnit>();
+
 
         unit.unitName = "Magus";
         obj.name = "Magus";
@@ -87,7 +98,7 @@ public class CharacterSpawner : MonoBehaviour
             public int MaxHP;
         }*/
 
-        unit.stats = new StatBlock
+        unit.attributeSet.stats = new StatBlock
         {
             Intelligence = 17,
             Initiative = 5,
@@ -98,7 +109,22 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 100
         };
 
+        unit.attributeSet.resistances = new DamageResistenceContainer
+        {
+
+        };
+
+        unit.attributeSet.armorStat = new ArmorStat
+        {
+            maxMagicArmor = 100,
+            magicArmor = 100,
+            physicalArmor = 100,
+            maxPhysicalArmor = 100,
+            moraleLevel = 100,
+        };
+
         unit.spellBook.AddSpell(SpellMap.idSpellPairs[0]); // basic magic cast
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic arrow cast
 
         if (capsuleBlue != null)
         {
@@ -106,7 +132,7 @@ public class CharacterSpawner : MonoBehaviour
             visual.transform.localRotation = Quaternion.identity;
         }
 
-        PartyManager.AddMember(unit);
+        partyManager.AddMember(unit);
         Debug.Log("Spawned and added: Magus");
     }
     
@@ -115,14 +141,13 @@ public class CharacterSpawner : MonoBehaviour
         GameObject obj = Instantiate(charPrefab, spawnPoints[1].position, Quaternion.identity);
         var unit = obj.GetComponent<CharacterUnit>();
 
-        // somehow add the capsule here
-
+               
         unit.unitName = "Warrior";
         obj.name = "Warrior";
 
         unit.portraitSprite = warriorPortrait;
 
-         unit.stats = new StatBlock
+        unit.attributeSet.stats = new StatBlock
         {
             Willpower = 17,
             Initiative = 4,
@@ -133,7 +158,17 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 200
         };
 
+        unit.attributeSet.armorStat = new ArmorStat
+        {
+            maxMagicArmor = 100,
+            magicArmor = 100,
+            physicalArmor = 100,
+            maxPhysicalArmor = 100,
+            moraleLevel = 100,
+        };
+
         unit.spellBook.AddSpell(SpellMap.idSpellPairs[1]); // basic melee cast
+        unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic arrow cast
 
         // init body
         if (capsuleRed != null)
@@ -143,7 +178,7 @@ public class CharacterSpawner : MonoBehaviour
             visual.transform.localRotation = Quaternion.identity;
         }
 
-        PartyManager.AddMember(unit);
+        partyManager.AddMember(unit);
         Debug.Log("Spawned and added: Warior");
     }
 
@@ -152,12 +187,13 @@ public class CharacterSpawner : MonoBehaviour
         GameObject obj = Instantiate(charPrefab, spawnPoints[2].position, Quaternion.identity);
         var unit = obj.GetComponent<CharacterUnit>();
 
+
         unit.unitName = "Cleric";
         obj.name = "Cleric";
 
         unit.portraitSprite = clericPortrait;
 
-        unit.stats = new StatBlock
+        unit.attributeSet.stats = new StatBlock
         {
             Devotion = 17,
             Initiative = 3,
@@ -168,6 +204,15 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 150
         };
 
+        unit.attributeSet.armorStat = new ArmorStat
+        {
+            maxMagicArmor = 100,
+            magicArmor = 100,
+            physicalArmor = 100,
+            maxPhysicalArmor = 100,
+            moraleLevel = 100,
+        };
+
         unit.spellBook.AddSpell(SpellMap.idSpellPairs[2]); // basic heal streamlet
 
         if (capsuleYellow != null)
@@ -176,7 +221,7 @@ public class CharacterSpawner : MonoBehaviour
             visual.transform.localRotation = Quaternion.identity;
         }
 
-        PartyManager.AddMember(unit);
+        partyManager.AddMember(unit);
         Debug.Log("Spawned and added: Cleric");
     }
 }
