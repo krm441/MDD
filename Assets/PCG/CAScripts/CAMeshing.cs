@@ -13,6 +13,8 @@ public class CAMeshing : MonoBehaviour
 
     public Transform parent; // mesh holder - for easy removal
 
+    public float scale = 4f; // size of the default floor prefab
+
     public void GenerateMeshes(int[,] map)
     {
         // clear on start
@@ -24,7 +26,7 @@ public class CAMeshing : MonoBehaviour
             {
                 int config = GetMarchingConfig(x, y, map);
 
-                Vector3 pos = new Vector3(x * 4, 0f, y * 4);
+                Vector3 pos = new Vector3(x * scale, 0f, y * scale);
 
                 GameObject prefab = null;
                 Quaternion rotation = Quaternion.identity;

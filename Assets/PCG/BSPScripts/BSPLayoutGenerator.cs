@@ -3,6 +3,8 @@ using System.Linq;
 using UnityEngine;
 using DelaunatorSharp;
 using System.Drawing;
+using UnityEngine.UIElements;
+using UnityEditor;
 
 
 [System.Serializable]
@@ -11,6 +13,9 @@ public class DungeonLayout
     public List<RectInt> rooms = new List<RectInt>();
     public HashSet<Vector2Int> floorTiles = new HashSet<Vector2Int>();
     public HashSet<Vector2Int> roomTiles = new HashSet<Vector2Int>();
+
+    public List<Room> layoutRooms = new List<Room>();
+    public List<Vector2Int> roomCenters = new List<Vector2Int>();
 }
 
 public enum RoomKind { Rectangle, L, T, U, Plus, Donut, Octagon, Circle, Cavern }
@@ -43,6 +48,8 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
     [Range(0.4f, 0.9f)] public float uMinLegLengthRatio = 0.65f;
     [Range(0.20f, 0.90f)] public float uMinAreaRatio = 0.35f;
 
+    public float tileScale = 4f;
+
     protected BSPNode root;
     public DungeonLayout LastLayout { get; protected set; }
 
@@ -57,11 +64,96 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
 
         ConnectStrategy(layout);
 
+        // rooms
+        BuildLogicalRooms(layout);               
+        AssignStartAndBoss(layout);
+
         LastLayout = layout;
         Console.Log(GetType().Name, ":", layout.rooms.Count, "rooms", layout.floorTiles.Count, "tiles.");
     }
 
     protected abstract void ConnectStrategy(DungeonLayout layout);
+
+    // ---------------- Rooms --------------- //
+    void BuildLogicalRooms(DungeonLayout layout)
+    {
+        layout.layoutRooms.Clear();
+        for (int i = 0; i < layout.rooms.Count; i++)
+        {
+            Vector2Int c = layout.roomCenters[i];
+            Vector3 world = new Vector3(c.x * tileScale, 0f, c.y * tileScale);
+            layout.layoutRooms.Add(new Room
+            {
+                id = i,
+                label = RoomLabel.Unassigned,
+                worldPos = world
+            });
+        }
+    }
+
+    void AssignStartAndBoss(DungeonLayout layout)
+    {
+        if (layout.layoutRooms.Count < 2) return;
+
+        // pick farthest pair by BFS over floorTiles (rooms + corridors)
+        int bestI = 0, bestJ = 1, bestDist = -1;
+
+        for (int i = 0; i < layout.layoutRooms.Count; i++)
+        {
+            for (int j = i + 1; j < layout.layoutRooms.Count; j++)
+            {
+                int d = GridShortestPath(layout.roomCenters[i], layout.roomCenters[j], layout);
+                if (d > bestDist)
+                {
+                    bestDist = d;
+                    bestI = i; bestJ = j;
+                }
+            }
+        }
+
+
+        // Clear & set labels
+        foreach (var r in layout.layoutRooms) r.label = RoomLabel.Unassigned;
+        layout.layoutRooms[bestI].label = RoomLabel.Start;
+        layout.layoutRooms[bestJ].label = RoomLabel.Boss;
+    }
+
+    // 4-neighbour BFS through walkable tiles = layout.floorTiles
+    int GridShortestPath(Vector2Int a, Vector2Int b, DungeonLayout L)
+    {
+        if (a == b) return 0;
+        if (!L.floorTiles.Contains(a) || !L.floorTiles.Contains(b)) return -1;
+
+        var q = new Queue<Vector2Int>();
+        var seen = new HashSet<Vector2Int>();
+        var dist = new Dictionary<Vector2Int, int>();
+
+        q.Enqueue(a); seen.Add(a); dist[a] = 0;
+
+        Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        bool InBounds(Vector2Int p) => p.x >= 0 && p.x < dungeonSize.x && p.y >= 0 && p.y < dungeonSize.y;
+
+        while (q.Count > 0)
+        {
+            var p = q.Dequeue();
+            int d = dist[p];
+
+            foreach (var dir in dirs)
+            {
+                var n = p + dir;
+                if (!InBounds(n) || seen.Contains(n)) continue;
+                if (!L.floorTiles.Contains(n)) continue;
+
+                if (n == b) return d + 1;
+                seen.Add(n);
+                dist[n] = d + 1;
+                q.Enqueue(n);
+            }
+        }
+        return -1; // unreachable
+    }
+
 
     // ---------------- BSP  ---------------- //
     protected void Split(BSPNode node)
@@ -98,6 +190,9 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
 
             CarveRoom(room, layout);
             node.roomCenter = GetRoomCenterTile(room, layout);
+
+            // for rrooms
+            layout.roomCenters.Add(node.roomCenter);
         }
         else
         {
@@ -367,6 +462,38 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
                 for (int y = b.yMin; y < b.yMax; y++)
                     L.roomTiles.Remove(new Vector2Int(x, y));
             FillRect(b, L);
+        }
+    }
+
+    // ---- Gyzmo -- 
+    void OnDrawGizmos()
+    {
+        if (LastLayout == null || LastLayout.layoutRooms == null) return;
+        var rooms = LastLayout.layoutRooms;
+
+        foreach (var room in rooms)
+        {
+            UnityEngine.Color color;
+            switch (room.label)
+            {
+                case RoomLabel.Start: color =   UnityEngine.Color.cyan; break;
+                case RoomLabel.Boss: color =    UnityEngine.Color.magenta; break;
+                case RoomLabel.A: color = new   UnityEngine.Color(0.2f, 0.6f, 1f); break;
+                case RoomLabel.B: color = new   UnityEngine.Color(0.2f, 1f, 0.6f); break;
+                case RoomLabel.C: color = new   UnityEngine.Color(1f, 0.8f, 0.2f); break;
+                default: color = UnityEngine.Color.yellow; break;
+            }
+
+            Gizmos.color = color;
+
+            Vector3 pos = room.worldPos + Vector3.up * 0.2f;
+            Gizmos.DrawSphere(pos, 0.45f);
+            Gizmos.DrawWireSphere(pos, 0.52f);
+
+#if UNITY_EDITOR
+            Handles.color = color;
+            Handles.Label(pos + Vector3.up * 0.55f, $"{room.label} ({room.id})");
+#endif
         }
     }
 }
