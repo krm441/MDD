@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
-//using UnityEngine.AI.Navigation; // optional
+
 
 public class RuntimeNavMeshBaker : MonoBehaviour
 {
