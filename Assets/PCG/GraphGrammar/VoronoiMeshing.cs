@@ -4,13 +4,11 @@ using UnityEngine;
 
 public class VoronoiMeshing : MonoBehaviour
 {
-    [HideInInspector] public GG.Graph activeGraph;     // set from your controller
-    [HideInInspector] public GG.NodeLabel[] cellLabels; // computed by mapper
+    [HideInInspector] public GG.Graph activeGraph;     
+    [HideInInspector] public GG.NodeLabel[] cellLabels; 
 
     [Header("Source")]
     public VoronoiLayoutGenerator generator;
-
-    public bool combineIntoSingleMesh = false;
 
     [Header("Materials")]
     public Material materialA;
@@ -20,14 +18,30 @@ public class VoronoiMeshing : MonoBehaviour
     public Material materialBoss;
     public Material materialCorridor;
     public Material materialDefault;
-
+    public Material materialShore;
+    public Material materialLandDecor;
 
     [Header("Parent")]
-    public Transform cellsParent; // create an empty under your root and assign it
+    public Transform cellsParent;
 
     [Header("Volume")]
     [Tooltip("Height (Y) of each Voronoi cell prism")]
     public float cellHeight = 1f;
+    public float hexScale = 4.0f;
+
+    [Header("Post-process Water -> Shore -> Decorative Land")]
+    [Min(1)] public int shoreRings = 1;              
+    [Min(0)] public int waterRingsBeforeDecor = 5;  
+
+    [Header("Elevation")]
+    [Tooltip("How much lower the Shore sits vs islands (positive number)")]
+    public float shoreDrop = 0.25f;
+
+    [Tooltip("Offset added to decorative land’s first ring (relative to islandsY)")]
+    public float landStartYOffset = 0f;
+
+    [Tooltip("How much to raise each subsequent decorative land ring")]
+    public float landRingStep = 1f;
 
 
     [ContextMenu("Rebuild From Layout")]
@@ -47,8 +61,21 @@ public class VoronoiMeshing : MonoBehaviour
 
         Clear();
 
-        if (combineIntoSingleMesh) BuildCombined(generator.Cells);
-        else BuildPerCell(generator.Cells);
+        int N = generator.Cells.Count;
+        if (cellLabels == null || cellLabels.Length != N)
+            cellLabels = new GG.NodeLabel[N];
+
+        ApplyWaterRings(generator.Cells, ref cellLabels, shoreRings, waterRingsBeforeDecor);
+
+       
+        BuildPerCell(generator.Cells);
+
+        
+        //PostProcessLabels(generator.Cells, ref cellLabels, autoShore, waterRingPadding, fillBackgroundWithLandDecor);
+
+
+        // Set scale
+        cellsParent.localScale = new Vector3( hexScale, 1, hexScale);
     }
 
     [ContextMenu("Clear")]
@@ -69,51 +96,9 @@ public class VoronoiMeshing : MonoBehaviour
         if (mr) mr.sharedMaterial = null;
     }
 
-    // ---------- build helpers ----------
-    void BuildCombined(IReadOnlyList<VoronoiLayoutGenerator.Cell> cells)
-    {
-        var allVerts = new List<Vector3>();
-        var allTris = new List<int>();
-        int baseIndex = 0;
+    // ---------- build helpers ---------- //
+    
 
-        foreach (var cell in cells)
-        {
-            var poly = cell.polygon; if (poly == null || poly.Count < 3) continue;
-
-            for (int i = 0; i < poly.Count; i++)
-                allVerts.Add(new Vector3(poly[i].x, 0f, poly[i].y));
-
-            var c = PolygonCentroid(poly);
-            int cIdx = allVerts.Count; allVerts.Add(new Vector3(c.x, 0f, c.y));
-
-            for (int i = 0; i < poly.Count; i++)
-            {
-                int a = baseIndex + i;
-                int b = baseIndex + ((i + 1) % poly.Count);
-                allTris.Add(cIdx); allTris.Add(b); allTris.Add(a); // keep winding consistent
-            }
-            baseIndex = allVerts.Count;
-        }
-
-        if (allVerts.Count == 0) return;
-
-        var mesh = new Mesh();
-        mesh.indexFormat = (allVerts.Count > 65000)
-            ? UnityEngine.Rendering.IndexFormat.UInt32
-            : UnityEngine.Rendering.IndexFormat.UInt16;
-        mesh.SetVertices(allVerts);
-        mesh.SetTriangles(allTris, 0, true);
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-
-        var go = EnsureChild(cellsParent, "VoronoiCombined", true);
-        var mf = go.GetComponent<MeshFilter>();
-        var mr = go.GetComponent<MeshRenderer>();
-        mf.sharedMesh = mesh;
-       // mr.sharedMaterial = cellMaterial;
-    }
-
-    // +Z is "up" for our 2D poly (x,z). Positive signed area => CCW.
     static bool IsCCW(List<Vector2> poly)
     {
         double area2 = 0; // twice the signed area
@@ -136,7 +121,7 @@ public class VoronoiMeshing : MonoBehaviour
         // Keep your convention: if poly is CCW, flip it (so we work with CW here)
         if (IsCCW(poly)) poly.Reverse();
 
-        // ---------- CAP VERTICES (shared) ----------
+        // ---------- CAP VERTICES (shared) ---------- //
         var verts = new List<Vector3>(n * 2);
         var uvs = new List<Vector2>(n * 2);
 
@@ -168,7 +153,7 @@ public class VoronoiMeshing : MonoBehaviour
 
         var tris = new List<int>(n * 12);
 
-        // ---------- CAPS ----------
+        // ---------- CAPS ---------- //
         // bottom (faces downward): reverse winding relative to top
         for (int i = 1; i < n - 1; i++)
         {
@@ -181,7 +166,7 @@ public class VoronoiMeshing : MonoBehaviour
             tris.Add(top + 0); tris.Add(top + i); tris.Add(top + i + 1);
         }
 
-        // ---------- SIDES (with duplicated vertices for proper UVs) ----------
+        // ---------- SIDES (with duplicated vertices for proper UVs) ---------- //
         // compute cumulative perimeter (for u tiling)
         var perimLen = new float[n + 1];
         perimLen[0] = 0f;
@@ -192,7 +177,7 @@ public class VoronoiMeshing : MonoBehaviour
         }
         float totalLen = perimLen[n] <= 0f ? 1f : perimLen[n];
 
-        bool isCCWNow = IsCCW(poly); // after the optional reverse above
+        bool isCCWNow = IsCCW(poly);
 
         for (int i = 0; i < n; i++)
         {
@@ -222,7 +207,7 @@ public class VoronoiMeshing : MonoBehaviour
             }
         }
 
-        // ---------- build mesh ----------
+        // ---------- build mesh ---------- //
         var mesh = new Mesh();
         mesh.indexFormat = (verts.Count > 65000)
             ? UnityEngine.Rendering.IndexFormat.UInt32
@@ -230,155 +215,6 @@ public class VoronoiMeshing : MonoBehaviour
         mesh.SetVertices(verts);
         mesh.SetTriangles(tris, 0, true);
         mesh.SetUVs(0, uvs);
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-        return mesh;
-    }
-
-
-    Mesh BuildExtrudedCellMeshgg(List<Vector2> poly, float height)
-    {
-        int n = poly.Count;
-        if (n < 3) return null;
-
-        // 1) Ensure CCW for consistent normals
-        if (IsCCW(poly)) poly.Reverse();
-
-        // ---------- CAP VERTICES (shared) ----------
-        var verts = new List<Vector3>(n * 2);
-        var uvs = new List<Vector2>(n * 2);
-
-        // planar bounds for cap UVs
-        float minX = poly[0].x, maxX = poly[0].x, minZ = poly[0].y, maxZ = poly[0].y;
-        for (int i = 1; i < n; i++) { var p = poly[i]; if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minZ) minZ = p.y; if (p.y > maxZ) maxZ = p.y; }
-        float invW = Mathf.Approximately(maxX - minX, 0f) ? 1f : 1f / (maxX - minX);
-        float invH = Mathf.Approximately(maxZ - minZ, 0f) ? 1f : 1f / (maxZ - minZ);
-
-        // bottom loop
-        for (int i = 0; i < n; i++)
-        {
-            var p = poly[i];
-            verts.Add(new Vector3(p.x, 0f, p.y));
-            uvs.Add(new Vector2((p.x - minX) * invW, (p.y - minZ) * invH));
-        }
-        // top loop
-        for (int i = 0; i < n; i++)
-        {
-            var p = poly[i];
-            verts.Add(new Vector3(p.x, height, p.y));
-            uvs.Add(new Vector2((p.x - minX) * invW, (p.y - minZ) * invH));
-        }
-
-        var tris = new List<int>(n * 12);
-
-        // ---------- CAPS ----------
-        // bottom (faces downward): reverse winding relative to top
-        for (int i = 1; i < n - 1; i++)
-        {
-            tris.Add(0); tris.Add(i + 1); tris.Add(i);
-        }
-        // top (faces upward): CCW fan on top loop (offset = n)
-        int top = n;
-        for (int i = 1; i < n - 1; i++)
-        {
-            tris.Add(top + 0); tris.Add(top + i); tris.Add(top + i + 1);
-        }
-
-        // ---------- SIDES (with duplicated vertices for proper UVs) ----------
-        // compute cumulative perimeter (for u tiling)
-        var perimLen = new float[n + 1];
-        perimLen[0] = 0f;
-        for (int i = 0; i < n; i++)
-        {
-            int j = (i + 1) % n;
-            perimLen[i + 1] = perimLen[i] + Vector2.Distance(poly[i], poly[j]);
-        }
-        float totalLen = perimLen[n] <= 0f ? 1f : perimLen[n];
-
-        // for each edge, create 4 duplicated side-verts with their own UVs
-        for (int i = 0; i < n; i++)
-        {
-            int j = (i + 1) % n;
-
-            float u0 = perimLen[i] / totalLen;
-            float u1 = perimLen[i + 1] / totalLen;
-
-            // side quad vertices (duplicated)
-            int b0 = verts.Count; verts.Add(new Vector3(poly[i].x, 0f, poly[i].y)); uvs.Add(new Vector2(u0, 0f));
-            int b1 = verts.Count; verts.Add(new Vector3(poly[j].x, 0f, poly[j].y)); uvs.Add(new Vector2(u1, 0f));
-            int t0 = verts.Count; verts.Add(new Vector3(poly[i].x, height, poly[i].y)); uvs.Add(new Vector2(u0, 1f));
-            int t1 = verts.Count; verts.Add(new Vector3(poly[j].x, height, poly[j].y)); uvs.Add(new Vector2(u1, 1f));
-
-            // two triangles (outward) using CCW order
-            tris.Add(b0); tris.Add(t0); tris.Add(t1);
-            tris.Add(b0); tris.Add(t1); tris.Add(b1);
-        }
-
-        // ---------- build mesh ----------
-        var mesh = new Mesh();
-        mesh.indexFormat = (verts.Count > 65000)
-            ? UnityEngine.Rendering.IndexFormat.UInt32
-            : UnityEngine.Rendering.IndexFormat.UInt16;
-        mesh.SetVertices(verts);
-        mesh.SetTriangles(tris, 0, true);
-        mesh.SetUVs(0, uvs);
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-        return mesh;
-    }
-
-
-    Mesh BuildExtrudedCellMesh4(List<Vector2> poly, float height)
-    {
-        int n = poly.Count;
-        if (n < 3) return null;
-
-        // Ensure CCW so top cap uses CCW (upwards normals)
-        if (!IsCCW(poly)) poly = new List<Vector2>(poly); // copy only if needed
-        if (IsCCW(poly)) poly.Reverse(); // revert to CCW if initial copy didn’t happen
-                                          // (simpler: just reverse when !IsCCW)
-
-        // vertices: bottom loop then top loop
-        var verts = new List<Vector3>(n * 2 + 2);
-        for (int i = 0; i < n; i++) verts.Add(new Vector3(poly[i].x, 0f, poly[i].y));
-        for (int i = 0; i < n; i++) verts.Add(new Vector3(poly[i].x, height, poly[i].y));
-
-        // (optional) simple UVs skipped here for brevity
-
-        var tris = new List<int>(n * 12);
-
-        // ----- BOTTOM CAP (faces downward): reverse winding relative to top -----
-        // fan around bottom[0]: (0, i+1, i) gives normals down if poly is CCW
-        for (int i = 1; i < n - 1; i++)
-        {
-            tris.Add(0); tris.Add(i + 1); tris.Add(i);
-        }
-
-        // ----- TOP CAP (faces upward): CCW fan on top loop -----
-        int top = n; // first top-vertex index
-        for (int i = 1; i < n - 1; i++)
-        {
-            tris.Add(top + 0); tris.Add(top + i); tris.Add(top + i + 1);
-        }
-
-        // ----- SIDES -----
-        // For CCW polygon, this gives outward-facing side normals
-        for (int i = 0; i < n; i++)
-        {
-            int j = (i + 1) % n;
-            int b0 = i, b1 = j;
-            int t0 = top + i, t1 = top + j;
-
-            tris.Add(b0); tris.Add(t0); tris.Add(t1);
-            tris.Add(b0); tris.Add(t1); tris.Add(b1);
-        }
-
-        var mesh = new Mesh();
-        mesh.indexFormat = (verts.Count > 65000)
-            ? UnityEngine.Rendering.IndexFormat.UInt32
-            : UnityEngine.Rendering.IndexFormat.UInt16;
-        mesh.SetVertices(verts);
-        mesh.SetTriangles(tris, 0, true);
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         return mesh;
@@ -406,8 +242,20 @@ public class VoronoiMeshing : MonoBehaviour
                 : GG.NodeLabel.None;
 
             mr.sharedMaterial = GetMaterialForLabel(label);
+
+            // elevations
+            var p = go.transform.localPosition;          
+            p.y = GetBaseYForCell(i, label);
+            go.transform.localPosition = p;
+
+            go.AddComponent<MeshCollider>();
+
+            // walkable
+            if (label != GG.NodeLabel.None && label != GG.NodeLabel.LandDecor)
+                NavMeshManager.AddFloorToNavMeshLayer(go);
         }
     }
+
 
     Material GetMaterialForLabel(GG.NodeLabel label)
     {
@@ -425,36 +273,155 @@ public class VoronoiMeshing : MonoBehaviour
                 return materialBoss != null ? materialBoss : materialDefault;
             case GG.NodeLabel.Corridor:
                 return materialCorridor != null ? materialCorridor : materialDefault;
+
+            case GG.NodeLabel.Shore:
+                return materialShore != null ? materialShore : materialDefault;
+            case GG.NodeLabel.LandDecor:
+                return materialLandDecor != null ? materialLandDecor : materialDefault;
+
             default:
                 return materialDefault;
         }
     }
 
-    static Vector2 PolygonCentroid(List<Vector2> P)
+
+    // ================ post processing =============== //
+    [Header("Post-Process Labels")]
+    [Tooltip("Paint a 1-cell ring of 'Shore' around islands")]
+    public bool autoShore = true;
+
+    [Tooltip("Keep this many water rings before turning remaining water into non-walkable decorative land")]
+    [Min(0)] public int waterRingPadding = 2;
+
+    [Tooltip("Fill water beyond 'waterRingPadding' with non-walkable decorative land")]
+    public bool fillBackgroundWithLandDecor = true;
+
+    int[] cellRingDist;
+    int shoreMaxRingsCached;
+    int decorDelayRingsCached;
+
+    float GetBaseYForCell(int cellIndex, GG.NodeLabel label)
     {
-        double A = 0, cx = 0, cy = 0;
-        int n = P.Count;
-        for (int i = 0; i < n; i++)
+        // shore: slightly lower
+        if (label == GG.NodeLabel.Shore) return 0 - Mathf.Abs(shoreDrop);
+
+        // decorative land: rise per ring
+        if (label == GG.NodeLabel.LandDecor)
         {
-            var p = P[i]; var q = P[(i + 1) % n];
-            double cross = p.x * q.y - q.x * p.y;
-            A += cross; cx += (p.x + q.x) * cross; cy += (p.y + q.y) * cross;
+            // If distances werent cached, just start at islandsY
+            int d = (cellRingDist != null && cellIndex >= 0 && cellIndex < cellRingDist.Length)
+                      ? cellRingDist[cellIndex]
+                      : int.MaxValue;
+
+            // first LandDecor ring is the first d that satisfied: d > shoreMax + decorDelay
+            // so ringIndex 0 corresponds to d = shoreMax + decorDelay + 1
+            int firstDecorD = shoreMaxRingsCached + decorDelayRingsCached + 1;
+            if (d == int.MaxValue) d = firstDecorD; // disconnected; treat as first decor ring
+
+            int ringIndex = Mathf.Max(0, d - firstDecorD);
+            return landStartYOffset + landRingStep * ringIndex;
         }
-        A *= 0.5; if (Math.Abs(A) < 1e-12)
-            return P.Count == 0 ? Vector2.zero : new Vector2(P[0].x, P[0].y);
-        return new Vector2((float)(cx / (6 * A)), (float)(cy / (6 * A)));
+
+        if(label == GG.NodeLabel.None)
+        {
+            return 0 - Mathf.Abs(shoreDrop) * 2;
+        }
+
+        // anything else (Corridor/None/etc.)
+        return 0;
     }
 
-    static GameObject EnsureChild(Transform parent, string name, bool needMFMR)
+
+    bool IsIsland(GG.NodeLabel l) =>
+    l == GG.NodeLabel.A || l == GG.NodeLabel.B || l == GG.NodeLabel.C
+    || l == GG.NodeLabel.Start || l == GG.NodeLabel.Boss;
+
+    void ApplyWaterRings(
+    IReadOnlyList<VoronoiLayoutGenerator.Cell> cells,
+    ref GG.NodeLabel[] labels,
+    int shoreRingCount,
+    int waterRingsBeforeDecor)
     {
-        var t = parent.Find(name);
-        GameObject go = t ? t.gameObject : new GameObject(name);
-        go.transform.SetParent(parent, false);
-        if (needMFMR)
+        int n = cells.Count;
+        if (n == 0 || labels == null || labels.Length != n) return;
+
+        // --- Build adjacency by shared polygon edges --- //
+        var adj = new List<List<int>>(n);
+        for (int i = 0; i < n; i++) adj.Add(new List<int>());
+
+        string SegKey(Vector2 a, Vector2 b)
         {
-            if (!go.TryGetComponent<MeshFilter>(out _)) go.AddComponent<MeshFilter>();
-            if (!go.TryGetComponent<MeshRenderer>(out _)) go.AddComponent<MeshRenderer>();
+            const float eps = 1e-4f;
+            long ax = (long)Mathf.Round(a.x / eps), ay = (long)Mathf.Round(a.y / eps);
+            long bx = (long)Mathf.Round(b.x / eps), by = (long)Mathf.Round(b.y / eps);
+            bool flip = (ax < bx) || (ax == bx && ay <= by);
+            long x0 = flip ? ax : bx, y0 = flip ? ay : by;
+            long x1 = flip ? bx : ax, y1 = flip ? by : ay;
+            return x0 + "_" + y0 + "_" + x1 + "_" + y1;
         }
-        return go;
+
+        var owner = new Dictionary<string, int>(n * 6);
+        for (int i = 0; i < n; i++)
+        {
+            var poly = cells[i].polygon; if (poly == null || poly.Count < 3) continue;
+            for (int k = 0; k < poly.Count; k++)
+            {
+                var a = poly[k];
+                var b = poly[(k + 1) % poly.Count];
+                string key = SegKey(a, b);
+                if (owner.TryGetValue(key, out int j))
+                {
+                    if (i != j) { adj[i].Add(j); adj[j].Add(i); }
+                }
+                else owner[key] = i;
+            }
+        }
+
+        // --- Multi-source BFS starting from ALL island cells --- //
+        var dist = new int[n];
+        for (int i = 0; i < n; i++) dist[i] = int.MaxValue;
+        var q = new Queue<int>();
+
+        for (int i = 0; i < n; i++)
+            if (IsIsland(labels[i])) { dist[i] = 0; q.Enqueue(i); }
+
+        while (q.Count > 0)
+        {
+            int u = q.Dequeue();
+            int du = dist[u];
+            foreach (var v in adj[u])
+            {
+                if (dist[v] > du + 1)
+                {
+                    dist[v] = du + 1;
+                    q.Enqueue(v);
+                }
+            }
+        }
+
+        // 1) One ring of SHORE
+        int shoreMax = Mathf.Max(1, shoreRingCount);
+        for (int i = 0; i < n; i++)
+        {
+            if (labels[i] == GG.NodeLabel.None && dist[i] >= 1 && dist[i] <= shoreMax)
+                labels[i] = GG.NodeLabel.Shore;
+        }
+
+        //2) After a few water tiles, convert remaining *unlabeled* to decorative, non-walkable land 
+        int decorAfter = Mathf.Max(0, waterRingsBeforeDecor);
+        for (int i = 0; i < n; i++)
+        {
+            if (labels[i] == GG.NodeLabel.None && dist[i] > shoreMax + decorAfter)
+                labels[i] = GG.NodeLabel.LandDecor;
+
+            if (labels[i] == GG.NodeLabel.None && dist[i] == int.MaxValue && decorAfter <= 0)
+                labels[i] = GG.NodeLabel.LandDecor;
+        }
+
+        cellRingDist = dist;
+        shoreMaxRingsCached = Mathf.Max(1, shoreRingCount);
+        decorDelayRingsCached = Mathf.Max(0, waterRingsBeforeDecor);
     }
+
+
 }

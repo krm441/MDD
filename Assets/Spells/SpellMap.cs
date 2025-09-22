@@ -4,6 +4,9 @@ using UnityEngine.UI;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using EventSystemMDD;
+using UnityEngine.Assertions;
+using System;
 
 public class SpellBook
 {
@@ -13,6 +16,26 @@ public class SpellBook
             spells.Add(spell);
         else
             Debug.Log(spell.name + " Not found");
+    }
+
+    public Spell GetSpell(string spellName)
+    {
+        if (string.IsNullOrWhiteSpace(spellName))
+            return null;
+
+        for (int i = 0; i < spells.Count; i++)
+        {
+            var s = spells[i];
+            if (s != null &&
+                !string.IsNullOrEmpty(s.name) &&
+                string.Equals(s.name, spellName, StringComparison.OrdinalIgnoreCase))
+            {
+                return s;
+            }
+        }
+
+        Debug.LogWarning($"Spell '{spellName}' not found.");
+        return null;
     }
 
     public void RemoveSpell(Spell spell)
@@ -116,7 +139,7 @@ public class Spell
     public string prefabMeshEffect; // mesh or effect prefab path
     public SpellPhysicsType physicsType;
     public SpellDPSType dPSType;
-    public DamageResistenceContainer baseDamage;
+    public DamageResistenceContainer baseDamage = new DamageResistenceContainer();
     public int apCost;
     public int manaCost;
     public int range;
@@ -125,6 +148,8 @@ public class Spell
     public string sfxOnStart;
     public string sfxOnFly;
     public string sfxOnImpact;
+    public bool hidden;
+    public bool friendlyFire;
 }
 
 /// <summary>
@@ -140,41 +165,48 @@ public class SpellListWrapper
 public class SpellMap : MonoBehaviour
 {
     //[SerializeField] 
-    private Transform iconBarParent;
+    //private Transform iconBarParent;
 
-    private static bool isInitialized = false;
+    [SerializeField] private List<SpellIconMDD> spellIcons = new List<SpellIconMDD>();
+
+    [SerializeField] private GameObject iconBarParent;
+
+    //private static bool isInitialized = false;
+    private bool isInitialized = false;
     private void Start()
     {
+        Console.Log("init");
+
+        Assert.IsNotNull(iconBarParent, "HIT");
+
         if (!isInitialized)
         {
             InitializeSpells();
             isInitialized = true;
         }
 
-        // Load prefab once
-        if (iconBarParent == null)
-        {
-            //GameObject parentObj = GameObject.Find("PartyPortraitParent");
-            GameObject parentObj = GameObject.Find("HorizontalLayout");
-            if (parentObj == null)
-            {
-                Console.Error("Could not find 'HorizontalLayout' in the scene!");
-                return;
-            }
-            iconBarParent = parentObj.transform;
-        }
+        Assert.IsNotNull(iconBarParent);
+    }
+
+    public SpellIconMDD FindIcon(string iconName)
+    {
+        return spellIcons.FirstOrDefault(i =>
+            i != null && i.name.Equals(iconName, StringComparison.OrdinalIgnoreCase));
     }
 
     public void HideIconBar()
     {
-        foreach (Transform child in iconBarParent)
+        foreach (Transform child in iconBarParent.transform)
             Destroy(child.gameObject);
     }
 
 
     public void BuildIconBar(PartyManagement.CharacterUnit unit, GameManagerMDD gameManager)
-    {       
-        foreach (Transform child in iconBarParent)
+    {        
+         Assert.IsNotNull(iconBarParent);
+        
+
+        foreach (Transform child in iconBarParent.transform)
             Destroy(child.gameObject);
 
         // get the spell book from unit
@@ -188,34 +220,28 @@ public class SpellMap : MonoBehaviour
         
         foreach (Spell spell in unit.spellBook.GetAllSpells())
         {
-            
-            GameObject btn = Instantiate(spellIconPrefab, iconBarParent);
-            Image img = btn.GetComponentInChildren<Image>();
-            
-            Sprite icon = Resources.Load<Sprite>(spell.iconPath);
-            if (icon != null)
-                img.sprite = icon;
-            else
-                Debug.Log("Icon not loaded: " + spell.iconPath);
-            
+            if(spell.hidden) continue; // no need for icon
+
+            // 1) find prefab and instantiate
+            spellIconPrefab = FindIcon(spell.iconPath).gameObject;
+
+            GameObject btn = Instantiate(spellIconPrefab, iconBarParent.transform);
+            var icon = btn.GetComponent<SpellIconMDD>();
+            icon.toolTipText = spell.description;
+
+            // 2) listeners - includes tooltip
             Button button = btn.GetComponent<Button>();
             button.onClick.AddListener(() =>
             {
-                ButtonEvent buttonEvent = new ButtonEvent
+                EventSystemMDD.ButtonEvent buttonEvent = new EventSystemMDD.ButtonEvent
                 {
-                    eventType = EventTypeButton.SpellClick,
+                    eventType = EventSystemMDD.EventType.SpellClick,
                     spell = spell,
                     targetUnit = unit,
                 };
 
-                gameManager.GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
-
-                //unit.StopMovement();
-                //unit.SelectSpell(spell);
-                //
-                //gameManager.GetCurrentState().SetCastingSubState();
-                ////GameManagerMDD.interactionSubstate = InteractionSubstate.Casting;
-                //Debug.Log("Selected spell: " + spell.name);
+                EventSystemMDD.EventSystemMDD.Raise(buttonEvent);
+                
             });
 
             // tool tip:
@@ -230,8 +256,10 @@ public class SpellMap : MonoBehaviour
             };
             entryEnter.callback.AddListener((eventData) =>
             {
-                UITooltip.Instance.Show(spell.description, Input.mousePosition);
-                //Debug.Log("entry");
+                //UITooltip.Instance.Show(spell.description, Input.mousePosition);
+                //Debug.LogError("entry");
+                Assert.IsNotNull(icon);
+                icon.ShowToolTip();
             });
             trigger.triggers.Add(entryEnter);
 
@@ -242,15 +270,20 @@ public class SpellMap : MonoBehaviour
             };
             entryExit.callback.AddListener((eventData) =>
             {
-                UITooltip.Instance.Hide();
-                //Debug.Log("Exit");
+                //UITooltip.Instance.Hide();
+                //Debug.LogError("Exit");
+                icon.HideToolTip();
             });
             trigger.triggers.Add(entryExit);
         }
     }
 
+    public Spell GetSpellByName(string name)
+    {
+        return idSpellPairs[nameIdPairs[name]];
+    }
 
-    public static void InitializeSpells()
+    public void InitializeSpells()
     {
         if (idSpellPairs.Count > 0) return;
 
@@ -280,6 +313,6 @@ public class SpellMap : MonoBehaviour
         Debug.Log($"Loaded {wrapper.spells.Count} spells from JSON.");
     }
 
-    public static Dictionary<int, Spell> idSpellPairs = new Dictionary<int, Spell>();
-    public static Dictionary<string, int> nameIdPairs = new Dictionary<string, int>();
+    public Dictionary<int, Spell> idSpellPairs = new Dictionary<int, Spell>();
+    public Dictionary<string, int> nameIdPairs = new Dictionary<string, int>();
 }

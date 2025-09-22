@@ -1,5 +1,7 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
+[Obsolete]
 public class BSPLayoutGenerator_Simple : BSPLayoutGenerator
 {
     [ContextMenu("Generate Layout Simple")]
@@ -54,9 +56,9 @@ public class BSPLayoutGenerator_Simple : BSPLayoutGenerator
         }
         else
         {
-            Vector2Int a = node.left.GetClosestRoomCenter();
-            Vector2Int b = node.right.GetClosestRoomCenter();
-            CreateCorridor(a, b, layout);
+            //Vector2Int a = node.left.GetClosestRoomCenter();
+            //Vector2Int b = node.right.GetClosestRoomCenter();
+            //CreateCorridor(a, b, layout);
         }
     }
 }

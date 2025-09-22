@@ -2,9 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using static UnityEditor.ShaderData;
 using static UnityEngine.GraphicsBuffer;
 
 
@@ -42,7 +40,7 @@ using static UnityEngine.GraphicsBuffer;
 public class DamageContext
 {
     public CharacterUnit Caster;
-    public AttributeSet Target;
+    public CharacterUnit Target;
     public Spell Spell;
     public CombatManager CombatManager;
 }
@@ -83,29 +81,29 @@ class ResistanceModifier : IDamageModifier
         var result = damage.Clone();
 
         // Physical
-        result.Slashing = (int)ApplyResistance(result.Slashing, context.Target.resistances.Slashing);
-        result.Piercing = (int)ApplyResistance(result.Piercing, context.Target.resistances.Piercing);
-        result.Crushing = (int)ApplyResistance(result.Crushing, context.Target.resistances.Crushing);
+        result.Slashing = (int)ApplyResistance(result.Slashing, context.Target.attributeSet.resistances.Slashing);
+        result.Piercing = (int)ApplyResistance(result.Piercing, context.Target.attributeSet.resistances.Piercing);
+        result.Crushing = (int)ApplyResistance(result.Crushing, context.Target.attributeSet.resistances.Crushing);
 
         // Elemental
-        result.Fire     = (int)ApplyResistance(result.Fire,     context.Target.resistances.Fire);
-        result.Water    = (int)ApplyResistance(result.Water,    context.Target.resistances.Water);
-        result.Wind     = (int)ApplyResistance(result.Wind,     context.Target.resistances.Wind);
-        result.Earth    = (int)ApplyResistance(result.Earth,    context.Target.resistances.Earth);
+        result.Fire     = (int)ApplyResistance(result.Fire,     context.Target.attributeSet.resistances.Fire);
+        result.Water    = (int)ApplyResistance(result.Water,    context.Target.attributeSet.resistances.Water);
+        result.Wind     = (int)ApplyResistance(result.Wind,     context.Target.attributeSet.resistances.Wind);
+        result.Earth    = (int)ApplyResistance(result.Earth,    context.Target.attributeSet.resistances.Earth);
 
         // Spiritual
-        result.Light    = (int)ApplyResistance(result.Light,    context.Target.resistances.Light);
-        result.Shadow   = (int)ApplyResistance(result.Shadow,   context.Target.resistances.Shadow);
+        result.Light    = (int)ApplyResistance(result.Light,    context.Target.attributeSet.resistances.Light);
+        result.Shadow   = (int)ApplyResistance(result.Shadow,   context.Target.attributeSet.resistances.Shadow);
 
         // Heretique
-        result.Necrotic = (int)ApplyResistance(result.Necrotic, context.Target.resistances.Necrotic);
-        result.Poison   = (int)ApplyResistance(result.Poison,   context.Target.resistances.Poison);
-        result.Demonic  = (int)ApplyResistance(result.Demonic,  context.Target.resistances.Demonic);
+        result.Necrotic = (int)ApplyResistance(result.Necrotic, context.Target.attributeSet.resistances.Necrotic);
+        result.Poison   = (int)ApplyResistance(result.Poison,   context.Target.attributeSet.resistances.Poison);
+        result.Demonic  = (int)ApplyResistance(result.Demonic,  context.Target.attributeSet.resistances.Demonic);
 
         // Healing
-        result.Healing              = (int)ApplyResistance(result.Healing,              context.Target.resistances.Healing);
-        result.MentalFortification  = (int)ApplyResistance(result.MentalFortification,  context.Target.resistances.MentalFortification);
-        result.MagicFortification   = (int)ApplyResistance(result.MagicFortification,   context.Target.resistances.MagicFortification);
+        result.Healing              = (int)ApplyResistance(result.Healing,              context.Target.attributeSet.resistances.Healing);
+        result.MentalFortification  = (int)ApplyResistance(result.MentalFortification,  context.Target.attributeSet.resistances.MentalFortification);
+        result.MagicFortification   = (int)ApplyResistance(result.MagicFortification,   context.Target.attributeSet.resistances.MagicFortification);
 
         return result;
     }
@@ -144,29 +142,29 @@ public class DamageCalculator
         Heal(context.Target, damage.Healing, context);
     }
 
-    private void Heal(AttributeSet target, int healing, DamageContext context)
+    private void Heal(CharacterUnit target, int healing, DamageContext context)
     {
         if (healing <= 0) return; // early return
 
-        target.stats.HP += healing;
+        target.attributeSet.stats.HP += healing;
         context.CombatManager.ShowHealing(healing, target.transform.position + new Vector3(-0.5f, 0), Color.green);
     }
 
-    private void ApplyDamagePhysical(AttributeSet target, int totalPhy, DamageContext context)
+    private void ApplyDamagePhysical(CharacterUnit target, int totalPhy, DamageContext context)
     {
         if (totalPhy <= 0) return; // early return
 
-        int armor = target.armorStat.physicalArmor;
+        int armor = target.attributeSet.armorStat.physicalArmor;
 
         // Calculate damage that armor can absorb
         int damageToArmor = Mathf.Min(armor, totalPhy);
         int damageToHP = totalPhy - damageToArmor;
 
         // Apply armor damage
-        target.armorStat.physicalArmor = armor - damageToArmor;
+        target.attributeSet.armorStat.physicalArmor = armor - damageToArmor;
 
         // Apply remaining to HP
-        target.stats.HP -= damageToHP;
+        target.attributeSet.stats.HP -= damageToHP;
 
         if (damageToHP > 0)
             context.CombatManager.ShowDamage(damageToHP * -1, target.transform.position + new Vector3(0.5f, 0), Color.red);
@@ -174,21 +172,21 @@ public class DamageCalculator
             context.CombatManager.ShowDamage(damageToArmor * -1, target.transform.position + new Vector3(0.5f, 0), Color.grey);
     }
 
-    private void ApplyDamageMagical(AttributeSet target, int totalMag, DamageContext context)
+    private void ApplyDamageMagical(CharacterUnit target, int totalMag, DamageContext context)
     {
         if(totalMag <= 0) return; // early return
 
-        int armor = target.armorStat.magicArmor;
+        int armor = target.attributeSet.armorStat.magicArmor;
 
         // Calculate damage that armor can absorb
         int damageToArmor = Mathf.Min(armor, totalMag);
         int damageToHP = totalMag - damageToArmor;
 
         // Apply armor damage
-        target.armorStat.magicArmor = armor - damageToArmor;
+        target.attributeSet.armorStat.magicArmor = armor - damageToArmor;
 
         // Apply remaining to HP
-        target.stats.HP -= damageToHP;
+        target.attributeSet.stats.HP -= damageToHP;
 
         if(damageToHP > 0)
             context.CombatManager.ShowDamage(damageToHP * -1, target.transform.position + new Vector3(0.5f, 0), Color.red);

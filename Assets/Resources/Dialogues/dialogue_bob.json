@@ -1,37 +1,112 @@
 {
-  "id": "dialogue_bob",
-  "nodes": [
-    {
-      "id": "start",
-      "speaker": "Bob",
-      "text": "Hello adventurer and welcome!",
-      "choices": [
+    "id": "dialogue_bob",
+    "nodes": [
         {
-          "text": "Hi Bob, what's up?",
-          "nextNodeId": "ask1"
+            "id": "start",
+            "speaker": "Bob",
+            "text": "Hello adventurer and welcome! You probably have many questions.",
+            "voiceClip": "",
+            "choices": [
+                {
+                    "text": "I have a question. How are you?",
+                    "nextNodeId": "ask1"
+                },
+                {
+                    "text": "Where am I? Where are my friends?",
+                    "nextNodeId": "explain1"
+                },
+                {
+                    "text": "Let me OUT!",
+                    "nextNodeId": "out"
+                }
+            ]
         },
         {
-          "text": "Goodbye.",
-          "nextNodeId": "end"
-        }
-      ]
-    },
-    {
-      "id": "ask1",
-      "speaker": "Bob",
-      "text": "Not much, just guarding the gates.",
-      "choices": [
+            "id": "ask1",
+            "speaker": "Bob",
+            "text": "Hah! That's very polite of you. I love it. I am fine and how are you?",
+            "voiceClip": "",
+            "choices": [
+                {
+                    "text": "I am fine too. But an explanation of what is going on would be appreciated.",
+                    "nextNodeId": "explain1"
+                },
+                {
+                    "text": "I will be fine, when I get out and find my friends",
+                    "nextNodeId": "explain1"
+                }
+            ]
+        },
         {
-          "text": "Great, carry on.",
-          "nextNodeId": "end"
+            "id": "explain1",
+            "speaker": "Bob",
+            "text": "Your friends are trapped, just like you, inside the mind of a powerful deamon",
+            "voiceClip": "",
+            "choices": [
+                {
+                    "text": "Next",
+                    "nextNodeId": "explain2"
+                }
+            ]
+        },
+        {
+            "id": "explain2",
+            "speaker": "Bob",
+            "text": "Yes, this is unreal. All of it.",
+            "voiceClip": "",
+            "choices": [
+                {
+                    "text": "Next",
+                    "nextNodeId": "explain3"
+                }
+            ]
+        },
+        {
+            "id": "explain3",
+            "speaker": "Bob",
+            "text": "The only way out is through the multiple parts of the mind of the deamon. Till he releases the illusion. I'll help you a bit.",
+            "voiceClip": "",
+            "choices": [
+                {
+                    "text": "Who are you and why are helping me?",
+                    "nextNodeId": "Reasons1"
+                },
+                {
+                    "text": "What should I do?",
+                    "nextNodeId": "out"
+                }
+            ]
+        },
+        {
+            "id": "Reasons1",
+            "speaker": "Bob",
+            "text": "I worked for the deamon, don't judge, I was young. But the guy did not pay me...",
+            "voiceClip": "",
+            "choices": [
+                {
+                    "text": "I understand. What's next?",
+                    "nextNodeId": "out"
+                }
+            ]
+        },
+        {
+            "id": "out",
+            "speaker": "Bob",
+            "text": "Follow the path, push the red button, reach the portal on the far island. Be prepared for a small battle.",
+            "voiceClip": "",
+            "choices": [
+                {
+                    "text": "Ok.",
+                    "nextNodeId": "end"
+                }
+            ]
+        },
+        {
+            "id": "end",
+            "speaker": "Bob",
+            "text": "Good luck",
+            "voiceClip": "",
+            "choices": []
         }
-      ]
-    },
-    {
-      "id": "end",
-      "speaker": "Bob",
-      "text": "See you around!",
-      "choices": []
-    }
-  ]
+    ]
 }

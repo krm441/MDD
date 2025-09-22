@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using Pathfinding;
 using UnityEngine;
 using UnityEngine.AI;
+using System.IO;
+using static UnityEngine.UI.CanvasScaler;
+using System.Linq;
 
 [System.Serializable]
 public class StatBlock
@@ -60,47 +63,369 @@ public class MeshAndPortraits
     public string portraitPath;
 }
 
+/// <summary>
+/// Uset for save/load
+/// </summary>
+[System.Serializable]
+public class CharacterMetaData
+{
+    public string unitName;
+    public bool isMainCharacter = false;
+    public string portraitPrefabName = "DefaultPortrait";
+    public AttributeSet attributeSet;
+    public List<string> spells = new List<string>();
+    public string rigMeshName = "DefaultCapsule";
+
+    public CharacterMetaData() { }
+
+    public CharacterMetaData(CharacterMetaData other)
+    {
+        if (other == null) throw new ArgumentNullException(nameof(other));
+
+        unitName = other.unitName;
+        isMainCharacter = other.isMainCharacter;
+        portraitPrefabName = other.portraitPrefabName;
+        rigMeshName = other.rigMeshName;
+
+        // Deepcopy spells list
+        spells = other.spells != null ? new List<string>(other.spells) : new List<string>();
+
+        attributeSet = other.attributeSet != null ? new AttributeSet(other.attributeSet) : null;
+    }
+}
+
+public static class CharacterMetaDataLoader
+{
+
+    public static CharacterMetaData Load(string charName)
+    {
+        //string path = System.IO.Path.Combine(Application.persistentDataPath, charName + ".json");
+        //string path = "Assets/Resources/Data/" + charName + ".json";
+        //Console.Error(path);
+
+        //var json = File.ReadAllText(path);
+        var json = Resources.Load<TextAsset>("Data/" + charName);
+        var data = JsonUtility.FromJson<CharacterMetaData>(json.text);
+        if (data == null) throw new InvalidOperationException("Failed to parse CharacterMetaData JSON.");
+        Initialize(data);
+        return data;
+    }
+
+    private static void Initialize(CharacterMetaData m)
+    {
+        if (m.attributeSet == null) m.attributeSet = new AttributeSet();
+        if (m.attributeSet.stats == null) m.attributeSet.stats = new StatBlock();
+        if (m.attributeSet.armorStat == null) m.attributeSet.armorStat = new ArmorStat();
+        if (m.attributeSet.resistances == null) m.attributeSet.resistances = new DamageResistenceContainer();
+        if (m.spells == null) m.spells = new System.Collections.Generic.List<string>();
+    }
+}
+
 namespace PartyManagement
 {
+    public enum CharacterUnitStatus
+    {
+        Alive,
+        Dead,
+        Unavaliable,
+    }
+
     public class CharacterUnit : MonoBehaviour
     {
+        public CharacterUnitStatus status = CharacterUnitStatus.Alive;
+        public bool isMyTurn = false;
         public NavMeshAgent agent;
-        [SerializeField] private Animator animator;
+
+        int IsMovingHash;
+        [SerializeField] public Animator animator;
+
+        [Header("Weapon")] public Weapon weapon = new Weapon();
+
+        static readonly int MeleeSliceHash = Animator.StringToHash("Base Layer.Dualwield_Melee_Attack_Slice");
+        static readonly int MeleeStabHash = Animator.StringToHash("Base Layer.2H_Melee_Attack_Stab");
+        static readonly int ShootHash = Animator.StringToHash("Base Layer.1H_Ranged_Shoot");
+
+
+
+
+        public NPCParty parentParty;
+
+        public string rigMeshName;
+
+        // save/ load
+        public CharacterMetaData CaptureState()
+        {
+            var ret = new CharacterMetaData();
+            ret.attributeSet = new AttributeSet(this.attributeSet);
+            ret.isMainCharacter = this.isMainCharacter;
+            ret.spells = new List<string>();
+
+            foreach(var spell in this.spellBook.GetAllSpells())
+            {
+                ret.spells.Add(spell.name);
+            }
+
+            ret.portraitPrefabName = this.portraitSprite.name; // name is guaranteed to be saved
+            ret.unitName = this.name;
+            ret.rigMeshName = this.rigMeshName;
+
+            return ret;
+        }
+
 
         void Start()
         {
+            // animation
+            IsMovingHash = Animator.StringToHash("IsMoving");
+
             agent = GetComponent<NavMeshAgent>();
             agent.stoppingDistance = 1.5f;
 
             EnsureAgentIsOnNavMesh();
-        
-            // Auto-fetch if not set - need revision
-            //if (movementController == null)
-            //    movementController = GetComponent<MovementController>();
-            //
-            //gridSystem = FindObjectOfType<Pathfinding.GridSystem>();
-            //
-            //Vector2Int currentGridPos = gridSystem.GetNodeFromWorldPosition(transform.position).gridPos;
-            //lastGridPos = currentGridPos;
-            //gridSystem.MarkOccupied(currentGridPos, unitID, true); // Mark initial tile as occupied
+
+            capsuleCollider = GetComponentInChildren<CapsuleCollider>();
+
         }
 
-        public static int unitIDCounter = -1;
+        private CapsuleCollider capsuleCollider;
 
-        public int unitID = 0;
-        private void Awake()
+        public float GetRadius() => capsuleCollider.radius;
+
+        public void WalkTo(Vector3 targetPos, float stopingDistance = 0.0f, Action onComplete = null)
         {
-            unitID = ++unitIDCounter;
+            StartCoroutine(MoveTo(targetPos, stopingDistance, onComplete));
         }
 
-        public IEnumerator MoveTo(Vector3 targetPos)
+        public void StopMovement()
         {
+            StopAllCoroutines();
+            agent.ResetPath();
+            StopAnimationWalking();
+        }
+
+        public void Melee(Vector3 targetPos, Action onImpact = null)
+        {
+            LookAtTarget(targetPos);
+            meleeCoroutine = StartCoroutine(MeleeRoutine(onImpact));
+        }
+
+        public void MeleeAoE(Vector3 targetPos, Action onImpact = null)
+        {
+            LookAtTarget(targetPos);
+            meleeCoroutine = StartCoroutine(MeleeAoERoutine(onImpact));
+        }
+
+        public void Ranged(Vector3 targetPos, Action onImpact = null)
+        {
+            LookAtTarget(targetPos);
+            rangedCoroutine = StartCoroutine(RangedRoutine(onImpact));
+        }
+
+        IEnumerator RangedRoutine(Action onImpact)
+        {
+            PlayRangedAnimation();
+
+            while (animator.IsInTransition(0))
+                yield return null;
+
+            DeductMeleeAPCost();
+
+            rangedCoroutine = null;
+
+            onImpact?.Invoke();
+        }
+
+        IEnumerator MeleeRoutine(Action onImpact)
+        {
+            yield return PlayMeleeAnimation();
+
+            //while (animator.IsInTransition(0))
+            //    yield return null;
+            //
+            //float deathTime = animator.runtimeAnimatorController
+            //    .animationClips
+            //    .First(c => c.name == "Death_A")
+            //    .length;
+            //
+            //animator.Play("Death_A");
+            //
+            //animationCurrentRoutine = StartCoroutine(WaitAndInvoke(deathTime, onComplete));
+
+            //DeductMeleeAPCost();
+
+            meleeCoroutine = null;
+
+            onImpact?.Invoke();
+        }
+
+        IEnumerator MeleeAoERoutine(Action onImpact)
+        {
+            PlayMeleeAoeAnimation();
+
+            while (animator.IsInTransition(0))
+                yield return null;
+
+            //DeductMeleeAPCost();
+
+            meleeCoroutine = null;
+
+            onImpact?.Invoke();
+        }
+
+        private void StartAnimationWalking()
+        {
+            // start animation
+            if (animator != null) animator.SetBool(IsMovingHash, true);
+        }
+
+        private IEnumerator PlayMeleeAnimation()
+        {
+            float time = 0.5f;
+            if (weapon.type == WeaponType.Melee_Slice)
+            {
+                time = animator.runtimeAnimatorController
+                .animationClips
+                .First(c => c.name == "Dualwield_Melee_Attack_Slice")
+                .length;
+
+                animator.Play(MeleeSliceHash);
+
+            }
+            else if (weapon.type == WeaponType.Melee_Stab)
+            {
+                time = animator.runtimeAnimatorController
+                .animationClips
+                .First(c => c.name == "2H_Melee_Attack_Stab")
+                .length;
+
+                animator.Play(MeleeStabHash);
+            }
+            yield return WaitAndInvoke(time, null);
+        }
+
+        private void PlayMeleeAoeAnimation()
+        {
+            animator.Play("2H_Melee_Attack_Spin");
+        }
+
+        private void PlayRangedAnimation()
+        {
+            animator.Play(ShootHash);
+        }
+
+        private void StopAnimationWalking()
+        {
+            // stop animation
+            if (animator != null) animator.SetBool(IsMovingHash, false);
+        }
+
+        public IEnumerator MoveTo(Vector3 targetPos, float stopingDistance = 0.0f, Action onComplete = null)
+        {
+            StartAnimationWalking();
+
+            agent.isStopped = false;
+            agent.stoppingDistance = stopingDistance;
             agent.SetDestination(targetPos);
             while (agent.pathPending || agent.remainingDistance > agent.stoppingDistance)
             {
                 yield return null;
             }
             agent.ResetPath();
+
+            StopAnimationWalking();
+
+            onComplete?.Invoke();
+        }
+
+        public void WalkToWithAp(Vector3 targetPos, float stopingDistance = 0.0f)
+        {
+            StartCoroutine(MoveWithApMeter(targetPos, 3f, stopingDistance));
+        }
+        
+        public IEnumerator MoveWithApMeter(Vector3 destination, float navSpeed, float stoppingDistance = 0f,
+            Action onComplete = null, Action onImpact = null)
+        {
+            StartAnimationWalking();
+
+            int remainingAP = attributeSet.stats.ActionPoints;
+            float costPerUnit = attributeSet.stats.Speed;
+
+            // cache default stopping distance
+            float defaultStoppingDistance = agent.stoppingDistance;
+            agent.stoppingDistance = stoppingDistance; // push new stop dist
+
+            // save current pos
+            Vector3 current = transform.position;
+
+            float accumulator = 0f; // accumulate traversed path
+
+            // start motion
+            agent.isStopped = false;
+            agent.SetDestination(destination);
+
+            yield return new WaitUntil(() => !agent.pathPending && agent.hasPath);
+
+            var hasPath = agent.hasPath;
+            var pathPending = agent.pathPending;
+            var remDist = agent.remainingDistance;
+
+            attributeSet.stats.ActionPoints -= 1;// first time ap taken as a cost for first move
+
+            while (agent.hasPath && //&& !agent.pathPending
+                agent.remainingDistance >= agent.stoppingDistance + 0.02)
+            {
+                // add traversed distance
+                accumulator += Vector3.Distance(current, transform.position);
+                current = transform.position;
+
+                if (accumulator >= costPerUnit)
+                {
+                    remainingAP -= 1;
+                    attributeSet.stats.ActionPoints -= 1;
+                    accumulator = 0f;
+
+                    if (remainingAP <= 0f)
+                    {
+                        agent.isStopped = true;
+                        agent.ResetPath();
+                        break;
+                    }
+                }
+
+                yield return null;
+            }
+
+            // restore
+            agent.stoppingDistance = defaultStoppingDistance;
+
+            // cler visuals
+            AimingVisualizer.ClearPathPreview();
+
+            StopAnimationWalking();
+            agent.isStopped = true;
+
+            onComplete?.Invoke();
+            onImpact?.Invoke();
+        }
+
+        Coroutine meleeCoroutine, rangedCoroutine;
+
+       
+
+
+        public void WalkAndMelee(Vector3 targetPos, float stopingDistance = 2.5f, Action onImpact = null)
+        {
+            StartCoroutine(MoveWithApMeter(targetPos, 3f, stopingDistance, ()=>
+            {
+                DeductMeleeAPCost();
+                
+               PlayMeleeAnimation();
+            }, onImpact));
+        }
+
+        private void DeductMeleeAPCost()
+        {
+            attributeSet.stats.ActionPoints -= weapon.apCost;
         }
 
         public IEnumerator PressButtonAnimation()
@@ -111,7 +436,7 @@ namespace PartyManagement
             }
             yield return new WaitForSeconds(1.0f); // Duration of animation
         }
-        void EnsureAgentIsOnNavMesh()
+        public void EnsureAgentIsOnNavMesh()
         {
             if (agent == null)
             {
@@ -133,6 +458,27 @@ namespace PartyManagement
                 }
             }
 
+        }
+
+        Coroutine animationCurrentRoutine = null;
+        public void PlayDeathAnimation(Action onComplete = null)
+        {
+            if (animationCurrentRoutine != null) StopCoroutine(animationCurrentRoutine);
+
+            float deathTime = animator.runtimeAnimatorController
+                .animationClips
+                .First(c => c.name == "Death_A")
+                .length;
+
+            animator.Play("Death_A");
+
+            animationCurrentRoutine = StartCoroutine(WaitAndInvoke(deathTime, onComplete));
+        }
+
+        private static IEnumerator WaitAndInvoke(float waitingTime, Action onComplete)
+        {
+            yield return new WaitForSeconds(waitingTime);
+            onComplete?.Invoke();
         }
 
         public Vector3 GetChestPos()
@@ -217,7 +563,7 @@ namespace PartyManagement
         /// <param name="targetPoint"></param>
         /// <param name="onComplete"></param>
         /// <returns></returns>
-        public IEnumerator CastSpellWithMovement(
+        /*public IEnumerator CastSpellWithMovement(
             CharacterUnit caster,
             CombatManager combatManager,
             Pathfinding.Path path,
@@ -237,7 +583,7 @@ namespace PartyManagement
 
             // 2- Cast at targetPoint when walk is over
             // onComplete callback is passed to ApplySpell in Combat manager
-            combatManager.ApplySpell(this, spell, targetPoint, () =>
+            combatManager.ApplySpell(gameManager, this, spell, targetPoint, () =>
             {
                 // only after the animation spell is over
                 AimingVisualizer.DrawImpactCircle(targetImpactVFXPoint, spell.radius, Color.red);
@@ -247,7 +593,7 @@ namespace PartyManagement
             });
 
             yield return new WaitUntil(() => done);
-        }
+        }*/
 
         private Vector2Int? lastGridPos = null;
         private Pathfinding.GridSystem gridSystem;
@@ -332,46 +678,6 @@ namespace PartyManagement
             return centers;
         }
 
-
-        //void OnDrawGizmosSelected()
-        //{
-        //    // draw the sector centers
-        //    Gizmos.color = Color.white;
-        //    var centers = GetSectorCenters();
-        //    foreach (var gridPos in centers)
-        //    {
-        //        Vector3 world = gridSystem.GetNodeFromWorldPosition(
-        //            new Vector3(gridPos.x * gridSystem.tileSize, 0, gridPos.y * gridSystem.tileSize)
-        //        ).worldPos + Vector3.up * 0.3f;
-        //        Gizmos.DrawSphere(world, gridSystem.tileSize * 0.2f);
-        //    }
-        //}
-
-
-        private void Update()
-        {
-            if (gridSystem == null) return;
-
-            // Unmark all previously occupied nodes
-            foreach (var pos in lastFootprint)
-                gridSystem.MarkOccupied(pos, -1, false);
-
-            // Compute the current footprint (corners + center)
-            var points = ComputeFootprintPoints();
-
-            // Mark all currently occupied nodes
-            lastFootprint.Clear();
-            foreach (var worldPt in points)
-            {
-                Node n = gridSystem.GetNodeFromWorldPosition(worldPt);
-                if (!lastFootprint.Contains(n.gridPos))
-                {
-                    gridSystem.MarkOccupied(n.gridPos, unitID, true);
-                    lastFootprint.Add(n.gridPos);
-                }
-            }
-        }
-
         public bool wasCarved = false;
         private Vector3 positionBeforeCarve;
 
@@ -423,10 +729,12 @@ namespace PartyManagement
             movementController?.MoveAlongPath(path);
         }
 
-        public void StopMovement()
-        {
-            movementController?.StopMovement();
-        }
+       //public void StopMovement()
+       //{
+       //    //movementController?.StopMovement(); // obsolete
+       //
+       //    agent.isStopped = true;
+       //}
 
         public void LookAtTarget(Vector3 target)
         {

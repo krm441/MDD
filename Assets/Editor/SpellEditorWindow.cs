@@ -42,6 +42,7 @@ public class SpellEditorWindow : EditorWindow
             spell.iconPath = EditorGUILayout.TextField("Icon Path", spell.iconPath);
             spell.shotcutKey = EditorGUILayout.TextField("Shortcut Key", spell.shotcutKey);
             spell.manaCost = EditorGUILayout.IntField("Mana Cost", spell.manaCost);
+            spell.apCost = EditorGUILayout.IntField("AP Cost", spell.apCost);
             spell.range = EditorGUILayout.IntField("Range", spell.range);
             spell.radius = EditorGUILayout.IntField("Radius", spell.radius);
             //spell.baseDamage = EditorGUILayout.FloatField("Base damage", spell.baseDamage);
@@ -51,6 +52,8 @@ public class SpellEditorWindow : EditorWindow
             spell.sfxOnImpact = EditorGUILayout.TextField("SFX Impact", spell.sfxOnImpact);
             spell.physicsType = (SpellPhysicsType)EditorGUILayout.EnumPopup("Physics Type", spell.physicsType);
             spell.dPSType = (SpellDPSType)EditorGUILayout.EnumPopup("DPS Type", spell.dPSType);
+            spell.hidden = EditorGUILayout.Toggle("Hidden", spell.hidden);
+            spell.friendlyFire = EditorGUILayout.Toggle("Friendly Fire", spell.friendlyFire);
 
             DrawDamageContainer(spell.baseDamage);
 

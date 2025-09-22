@@ -2,13 +2,9 @@
 using System.Collections.Generic;
 using PartyManagement;
 using Pathfinding;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using System.Linq;
 using UnityEngine.EventSystems;
-using static UnityEditorInternal.ReorderableList;
-using UnityEditor.PackageManager;
-using static UnityEngine.UI.CanvasScaler;
 
 public enum GameStateEnum
 {
@@ -18,6 +14,7 @@ public enum GameStateEnum
     Exploration,
     TurnBasedMode,
     ScriptedSequence, // cut-scenes, dialogues etc
+    GameOver,
 }
 
 public enum InteractionSubstate
@@ -42,17 +39,22 @@ public enum SpellCastingAnimationStates
 // singleton - persistent
 public class GameManagerMDD : MonoBehaviour
 {
+    [SerializeField] public SoundPlayer soundPlayer;
     [SerializeField] public CombatQueue combatQueue;
     [SerializeField] public UIManager UIManager;
     [SerializeField] public SpellMap spellMap;
-    [SerializeField] public PartyManagement.PartyManager partyManager;
+    //[SerializeField] public PartyManagement.PartyManager partyManager;
+    [SerializeField] public PartyPlayer partyManager;
     [SerializeField] private GridPathGenerator gridPathGenerator;
     [SerializeField] public IsometricCameraController isometricCamera;
 
     public PlayerData playerData = new PlayerData();
     [SerializeField] public CombatManager CombatManager;//= new CombatManager();
+    [SerializeField] public CombatManagement combatManagement;//= new CombatManager();
+    [SerializeField] public CursorManager cursorManager;
+    [SerializeField] public PartyPortraitManagerUI partyPortraitManagerUI;
 
-    public AiManager aiManager;
+    public AiMdd.AiManager aiManager;
    
     // references for the states:
     public Pathfinding.GridSystem gridSystem; // pathfinder
@@ -66,6 +68,11 @@ public class GameManagerMDD : MonoBehaviour
     public bool IsCombat() => currentStateEnum != GameStateEnum.Exploration;
 
     public IGameState GetCurrentState() => currentState;
+
+    public void EnterCinematicState()
+    {
+        ChangeState(GameStateEnum.ScriptedSequence);
+    }
 
     public void NextTurn() // facade of the turn based state
     {
@@ -82,6 +89,7 @@ public class GameManagerMDD : MonoBehaviour
             { GameStateEnum.Exploration, new ExplorationState(this, gridSystem) },
             { GameStateEnum.TurnBasedMode, new TurnBasedState(this) },            
             { GameStateEnum.ScriptedSequence, new ScriptedSequencesState(this) },            
+            { GameStateEnum.GameOver, new GameOverState(this) },            
         };
 
         ChangeState(currentStateEnum); // start in exploration in debug
@@ -119,7 +127,7 @@ public class GameManagerMDD : MonoBehaviour
         partyManager.SetMainAsSelected();
 
         // clear turn based queue
-        PartyPortraitManagerUI.ClearHorisontal();
+        partyPortraitManagerUI.ClearHorisontal();
     }
 
     public bool AreAnyCombatCoroutinesRunning()
@@ -158,6 +166,12 @@ public class GameManagerMDD : MonoBehaviour
         {
             handle.Stop();
         }
+    }
+
+    public void GameOverLoss()
+    {
+        Console.Log("Player lose");
+        ChangeState(GameStateEnum.GameOver);
     }
 }
 

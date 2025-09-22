@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using EventSystemMDD;
 using UnityEngine;
 
 #region Dialogue Data
@@ -39,7 +40,7 @@ public interface IScriptedSubstates
     void Update();
     void Exit();
 
-    void HandleButtonEvent(ButtonEvent customEvent);
+    void HandleButtonEvent(EventSystemMDD.ButtonEvent customEvent);
 }
 
 public abstract class ScriptedSubstate : IScriptedSubstates

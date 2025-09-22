@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System;
 
 /// <summary>
 /// Controls an isometric-style camera with smooth movement, rotation, and zoom.
@@ -22,8 +23,8 @@ public class IsometricCameraController : MonoBehaviour
     [Header("Zoom")]
     public float zoomSpeed = 5f;    // Speed of zooming (scroll sensitivity)
     public float minZoom = 5f;      // Closest distance to target
-    public float maxZoom = 20f;     // Furthest distance from target
-    private float currentZoom = 5f; // Runtime zoom distance from target
+    public float maxZoom = 25f;     // Furthest distance from target
+    public float currentZoom = 20f; // Runtime zoom distance from target
 
     [Header("Movement Bounds")]
     public Vector2 xBounds = new Vector2(-30f, 30f);
@@ -77,20 +78,19 @@ public class IsometricCameraController : MonoBehaviour
         mCamera.LookAt(target.position);
     }
 
-    private Coroutine moveCoroutine;
-        
+    private Coroutine moveCoroutine;        
 
-    public void LerpToCharacter(Transform charTransform, float duration = 0.5f)
+    public void LerpToCharacter(Transform charTransform, float duration = 0.5f, Action onComplete = null)
     {
         if (charTransform == null) return;
 
         if (moveCoroutine != null)
             StopCoroutine(moveCoroutine);
 
-        moveCoroutine = StartCoroutine(LerpToTargetPosition(charTransform.position, duration));
+        moveCoroutine = StartCoroutine(LerpToTargetPosition(charTransform.position, duration, onComplete));
     }
 
-    private IEnumerator LerpToTargetPosition(Vector3 targetPosition, float duration)
+    private IEnumerator LerpToTargetPosition(Vector3 targetPosition, float duration, Action onComplete)
     {
         Vector3 start = transform.position;
         Vector3 end = targetPosition;
@@ -111,6 +111,8 @@ public class IsometricCameraController : MonoBehaviour
             elapsed += Time.deltaTime;
             yield return null;
         }
+
+        onComplete?.Invoke();
 
         // Final alignment
         transform.position = end;

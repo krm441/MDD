@@ -1,13 +1,14 @@
 ﻿using GG;
+using UnityEditor;
 using UnityEngine;
 
-public class VoronoiGrammarController : MonoBehaviour
+public class VoronoiGrammarController : MonoBehaviour, IDungeon
 {
     [Header("Refs")]
     public VoronoiLayoutGenerator generator;
     public VoronoiMeshing mesher;
 
-    // ---------------- Grammar (structure + radii) ----------------
+    // ---------------- Grammar (structure + radii) ---------------- //
     [Header("Grammar")]
     [Tooltip("Random seed used for both grammar structure and island placement (deterministic).")]
     public int seed = 12345;
@@ -30,8 +31,11 @@ public class VoronoiGrammarController : MonoBehaviour
     [Tooltip("Target radius for Boss island (world units).")]
     public float radiusBoss = 7f;
 
-    // ---------------- Placement (non-overlap circles) ----------------
-    [Header("Placement (Non-overlap)")]
+    [Header("Final Scale")]
+    public float finalScale = 4.0f;
+
+    // ---------------- Placement ---------------- //
+    [Header("Placement")]
     [Tooltip("Extra spacing added between island circles (world units).")]
     public float placementGap = 2f;
 
@@ -49,7 +53,7 @@ public class VoronoiGrammarController : MonoBehaviour
 
     [Header("Voronoi")]
     [Tooltip("Padding added around all islands when computing world bounds for Voronoi.")]
-    public float boundsPadding = 5f;
+    public float boundsPadding = 15f;
 
     // ---------------- Corridors ----------------
     [Header("Corridors (A* raster)")]
@@ -59,11 +63,61 @@ public class VoronoiGrammarController : MonoBehaviour
     [Tooltip("How thick to paint the corridor in cell space (>=1).")]
     public int corridorThickness = 2;
 
+    // ---------------- Rooms -------------------- //
+    [Header("Rooms")]
+    public System.Collections.Generic.List<Room> rooms = new System.Collections.Generic.List<Room>();
+    private Room startRoom, bossRoom;
+
+    public Room GetPlayerStart() => startRoom;
+    public Room GetBossLocation() => bossRoom;
+
+    static bool IsIslandType(NodeLabel L) =>
+        L == NodeLabel.Start || L == NodeLabel.Boss ||
+        L == NodeLabel.A || L == NodeLabel.B || L == NodeLabel.C;
+
+    static RoomLabel ToRoomLabel(NodeLabel g)
+    {
+        switch (g)
+        {
+            case NodeLabel.Start: return RoomLabel.Start;
+            case NodeLabel.Boss: return RoomLabel.Boss;
+            case NodeLabel.A: return RoomLabel.A;
+            case NodeLabel.B: return RoomLabel.B;
+            case NodeLabel.C: return RoomLabel.C;
+            default: return RoomLabel.Unassigned;
+        }
+    }
+
+    void BuildRooms(Graph g)
+    {
+        rooms.Clear();
+        foreach (var n in g.nodes)
+        {
+            if (!IsIslandType(n.label)) continue;
+            rooms.Add(new Room
+            {
+                id = n.id,
+                label = ToRoomLabel(n.label),
+                worldPos = new Vector3(n.pos.x, 0f, n.pos.y) * finalScale
+            });
+
+            // inject start - boss rooms
+            if(n.label == NodeLabel.Start)
+            {
+                startRoom = rooms[rooms.Count - 1];
+            }
+            else if (n.label == NodeLabel.Boss)
+            {
+                bossRoom = rooms[rooms.Count - 1];
+            }
+        }
+    }
+
     // Implementation helpers
     GraphVoronoiMapper mapper = new GraphVoronoiMapper();
 
     [ContextMenu("Generate")]
-    public void GenerateAndColor()
+    public void Generate()
     {
         if (!generator || !mesher)
         {
@@ -101,13 +155,16 @@ public class VoronoiGrammarController : MonoBehaviour
         // 4) Build runtime graph with positions
         var g = GG.Graph.FromSpec(spec, positions);
 
-        // 5) Label islands by radius, then add corridors (note, paints the None labeled cells, doesnt touch the occupied)
+        // 5) Label islands by radius, then add corridors
         var labels = mapper.LabelIslandsByRadius(generator, g);
         mapper.AddCorridorsWithAStar(generator, g, ref labels, rasterTileSize, corridorThickness);
+
+        BuildRooms(g); // create Room objects at island centers
 
         // 6) Meshing
         mesher.activeGraph = g;
         mesher.cellLabels = labels;
+        mesher.hexScale = finalScale;
         mesher.Rebuild();
 
         // Debug display
@@ -126,5 +183,56 @@ public class VoronoiGrammarController : MonoBehaviour
             }
         }
         Console.Log($"Islands: A={a} B={b} C={c} Start={start} Boss={boss} | Corridor={corr} | None={none} | Bounds={bounds}");
+    }
+
+    [ContextMenu("Clear")]
+    public void Clean()
+    {
+        if (!generator || !mesher)
+        {
+            return;
+        }
+
+        generator.Clear();
+        mesher.Clear();
+    }
+
+    [SerializeField] float roomGizmoRadius = 0.45f;
+    [SerializeField] float verticalOffset = 0.2f;
+
+    void OnDrawGizmos()
+    {
+        if (rooms == null || rooms.Count == 0) return;
+
+        Vector3? startPos = null, bossPos = null;
+
+        foreach (var r in rooms)
+        {
+            if (r == null) continue;
+
+            Color color;
+            switch (r.label)
+            {
+                case RoomLabel.Start: color = Color.cyan; break;
+                case RoomLabel.Boss: color = Color.magenta; break;
+                case RoomLabel.A: color = new Color(0.2f, 0.6f, 1f); break;
+                case RoomLabel.B: color = new Color(0.2f, 1f, 0.6f); break;
+                case RoomLabel.C: color = new Color(1f, 0.8f, 0.2f); break;
+                default: color = Color.yellow; break;
+            }
+
+            Gizmos.color = color;
+            var pos = r.worldPos + Vector3.up * verticalOffset;
+            Gizmos.DrawSphere(pos, roomGizmoRadius);
+            Gizmos.DrawWireSphere(pos, roomGizmoRadius * 1.15f);
+
+            if (r.label == RoomLabel.Start) startPos = pos;
+            else if (r.label == RoomLabel.Boss) bossPos = pos;
+
+#if UNITY_EDITOR
+            Handles.color = color;
+            Handles.Label(pos + Vector3.up * (roomGizmoRadius + 0.15f), $"{r.label} ({r.id})");
+#endif
+        }
     }
 }

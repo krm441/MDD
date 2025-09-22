@@ -27,8 +27,8 @@ public class DialogueUIController : MonoBehaviour
         this.initiator = initiator;
         this.target = target;
 
-        //LoadDialogue($"dialogue_{target.name.ToLower()}");
-        LoadDialogue($"dialogue_bob");
+        LoadDialogue($"dialogue_{target.unitName.ToLower()}");
+        //LoadDialogue($"dialogue_bob");
         ShowNode(dialogueData.nodes[0]); // start with the first node
     }
 

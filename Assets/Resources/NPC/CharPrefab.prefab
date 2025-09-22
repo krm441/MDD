@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 3530119625651954869}
   - component: {fileID: 2131042321027036780}
   - component: {fileID: 2565629889849747383}
-  - component: {fileID: 741166549935166977}
   - component: {fileID: 5782565744791532361}
   - component: {fileID: 7156915144353716195}
   - component: {fileID: 2670363550877132696}
@@ -53,7 +52,40 @@ MonoBehaviour:
   unitID: 0
   isPlayerControlled: 1
   isMainCharacter: 0
-  attributeSet: {fileID: 741166549935166977}
+  attributeSet:
+    stats:
+      Intelligence: 0
+      Willpower: 0
+      Devotion: 0
+      HP: 0
+      MaxHP: 0
+      Speed: 0
+      Initiative: 0
+      ActionPoints: 0
+      MaxActionPoints: 8
+      StartActionPoints: 0
+    armorStat:
+      physicalArmor: 0
+      maxPhysicalArmor: 0
+      magicArmor: 0
+      maxMagicArmor: 0
+      moraleLevel: 100
+    resistances:
+      Slashing: 0
+      Piercing: 0
+      Crushing: 0
+      Fire: 0
+      Water: 0
+      Wind: 0
+      Earth: 0
+      Light: 0
+      Shadow: 0
+      Necrotic: 0
+      Poison: 0
+      Demonic: 0
+      Healing: 0
+      MentalFortification: 0
+      MagicFortification: 0
   portraitSprite: {fileID: 0}
   unitName: Default
   currentlySelectedSpell:
@@ -107,51 +139,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5cbdc57dbbcd00408e53d426a69a91a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &741166549935166977
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5828208752456088041}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0d5568a4bd70a32478df3deaca1ca766, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  stats:
-    Intelligence: 0
-    Willpower: 0
-    Devotion: 0
-    HP: 0
-    MaxHP: 0
-    Speed: 0
-    Initiative: 0
-    ActionPoints: 0
-    MaxActionPoints: 8
-    StartActionPoints: 0
-  armorStat:
-    physicalArmor: 0
-    maxPhysicalArmor: 0
-    magicArmor: 0
-    maxMagicArmor: 0
-    moraleLevel: 0
-  resistances:
-    Slashing: 0
-    Piercing: 0
-    Crushing: 0
-    Fire: 0
-    Water: 0
-    Wind: 0
-    Earth: 0
-    Light: 0
-    Shadow: 0
-    Necrotic: 0
-    Poison: 0
-    Demonic: 0
-    Healing: 0
-    MentalFortification: 0
-    MagicFortification: 0
 --- !u!195 &5782565744791532361
 NavMeshAgent:
   m_ObjectHideFlags: 0

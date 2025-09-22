@@ -6,14 +6,14 @@ using PartyManagement;
 
 public class PartyPortraitManagerUI : MonoBehaviour
 {
-    //[SerializeField] 
-    private static GameObject portraitButtonPrefab;
+    [SerializeField] 
+    private GameObject portraitButtonPrefab;
     //[SerializeField] 
     //private static Transform[] portraitParent = new Transform[2]; // this could be a Dictionary
     //[SerializeField] private SpellMap spellMap;
 
-    private static Transform verticalParent;   // Vertical pane: party portraits
-    private static Transform horizontalParent; // Horizontal queue: 
+    [SerializeField] private Transform verticalParent;   // Vertical pane: party portraits
+    [SerializeField] private Transform horizontalParent; // Horizontal queue: 
 
     [SerializeField] private SpellMap spellMap;
     [SerializeField] private GameManagerMDD gameManager;
@@ -25,12 +25,12 @@ public class PartyPortraitManagerUI : MonoBehaviour
         //partyManager = gameManager.partyManager;
     }
 
-    public static void ClearHorisontal()
+    public void ClearHorisontal()
     {
         ClearPortraits(horizontalParent);
     }
 
-    public static void BuildTurnQueuePortraits(Queue<CharacterUnit> units)
+    public void BuildTurnQueuePortraits(Queue<CharacterUnit> units)
     {
         // Load prefab if not loaded earlier
         if (portraitButtonPrefab == null)
@@ -81,13 +81,14 @@ public class PartyPortraitManagerUI : MonoBehaviour
 
             btn.GetComponentInChildren<Button>().onClick.AddListener(() =>
             {
-                ButtonEvent buttonEvent = new ButtonEvent
+                EventSystemMDD.ButtonEvent buttonEvent = new EventSystemMDD.ButtonEvent
                 {
                     targetUnit = unit,
-                    eventType = EventTypeButton.EnemyPortratClick
+                    eventType = EventSystemMDD.EventType.EnemyPortratClick
 
                 };
-                UnityEngine.Object.FindObjectOfType<GameManagerMDD>().GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
+                EventSystemMDD.EventSystemMDD.Raise(buttonEvent);
+                //UnityEngine.Object.FindObjectOfType<GameManagerMDD>().GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
 
                 // show stats in a tooltip
             });
@@ -150,13 +151,109 @@ public class PartyPortraitManagerUI : MonoBehaviour
 
             btn.GetComponentInChildren<Button>().onClick.AddListener(() =>
             {
-                ButtonEvent buttonEvent = new ButtonEvent
+                EventSystemMDD.ButtonEvent buttonEvent = new EventSystemMDD.ButtonEvent
                 {
                     targetUnit = unit,
-                    eventType = EventTypeButton.CharPortratClick
+                    eventType = EventSystemMDD.EventType.CharPortratClick
 
                 };
-                gameManager.GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
+                EventSystemMDD.EventSystemMDD.Raise(buttonEvent);
+                //gameManager.GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
+                //partyManager.SelectMember(index);
+                //spellMap.BuildIconBar(unit, gameManager);
+                //Console.Log("Selected:", unit.unitName);
+            });
+        }
+        /*
+        foreach (Transform child in portraitParent)
+            Destroy(child.gameObject);
+
+        for (int i = 0; i < PartyManager.partyMembers.Count; i++)
+        {
+            int index = i;
+            CharacterUnit unit = PartyManager.partyMembers[i];
+
+            GameObject btn = Instantiate(portraitButtonPrefab, portraitParent);
+            btn.GetComponentInChildren<Image>().sprite = unit.portraitSprite;
+
+            Console.Warn("party member added");
+            btn.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                // set member selected
+                PartyManager.SelectMember(index); 
+
+                // populate spells
+                //if (spellMap != null)
+                    SpellMap.BuildIconBar(PartyManager.partyMembers[index]);
+                Console.Log($"Selected: {unit.unitName}");
+            });
+        }*/
+    }
+
+    public void BuildPortraitBar(List<CharacterUnit> characters)
+    {
+        // Load prefab once
+        if (portraitButtonPrefab == null)
+        {
+            portraitButtonPrefab = Resources.Load<GameObject>("UI/PortraitButtonPref");
+            if (portraitButtonPrefab == null)
+            {
+                Console.Error("PortraitButton prefab not found in Resources/UI/");
+                return;
+            }
+        }
+
+        // Find portrait parent in scene by name
+        //if (portraitParent[0] == null)
+        {
+            //GameObject parentObj = GameObject.Find("PartyPortraitParent");
+            GameObject parentObj = GameObject.Find("VerticalLayout");
+            if (parentObj == null)
+            {
+                Console.Error("Could not find 'VerticalLayout' in the scene!");
+                return;
+            }
+            verticalParent = parentObj.transform;
+        }
+
+        // Clear old portraits
+        ClearPortraits(verticalParent);
+        //foreach (Transform child in verticalParent)
+        //    Object.Destroy(child.gameObject);
+
+        // Build buttons
+        for (int i = 0; i < characters.Count; i++)
+        {
+            int index = i;
+            CharacterUnit unit = characters[i];
+
+            GameObject btn = Object.Instantiate(portraitButtonPrefab, verticalParent);
+            //var img = btn.GetComponentInChildren<Image>();
+            //if (img != null)
+            //    img.sprite = unit.portraitSprite;
+
+            var portraitImg = btn.transform.Find("Panel/PortraitButton").GetComponent<Image>();
+            if (portraitImg != null)
+                portraitImg.sprite = unit.portraitSprite;
+
+            // Inject CharacterUnit to the UI script
+            PortraitBarUI barUI = btn.GetComponent<PortraitBarUI>();
+            if (barUI != null)
+            {
+                // Assign the CharacterUnit
+                barUI.SetUnit(unit);
+            }
+
+            btn.GetComponentInChildren<Button>().onClick.AddListener(() =>
+            {
+                EventSystemMDD.ButtonEvent buttonEvent = new EventSystemMDD.ButtonEvent
+                {
+                    targetUnit = unit,
+                    eventType = EventSystemMDD.EventType.CharPortratClick
+
+                };
+                EventSystemMDD.EventSystemMDD.Raise(buttonEvent);
+                //gameManager.GetCurrentState().GetSubstate().HandleButtonEvent(buttonEvent);
                 //partyManager.SelectMember(index);
                 //spellMap.BuildIconBar(unit, gameManager);
                 //Console.Log("Selected:", unit.unitName);
@@ -218,7 +315,7 @@ public class PartyPortraitManagerUI : MonoBehaviour
         BuildTurnQueuePortraits(alive);
     }
 
-    private static void ClearPortraits(Transform parent)
+    private void ClearPortraits(Transform parent)
     {
         foreach (Transform child in parent)
             Destroy(child.gameObject);

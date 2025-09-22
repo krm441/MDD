@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,7 +7,7 @@ using UnityEngine;
 /// Represents a node in a Binary Space Partitioning tree.
 /// Used for splitting dungeon space and assigning rooms.
 /// </summary>s
-[System.Serializable]
+[Obsolete][System.Serializable]
 public class BSPNode
 {
     public RectInt bounds;

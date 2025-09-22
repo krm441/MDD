@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public enum DoorOpenStyle
 {
@@ -9,11 +10,18 @@ public enum DoorOpenStyle
 
 public class DoorOpener : MonoBehaviour, IInteractableAction
 {
+    [SerializeField] private GameManagerMDD gameManager;
     [SerializeField] private DoorOpenStyle doorOpenStyle = DoorOpenStyle.FromTopToBottom;
     [SerializeField] private Renderer doorRenderer;
     [SerializeField] private Renderer doorMask;
     [SerializeField] private Transform doorTransform;
     [SerializeField] private float openDuration = 2f;
+
+    void Start()
+    {
+        gameManager = FindObjectOfType<GameManagerMDD>();
+        Assert.IsNotNull(gameManager);
+    }
 
     public void Execute(GameObject caller)
     {
@@ -22,7 +30,7 @@ public class DoorOpener : MonoBehaviour, IInteractableAction
 
     public void OpenDoor()
     {
-        SoundPlayer.PlayClipAtPoint("DoorMoveHeavy", transform.position);
+        gameManager.soundPlayer.PlayClipAtPoint("DoorMoveHeavy", transform.position);
         float doorHeight = doorRenderer.bounds.size.y;
         Vector3 endPos = doorTransform.position;
 
@@ -31,6 +39,23 @@ public class DoorOpener : MonoBehaviour, IInteractableAction
 
         StartCoroutine(MoveDoor(doorTransform.position, endPos));
     }
+
+    public void OpenDoorInstant()
+    {
+        // stop running animation
+        StopAllCoroutines();
+
+        float doorHeight = doorRenderer.bounds.size.y;
+        Vector3 endPos = doorTransform.position;
+
+        if (doorOpenStyle == DoorOpenStyle.FromTopToBottom)
+            endPos -= Vector3.up * doorHeight;
+
+        doorTransform.position = endPos;
+        doorMask.enabled = false;
+        doorRenderer.enabled = false;
+    }
+
 
     private IEnumerator MoveDoor(Vector3 from, Vector3 to)
     {

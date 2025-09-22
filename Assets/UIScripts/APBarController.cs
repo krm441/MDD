@@ -13,7 +13,8 @@ public class APBarController : MonoBehaviour
     private Color availableColor = Color.green;
     private Color unavailableColor = Color.gray;
 
-    [SerializeField] private PartyManager partyManager;
+    //[SerializeField] private PartyManager partyManager;
+    [SerializeField] private PartyPlayer partyManager;
 
     void Update()
     {

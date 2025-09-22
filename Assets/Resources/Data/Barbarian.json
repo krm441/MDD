@@ -1,0 +1,50 @@
+{
+    "unitName": "Barbarian",
+    "isMainCharacter": false,
+    "portraitPrefabName": "BarbarianPortrait",
+    "attributeSet": {
+        "stats": {
+            "Intelligence": 0,
+            "Willpower": 17,
+            "Devotion": 0,
+            "HP": 150,
+            "MaxHP": 150,
+            "Speed": 2,
+            "Initiative": 3,
+            "ActionPoints": 0,
+            "MaxActionPoints": 8,
+            "StartActionPoints": 4
+        },
+        "armorStat": {
+            "physicalArmor": 0,
+            "maxPhysicalArmor": 0,
+            "magicArmor": 0,
+            "maxMagicArmor": 0,
+            "moraleLevel": 100
+        },
+        "resistances": {
+            "Slashing": 0,
+            "Piercing": 0,
+            "Crushing": 0,
+            "Fire": 0,
+            "Water": 0,
+            "Wind": 0,
+            "Earth": 0,
+            "Light": 0,
+            "Shadow": 0,
+            "Necrotic": 0,
+            "Poison": 0,
+            "Demonic": 0,
+            "Healing": 0,
+            "MentalFortification": 0,
+            "MagicFortification": 0
+        }
+    },
+    "spells": [
+        "BasicAttackMagic",
+        "BasicAttackMelee",
+        "BasicHeal",
+        "Whirl"
+    ],
+    "rigMeshName": "BarbarianPrefab"
+}

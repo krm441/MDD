@@ -10,7 +10,10 @@ namespace GG
         A, B, C,    // island types
         Start,
         Boss,
-        Corridor    // used when painting roads on Voronoi
+        Corridor,   // used when painting roads on Voronoi
+
+        Shore,      // one ring around islands
+        LandDecor   //non-walkable decorative land fill
     }
 
     public class SpecNode

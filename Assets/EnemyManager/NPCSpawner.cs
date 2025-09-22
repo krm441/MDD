@@ -7,10 +7,12 @@ public class NPCSpawner : MonoBehaviour
     [SerializeField] private Transform[] spawnLocations;
     [SerializeField] private EnemyManager enemyManager;
 
+    [SerializeField] private int preferableEnemyCount;
+
     // Start is called before the first frame update
     void Start()
     {
-        StartCoroutine(DelayedSpawn());
+        //StartCoroutine(DelayedSpawn());
     }
 
     private IEnumerator DelayedSpawn()
@@ -18,7 +20,7 @@ public class NPCSpawner : MonoBehaviour
         yield return new WaitUntil(() => enemyManager != null); // wait till enemy manager initializes
 
         if (enemyManager != null)
-            enemyManager.SpawnDebugPack(spawnLocations[0].position, 3);
+            enemyManager.SpawnDebugPack(spawnLocations[0].position, preferableEnemyCount, 3);
         else
             Console.Error("NPCSpawner::DelayedSpawn: fail");
     }

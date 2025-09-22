@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -6,7 +7,7 @@ using UnityEngine;
 /// Generates rooms, connects them via corridors, and populates the scene with
 /// floors, walls, pillars, and doors. Also configures walkability for a pathfinding grid.
 /// </summary>
-[ExecuteInEditMode]
+[Obsolete][ExecuteInEditMode]
 public class DungeonBSPGenerator : MonoBehaviour
 {
     // ---------------- Configuration ----------------
@@ -49,7 +50,7 @@ public class DungeonBSPGenerator : MonoBehaviour
 
     void Start()
     {
-        GenerateFullDungeon();
+        //GenerateFullDungeon();
     }
 
     /// <summary>
@@ -60,7 +61,7 @@ public class DungeonBSPGenerator : MonoBehaviour
     {
         ClearDungeon();
 
-        Random.InitState(seed);
+        UnityEngine.Random.InitState(seed);
         root = new BSPNode(new RectInt(0, 0, dungeonSize.x, dungeonSize.y));
         finalRooms.Clear(); // clear any previous meshes if exist
 
@@ -113,13 +114,13 @@ public class DungeonBSPGenerator : MonoBehaviour
 
         if (splitHorizontally)
         {
-            int splitY = Random.Range(minRoomSize, node.bounds.height - minRoomSize);
+            int splitY = UnityEngine.Random.Range(minRoomSize, node.bounds.height - minRoomSize);
             node.left = new BSPNode(new RectInt(node.bounds.x, node.bounds.y, node.bounds.width, splitY));
             node.right = new BSPNode(new RectInt(node.bounds.x, node.bounds.y + splitY, node.bounds.width, node.bounds.height - splitY));
         }
         else
         {
-            int splitX = Random.Range(minRoomSize, node.bounds.width - minRoomSize);
+            int splitX = UnityEngine.Random.Range(minRoomSize, node.bounds.width - minRoomSize);
             node.left = new BSPNode(new RectInt(node.bounds.x, node.bounds.y, splitX, node.bounds.height));
             node.right = new BSPNode(new RectInt(node.bounds.x + splitX, node.bounds.y, node.bounds.width - splitX, node.bounds.height));
         }

@@ -18,6 +18,6 @@ public class SpawnButton1 : MonoBehaviour
 
     public void SpawnParty1()
     {
-        FindObjectOfType<EnemyManager>().SpawnDebugPack(new Vector3(20, 0, 20), 3);
+        FindObjectOfType<EnemyManager>().SpawnDebugPack(new Vector3(20, 0, 20), 3, 3);
     }
 }

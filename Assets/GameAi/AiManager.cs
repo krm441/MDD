@@ -1,87 +1,91 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
 using UnityEngine;
 
 // =================== AI Manager for all AI utilities =================== //
-
-public class AiManager : MonoBehaviour
+namespace AiMdd
 {
-    private Dictionary<CharacterUnit, BTNode> aiTrees = new Dictionary<CharacterUnit, BTNode>();
-    private Dictionary<CharacterUnit, BTblackboard> blackboards = new Dictionary<CharacterUnit, BTblackboard>();
-
-    [SerializeField] private GameManagerMDD gameManager;
-    [SerializeField] private Transform stockpile;
-
-    private void RegisterAI(CharacterUnit unit, BTNode tree, BTblackboard context)
+    public class AiManager : MonoBehaviour
     {
-        aiTrees[unit] = tree;
-        blackboards[unit] = context;
-    }
+        private Dictionary<CharacterUnit, BTNode> aiTrees = new Dictionary<CharacterUnit, BTNode>();
+        private Dictionary<CharacterUnit, BTblackboard> blackboards = new Dictionary<CharacterUnit, BTblackboard>();
 
-    public void TickAI(CharacterUnit unit)
-    {
-        if (aiTrees.TryGetValue(unit, out var tree) && blackboards.TryGetValue(unit, out var bb))
+        [SerializeField] private GameManagerMDD gameManager;
+        [SerializeField] private Transform stockpile;
+
+        private void RegisterAI(CharacterUnit unit, BTNode tree, BTblackboard context)
         {
-            var result = tree.Tick(bb);
+            aiTrees[unit] = tree;
+            blackboards[unit] = context;
+        }
 
-            if (result == BTState.Success || result == BTState.Failure)
+        public void TickAI(CharacterUnit unit)
+        {
+            if (aiTrees.TryGetValue(unit, out var tree) && blackboards.TryGetValue(unit, out var bb))
             {
-                //Console.Log("result", result);
+                var result = tree.Tick(bb);
 
-                // Turn over
-                //gameManager.GetCurrentState().NextTurn();
+                if (result == BTState.Success || result == BTState.Failure)
+                {
+                    //Console.Log("result", result);
+
+                    // Turn over
+                    //gameManager.GetCurrentState().NextTurn();
+                }
             }
         }
-    }
 
-    public void SetupAI_BT(CharacterUnit unit)
-    {
-        var tree =
-            new Selector
-            (
-                new Sequence // idle state
-                (
-                    new CheckCombatStateFalse(),
-                    new FindResourceInRadius(15f),
-                    new MoveToResource(),
-                    new HarvestResource(),
-                    new MoveToStockpile()
-                )
-                ,
-                new Sequence // combat state
-                (
-                    new CheckCombatStateTrue(),
-                    new PickTargetRadius(),
-                    new Selector // OR logic
-                    (
-                        new Sequence( // AND logic
-                            new CalculateSpellPath(),
-                            new CastSpell()
-                        ),
-                        new PursueTarget()
-                    ),
-                    new EndTurn()
-                )
-            );
-
-        Debug.Assert(gameManager != null, "gameManager is null");
-        Debug.Assert(gameManager.gridSystem != null, "gridSystem is null");
-        Debug.Assert(gameManager.partyManager != null, "partyManager is null");
-        Debug.Assert(gameManager.partyManager.GetPlayerControlledUnits() != null, "PotentialTargets is null");
-
-
-        var context = new BTblackboard
+        public void SetupAI_BT(CharacterUnit unit)
         {
-            Caster = unit,
-            gameManager = gameManager,
-            Grid = gameManager.gridSystem,
-            PotentialTargets = gameManager.partyManager.GetPlayerControlledUnits(),
+            var tree =
+                new Selector
+                (
+                    new Sequence // idle state
+                    (
+                        new CheckCombatStateFalse(),
+                        new CheckEnemyInRange(),
+                        new FindResourceInRadius(25f),
+                        new MoveToResource(),
+                        new HarvestResource(),
+                        new MoveToStockpile()
+                    )
+                    ,
+                    new Sequence // combat state
+                    (
+                        new CheckCombatStateTrue(),
+                        new PickTargetRadius(),
+                        new Selector // OR logic
+                        (
+                            new Sequence( // AND logic
+                                new CalculateSpellPath(),
+                                new CastSpell()
+                            ),
+                            new PursueTarget()
+                        ),
+                        new EndTurn()
+                    )
+                //new EndTurn()
+                );
 
-            StockpilePosition = stockpile//.position
-        };
+            Debug.Assert(gameManager != null, "gameManager is null");
+            Debug.Assert(gameManager.gridSystem != null, "gridSystem is null");
+            Debug.Assert(gameManager.partyManager != null, "partyManager is null");
+            //Debug.Assert(gameManager.partyManager.GetPlayerControlledUnits() != null, "PotentialTargets is null");
 
-        RegisterAI(unit, tree, context);
+
+            var context = new BTblackboard
+            {
+                Caster = unit,
+                gameManager = gameManager,
+                Grid = gameManager.gridSystem,
+                //PotentialTargets = gameManager.partyManager.GetPlayerControlledUnits(),
+
+                StockpilePosition = stockpile//.position
+            };
+
+            RegisterAI(unit, tree, context);
+        }
     }
 }
-
