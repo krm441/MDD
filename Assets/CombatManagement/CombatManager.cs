@@ -3,8 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using PartyManagement;
 using Pathfinding;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using static VoronoiLayoutGenerator;
 
 
 
@@ -37,7 +37,20 @@ public class CombatManager : MonoBehaviour
         textObj.GetComponent<FloatingDamageText>().Setup("+" + healing.ToString(), color);
     }
 
-    public void ApplySpell(CharacterUnit caster, Spell spell, Vector3 targetPosition, Action onImpactComplete)
+    public IEnumerator WalkAndMelee(CharacterUnit attacker, CharacterUnit target, Action onComplete)
+    {
+        var stoppingDistance = target.GetRadius() + attacker.GetRadius();
+
+        yield return attacker.MoveTo(target.GetFeetPos(), stoppingDistance);
+
+        var spell = new Spell { baseDamage = new DamageResistenceContainer { Slashing = attacker.weapon.power } };
+
+        damageCalculator.CalculateDamage(new DamageContext { Caster = attacker, Spell = spell, Target = target, CombatManager = this });
+
+        onComplete?.Invoke();
+    }
+
+    public void ApplySpell(GameManagerMDD gameManager, CharacterUnit caster, Spell spell, Vector3 targetPosition, Action onImpactComplete)
     {
         Debug.Log("SPELL FIRE");
 
@@ -45,12 +58,18 @@ public class CombatManager : MonoBehaviour
         caster.LookAtTarget(targetPosition);
 
         // SFX - start
-        SoundPlayer.PlayClipAtPoint(spell.sfxOnStart, targetPosition);
+        gameManager.soundPlayer.PlayClipAtPoint(spell.sfxOnStart, targetPosition);
 
         // VFX
         SpellVisualEffectsManager.LaunchSpellVFX(spell, caster, targetPosition, () =>
         {
-            var targets = FindTargetsInRadius(targetPosition, spell.radius);
+
+            LayerMask affectedLayers = LayerMask.GetMask("PartyLayer", "Destructibles", "HostileNPCs");
+            if(caster.gameObject.layer == LayerMask.NameToLayer("PartyLayer"))
+                if(!spell.friendlyFire)
+                    affectedLayers = LayerMask.GetMask("Destructibles", "HostileNPCs");
+
+            var targets = FindTargetsInRadius(targetPosition, spell.radius, affectedLayers);
             if (targets != null && targets.Count > 0)
             {
                 foreach (var target in targets)
@@ -69,12 +88,16 @@ public class CombatManager : MonoBehaviour
                         }
                     }
 
-                    if (target.TryGetComponent<AttributeSet>(out var unit) ||
-                        target.transform.parent?.TryGetComponent<AttributeSet>(out unit) == true)
-                    {
+                    
 
+                   if (target.TryGetComponent<CharacterUnit>(out var unit) ||
+                       target.transform.parent?.TryGetComponent<CharacterUnit>(out unit) == true)
+                   {
                         CalculateDamage(caster, spell, unit);
-                    }
+                       
+                   }
+
+
                     //Console.Error("HITS", damage);
                     //if (target.TryGetComponent<CharacterUnit>(out var unit) ||
                     //                                                           target.transform.parent?.TryGetComponent<CharacterUnit>(out unit) == true) 
@@ -91,13 +114,13 @@ public class CombatManager : MonoBehaviour
             }
 
             // SFX - finish
-            SoundPlayer.PlayClipAtPoint(spell.sfxOnImpact, targetPosition);
+            gameManager.soundPlayer.PlayClipAtPoint(spell.sfxOnImpact, targetPosition);
 
             onImpactComplete?.Invoke();
         });       
     }
 
-    private void CalculateDamage(CharacterUnit caster, Spell spell, AttributeSet target)
+    private void CalculateDamage(CharacterUnit caster, Spell spell, CharacterUnit target)
     {
         damageCalculator.CalculateDamage(new DamageContext { Caster = caster, Spell = spell, Target = target, CombatManager = this});
 
@@ -112,7 +135,7 @@ public class CombatManager : MonoBehaviour
 
     }
 
-    private DamageCalculator damageCalculator = new DamageCalculator();
+    public DamageCalculator damageCalculator = new DamageCalculator();
 
     /// <summary>
     /// 
@@ -121,10 +144,9 @@ public class CombatManager : MonoBehaviour
     /// <param name="radius"></param>
     /// <param name="losSource">Lign of Sight</param>
     /// <returns></returns>
-    private static List<GameObject> FindTargetsInRadius(Vector3 pos, float radius, Vector3? losSource = null) 
+    private static List<GameObject> FindTargetsInRadius(Vector3 pos, float radius, LayerMask affectedLayers, Vector3? losSource = null) 
     {
         List<GameObject> validTargets = new List<GameObject>();
-        LayerMask affectedLayers = LayerMask.GetMask("PartyLayer", "Destructibles", "HostileNPCs");
         Collider[] hits = Physics.OverlapSphere(pos, radius, affectedLayers);
 
         Debug.Log($"Checking radius {radius} at {pos}");

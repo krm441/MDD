@@ -36,21 +36,7 @@ public class VoronoiLayoutGenerator : MonoBehaviour
     private LinkedList<VEdge> edges;
     private readonly List<Cell> cells = new List<Cell>();
 
-    //void OnValidate()
-    //{
-    //    hexSize = Mathf.Max(0.01f, hexSize);
-    //    worldBounds.width = Mathf.Max(0.01f, worldBounds.width);
-    //    worldBounds.height = Mathf.Max(0.01f, worldBounds.height);
-    //    relaxIterations = Mathf.Clamp(relaxIterations, 0, 4);
-    //    if (regenerateOnValidate && Application.isEditor)
-    //        Generate();
-    //}
-
-    //void Start()
-    //{
-    //    if (autoGenerateOnPlay) Generate();
-    //}
-
+    
     [ContextMenu("Generate")]
     public void Generate()
     {
@@ -60,7 +46,7 @@ public class VoronoiLayoutGenerator : MonoBehaviour
         var lattice = MakeHexLattice(worldBounds, hexSize);
         sitePositions = Jitter(lattice, jitterRadius, rng);
 
-        // 2) Fortune + optional Lloyd (at least one relax round looks good)
+        // 2) Fortune + Lloyd (at least one relax round looks good)
         var sites = sitePositions.Select(p => new FortuneSite(p.x, p.y)).ToList();
 
         for (int it = 0; it <= relaxIterations; it++)
@@ -102,7 +88,12 @@ public class VoronoiLayoutGenerator : MonoBehaviour
         }
     }
 
-    // -------- helpers --------
+    public void Clear()
+    {
+        cells.Clear();
+    }
+
+    // -------- helpers -------- //
 
     private static Dictionary<FortuneSite, List<Vector2>> BuildCellsBySite(List<FortuneSite> siteList, LinkedList<VEdge> vedges)
     {

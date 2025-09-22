@@ -161,7 +161,7 @@ namespace GG
                 if (Fits(spec, nodeId, candidate, pos)) return candidate;
                 R += ringStep;
             }
-            // Absolute last resort: place very far (should almost never happen)
+            // Last resort: place very far
             return anchor + dir * (baseDist + 1000f);
         }
 

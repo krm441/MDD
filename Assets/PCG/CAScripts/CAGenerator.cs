@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 
 [ExecuteInEditMode]
-public class CAGenerator : MonoBehaviour
+public class CAGenerator : MonoBehaviour, IDungeon
 {
     [Range(0,100)]
 	public int randomFillPercent = 60;
@@ -22,6 +22,8 @@ public class CAGenerator : MonoBehaviour
 
     public int seed = 1;
 
+    private Room startRoom, bossRoom;
+
     // path
     public Pathfinding.GridSystem pathFinder;
 
@@ -34,7 +36,7 @@ public class CAGenerator : MonoBehaviour
     }
 
     [ContextMenu("Generate Dungeon")]
-    public void GenerateDungeon()
+    public void Generate()
     {
         // init seed
         Random.InitState(seed);
@@ -69,10 +71,13 @@ public class CAGenerator : MonoBehaviour
     }
 
     [ContextMenu("Remove Dungeon")]
-    public void ClearDungeon()
+    public void Clean()
     {
         caMeshing?.ClearPrevious();
     }
+
+    public Room GetPlayerStart() => startRoom;
+    public Room GetBossLocation() => bossRoom;
 
     void MakeNoiseGrid(int density)
     {
@@ -226,11 +231,12 @@ public class CAGenerator : MonoBehaviour
             foreach (var t in tiles) sum += new Vector2(t.x, t.y);
             roomCentroid[id] = sum / Mathf.Max(1, tiles.Count);
 
+            Vector2 upscaledPos = caMeshing.scale * roomCentroid[id]; // world pos of the room (scale is needed, since the grid is 1x1)
             rooms.Add(new Room
             {
                 id = id,
                 label = RoomLabel.Unassigned,
-                worldPos = caMeshing.scale * roomCentroid[id] // world pos of the room (scale is needed, since the grid is 1x1)
+                worldPos = new Vector3(upscaledPos.x, 0, upscaledPos.y)
             });
         }
     }
@@ -274,6 +280,10 @@ public class CAGenerator : MonoBehaviour
         foreach (var r in rooms) r.label = RoomLabel.Unassigned;
         rooms.Find(r => r.id == startId).label = RoomLabel.Start;
         rooms.Find(r => r.id == bossId).label = RoomLabel.Boss;
+
+        // store IDs
+        startRoom = rooms.Find(r => r.id == startId);
+        bossRoom = rooms.Find(r => r.id == bossId);
     }
 
     int ShortestPathFloor(Vector2Int a, Vector2Int b)
@@ -476,7 +486,7 @@ public class CAGenerator : MonoBehaviour
             {
                 var id = kv.Key;
                 var c = kv.Value;
-                var w = new Vector3(c.x * tileSize, 0.3f, c.y * tileSize);
+                var w = new Vector3(c.x * tileSize * caMeshing.scale, 0.3f, c.y * tileSize * caMeshing.scale);
 
                 var room = rooms.Find(r => r.id == id);
                 Color color = Color.yellow;

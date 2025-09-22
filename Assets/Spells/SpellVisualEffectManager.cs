@@ -51,6 +51,14 @@ public static class SpellVisualEffectsManager
                 LaunchArrow("BasicArrow", caster, targetPosition, onImpact);
                 break;
 
+            case "arrow":
+                LaunchArrow("arrow", caster, targetPosition, onImpact);
+                break;
+
+            case "meleeaoe":
+                MeleeAoE(caster, targetPosition, onImpact);
+                break;
+
             default:
                 Debug.LogWarning($"Unknown spell VFX type: {spell.vfxType}. Falling back to default.");
                 LaunchProjectile("FireballPref", caster, targetPosition, onImpact); // for now default will be the fireball visuals
@@ -147,5 +155,11 @@ public static class SpellVisualEffectsManager
             Debug.LogWarning($"Prefab '{prefabName}' missing ProjectileLinear.");
             GameObject.Destroy(proj);
         }
+    }
+
+    private static void MeleeAoE(CharacterUnit caster, Vector3 targetPosition, Action onImpact)
+    {
+        caster.MeleeAoE(targetPosition, onImpact);
+
     }
 }

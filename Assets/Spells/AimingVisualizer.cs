@@ -5,6 +5,9 @@ using System;//.Drawing;
 using UnityEngine;
 using UnityEngine.AI;
 using PartyManagement;
+using UnityEngine.UI;
+using UnityEngine.Rendering.PostProcessing;
+using UnityEngine.Assertions;
 
 public static class AimingVisualizer
 {
@@ -86,6 +89,37 @@ public static class AimingVisualizer
             }
         }
     }
+
+    /// <summary>
+    /// Better version - with 'out' variable of GO
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="radius"></param>
+    /// <param name="highlightedObjects"></param>
+    public static void HighlightTargets(Vector3 center, float radius, out List<GameObject> highlightedObjects)
+    {
+        ClearHighlights();
+
+        highlightedObjects = new List<GameObject>();
+
+        var hits = Physics.OverlapSphere(center, radius, LayerMask.GetMask("PartyLayer", "Destructibles", "HostileNPCs"));
+        foreach (var col in hits)
+        {
+            GameObject go = col.gameObject;
+            highlightedObjects.Add(go);    
+
+            var rend = go.GetComponentInChildren<Renderer>();
+            if (rend != null && rend.material.HasProperty("_EmissionColor"))
+            {
+                rend.material.EnableKeyword("_EMISSION");
+                rend.material.SetColor("_EmissionColor", highlightColor);
+
+                highlighted.Add(rend);           
+            } 
+        }
+    }
+
+
     private static void ClearHighlights()
     {
         foreach (var rend in highlighted)
@@ -220,6 +254,104 @@ public static class AimingVisualizer
         }
 
         return false;
+    }
+
+    static readonly RaycastHit[] raycastHits = new RaycastHit[32];
+    private static int mask = LayerMask.GetMask("Interactables", "FriendlyNPCs", "PartyLayer", "Walkable", "Obstacles", "HostileNPCs");
+    // helper for painter's sorting
+    private static readonly IComparer<RaycastHit> HitDistanceComparer =
+    Comparer<RaycastHit>.Create((a, b) => a.distance.CompareTo(b.distance));
+
+    public static class LayerCursorMap
+    {
+        public static readonly Dictionary<int, Action<CursorManager, bool>> Handlers = new Dictionary<int, Action<CursorManager, bool>>()
+        {
+            [Obstacles] = (CursorManager CursorManager, bool b)       => CursorManager.SetCursor(CursorTypesMDD.Forbidden),
+            [Interactables] = (CursorManager CursorManager, bool b)   => CursorManager.SetCursor(CursorTypesMDD.Use),
+            [HostileNPCs] = (CursorManager CursorManager, bool b)     => CursorManager.SetCursor(CursorTypesMDD.Melee),
+            [FriendlyNPCs] = (CursorManager CursorManager, bool b)    => CursorManager.SetCursor(CursorTypesMDD.Talk),
+            [Walkable] = (CursorManager CursorManager, bool isReachable) => CursorManager.SetCursor(isReachable ? CursorTypesMDD.Default : CursorTypesMDD.Forbidden),
+        };
+    }
+
+    static readonly int Obstacles = LayerMask.NameToLayer("Obstacles");
+    static readonly int Interactables = LayerMask.NameToLayer("Interactables");
+    static readonly int HostileNPCs = LayerMask.NameToLayer("HostileNPCs");
+    static readonly int FriendlyNPCs = LayerMask.NameToLayer("FriendlyNPCs");
+    static readonly int Walkable = LayerMask.NameToLayer("Walkable");
+    public static void ManageCursor(CursorManager cm, int layer, bool isReachable, bool isRangedWeapon, bool displayTextMsg = true)
+    {
+        Assert.IsNotNull(cm);
+        if (LayerCursorMap.Handlers.TryGetValue(layer, out var handler))
+        {
+            // special case - ranged
+            if(isReachable && isRangedWeapon)
+            {
+                cm.SetCursor(CursorTypesMDD.Arrow);
+                return;
+            }
+            handler(cm, isReachable);
+        }
+        else
+            cm.SetCursor(CursorTypesMDD.Default);        
+    }
+
+
+    /*public static int ManageCursor(out GameObject go)
+    {
+        int ret = -1;
+        go = null;
+
+        Ray rayIdle = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        int countIdle = Physics.RaycastNonAlloc(rayIdle, raycastHits, 100f, mask, QueryTriggerInteraction.Ignore);
+
+        // sort by distance (aka Painter's apgorithm)
+        System.Array.Sort<RaycastHit>(raycastHits, 0, countIdle, HitDistanceComparer);
+
+        for (int i = 0; i < countIdle; i++)
+        {
+            var h = raycastHits[i];
+            go = h.collider.gameObject;
+
+            ret = go.layer;
+
+            if (go.layer == LayerMask.NameToLayer("Obstacles"))
+            {
+                CursorManager.SetCursorType(CursorTypesMDD.Forbidden);
+                break;
+            }
+
+            if (go.layer == LayerMask.NameToLayer("Interactables"))
+            {
+                CursorManager.SetCursorType(CursorTypesMDD.Use);
+                break;
+            }
+
+            if (go.layer == LayerMask.NameToLayer("HostileNPCs"))
+            {
+                CursorManager.SetCursorType(CursorTypesMDD.Melee);
+                break;
+            }
+
+            if (go.layer == LayerMask.NameToLayer("FriendlyNPCs"))
+            {
+                CursorManager.SetCursorType(CursorTypesMDD.Talk);
+                break;
+            }
+
+            CursorManager.SetCursorType(CursorTypesMDD.Default);
+        }
+
+        return ret;
+    }*/
+
+    public static void ClearProjectileArc()
+    {
+        if (lineProjectile != null)
+        {
+            GameObject.Destroy(lineProjectile);
+        }
     }
 
     private static void RenderArc(Vector3[] points, int drawCount, Color color)
@@ -448,6 +580,99 @@ public static class AimingVisualizer
 
             // Remove collider
             GameObject.Destroy(sphere.GetComponent<Collider>());
+        }
+    }
+
+    static Material lineMat;
+    static Material dotMat;
+
+    public static void HidePathPreview()
+    {
+        ClearPathPreview();
+    }
+
+    public static void DrawPathPreview(
+    NavMeshPath path,
+    Color color, float width = 0.03f, float dotRadius = 0.05f)
+    {
+        // 1 Clear last frame
+        ClearPathPreview();
+
+        CreateAimingVisualiserParent();
+        if (previewContainer == null)
+        {
+            previewContainer = new GameObject("PathPreviewContainer");
+            SetParent(previewContainer);
+        }
+        else
+        {
+            DestroyAllChildren(previewContainer);
+        }
+
+        // 2 Gradient
+        var go = new GameObject("PathPreviewLine");
+        go.transform.SetParent(previewContainer.transform, worldPositionStays: true);
+        var lr = go.AddComponent<LineRenderer>();
+        if (lineMat == null) lineMat = new Material(Shader.Find("Sprites/Default"));
+        lr.material = lineMat;
+        lr.widthMultiplier = width;
+        lr.useWorldSpace = true;
+        lr.loop = false;
+
+        lr.positionCount = path.corners.Length;
+        lr.SetPositions(path.corners);
+
+        var grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
+            new[] { new GradientAlphaKey(0.9f, 0f), new GradientAlphaKey(0.9f, 1f) }
+        );
+        lr.colorGradient = grad;
+
+        // Line positions
+        var corners = path.corners;
+        lr.positionCount = corners.Length;
+        lr.SetPositions(corners);
+
+       
+        // 3) Corner dots (bigger at the last point)
+        for (int i = 0; i < corners.Length; i++)
+        {
+            //float r = (i == corners.Length - 1) ? dotRadius * 1.75f : dotRadius;
+            //CreateDot($"Corner_{i}", corners[i], r, color);
+            CreateDot($"Corner_{i}", corners[i], dotRadius, color);
+        }
+    }
+
+    static void CreateDot(string name, Vector3 pos, float radius, Color color)
+    {
+        // Simple spher
+        var dot = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        dot.name = name;
+        dot.transform.SetParent(previewContainer.transform, true);
+        dot.transform.position = pos;
+        dot.transform.localScale = Vector3.one * (radius * 2f); // unit sphere has diameter 1
+
+        // Unlit material so its visible regardless of lighting
+        if (dotMat == null)
+        {
+            // Fallback to Standard if unavailable.
+            var shader = Shader.Find("Unlit/Color");
+            if (shader == null) shader = Shader.Find("Standard");
+            dotMat = new Material(shader);
+        }
+
+        var mr = dot.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = dotMat;
+
+        // Set color 
+        mr.sharedMaterial.color = color;
+
+        // Make it pop a bit 
+        if (mr.sharedMaterial.HasProperty("_EmissionColor"))
+        {
+            mr.sharedMaterial.EnableKeyword("_EMISSION");
+            mr.sharedMaterial.SetColor("_EmissionColor", color * 0.5f);
         }
     }
 

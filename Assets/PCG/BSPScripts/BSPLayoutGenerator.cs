@@ -35,8 +35,22 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
     [Header("Dungeon Settings")]
     public Vector2Int dungeonSize = new Vector2Int(64, 64);
     public int minRoomSize = 10;
+
+    //[SerializeField] 
+    //private int maxRoomSize;// = 2 * minRoomSize + 1;
     public int margin = 2;
     public int seed = 1;
+
+    //[Header("BSP Leaf Area (bounds)")]
+    //[Tooltip("Minimum area (in tiles) for a BSP leaf bounding box. 0 = ignore.")]
+    //public int minLeafArea = 0;
+
+    //[Tooltip("Maximum area (in tiles) for a BSP leaf bounding box. 0 = ignore.")]
+    //public int maxLeafArea = 0;
+
+    //[Header("BSP Leaf Area (bounds)")]
+    //[Tooltip("Stop splitting when leaf bounding-box area is <= this (0 = disabled).")]
+    //public int targetLeafArea = 30;
 
     [Header("Room Shapes")]
     public RoomWeights roomWeights = new RoomWeights();
@@ -48,7 +62,14 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
     [Range(0.4f, 0.9f)] public float uMinLegLengthRatio = 0.65f;
     [Range(0.20f, 0.90f)] public float uMinAreaRatio = 0.35f;
 
+    [Header("Tile (floort) Scale")]
     public float tileScale = 4f;
+
+    //[Header("BSP Controls (classic)")]
+    //[Range(1f, 3f)] public float maxLeafAspect = 1.8f;   // 0 = ignore aspect; typical 1.6–2.0
+    //[Range(0f, 0.45f)] public float splitJitter = 0.20f;  // 0 = always center, 0.2 = mild variety
+
+    public Room startRoom, bossRoom;
 
     protected BSPNode root;
     public DungeonLayout LastLayout { get; protected set; }
@@ -59,17 +80,69 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
         root = new BSPNode(new RectInt(0, 0, dungeonSize.x, dungeonSize.y));
 
         var layout = new DungeonLayout();
-        Split(root);
+        Split(root, 2, 90, minRoomSize);
         CollectLeaves(root, layout);
 
         ConnectStrategy(layout);
 
         // rooms
-        BuildLogicalRooms(layout);               
+        BuildLogicalRooms(layout);
         AssignStartAndBoss(layout);
 
         LastLayout = layout;
         Console.Log(GetType().Name, ":", layout.rooms.Count, "rooms", layout.floorTiles.Count, "tiles.");
+    }
+
+    void Split(BSPNode node, int depth, int maxDepth, int minRoomSize)
+    {
+        if (node == null) return;
+        var aabb = node.bounds = node.poly?.AABB() ?? node.bounds;
+
+        int w = aabb.width, h = aabb.height;
+
+        // Stop if we hit depth or cant split into two rooms >= minRoomSize on any axis
+        if (depth >= maxDepth) return;
+        bool canH = h >= 2 * minRoomSize;
+        bool canV = w >= 2 * minRoomSize;
+        if (!canH && !canV) return;
+
+        // Axis: prefer the longer feasible axis; if both feasible and equal - pik at random
+        bool splitH = canH && (!canV || h >= w || (w == h && UnityEngine.Random.value < 0.5f));
+        if (splitH && !canH) splitH = false;             // guard
+        if (!splitH && !canV) splitH = true;
+
+        if (splitH)
+        {
+            // Pick a ratio in [0.4, 0.7]; clamp so both parts >= minRoomSize.
+            float ratio = UnityEngine.Random.Range(0.4f, 0.7f);
+            int lo = aabb.yMin + minRoomSize;
+            int hi = aabb.yMax - minRoomSize;
+            int splitY = Mathf.Clamp(Mathf.RoundToInt(aabb.yMin + ratio * h), lo, hi);
+
+            var topRect = new RectInt(aabb.xMin, splitY, aabb.width, aabb.yMax - splitY);
+            var bottomRect = new RectInt(aabb.xMin, aabb.yMin, aabb.width, splitY - aabb.yMin);
+
+            node.split = Line2.Horizontal(splitY);
+            node.left = new BSPNode(bottomRect) { poly = Poly2.FromRect(bottomRect) }; // keep spatial ordering
+            node.right = new BSPNode(topRect) { poly = Poly2.FromRect(topRect) };
+        }
+        else
+        {
+            float ratio = UnityEngine.Random.Range(0.4f, 0.7f);
+            int lo = aabb.xMin + minRoomSize;
+            int hi = aabb.xMax - minRoomSize;
+            int splitX = Mathf.Clamp(Mathf.RoundToInt(aabb.xMin + ratio * w), lo, hi);
+
+            var leftRect = new RectInt(aabb.xMin, aabb.yMin, splitX - aabb.xMin, aabb.height);
+            var rightRect = new RectInt(splitX, aabb.yMin, aabb.xMax - splitX, aabb.height);
+
+            node.split = Line2.Vertical(splitX);
+            node.left = new BSPNode(leftRect) { poly = Poly2.FromRect(leftRect) };
+            node.right = new BSPNode(rightRect) { poly = Poly2.FromRect(rightRect) };
+        }
+
+        Split(node.left, depth + 1, maxDepth, minRoomSize);
+        Split(node.right, depth + 1, maxDepth, minRoomSize);
     }
 
     protected abstract void ConnectStrategy(DungeonLayout layout);
@@ -114,8 +187,12 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
 
         // Clear & set labels
         foreach (var r in layout.layoutRooms) r.label = RoomLabel.Unassigned;
-        layout.layoutRooms[bestI].label = RoomLabel.Start;
-        layout.layoutRooms[bestJ].label = RoomLabel.Boss;
+        layout.layoutRooms[bestI].label = RoomLabel.Boss;
+        layout.layoutRooms[bestJ].label = RoomLabel.Start;
+
+        // store IDs
+        startRoom = layout.layoutRooms.Find(r => r.label == RoomLabel.Start);
+        bossRoom = layout.layoutRooms.Find(r => r.label == RoomLabel.Boss);
     }
 
     // 4-neighbour BFS through walkable tiles = layout.floorTiles
@@ -156,28 +233,80 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
 
 
     // ---------------- BSP  ---------------- //
-    protected void Split(BSPNode node)
+    // --- Classical 2D BSP node (stores polygon + split line) ---
+    protected sealed class BSPNode
     {
-        if (node.bounds.width < minRoomSize * 2 && node.bounds.height < minRoomSize * 2)
-            return;
+        // Leaf geometry (convex polygon). Internal nodes keep this null.
+        public Poly2 poly;
 
-        bool splitHorizontally = node.bounds.width < node.bounds.height;
-        if (splitHorizontally)
+        // AABB cached for FindLeafForPoint / room sizing / quick tests
+        public RectInt bounds;
+
+        // Split line for internal nodes: n·p + d = 0 (front: n·p + d >= 0)
+        public Line2 split;
+
+        public BSPNode left, right;
+                
+        public Vector2Int roomCenter;
+
+        public bool IsLeaf => left == null && right == null;
+
+        // Root ctor from a rectangle
+        public BSPNode(RectInt r)
         {
-            int splitY = Random.Range(minRoomSize, node.bounds.height - minRoomSize);
-            node.left = new BSPNode(new RectInt(node.bounds.x, node.bounds.y, node.bounds.width, splitY));
-            node.right = new BSPNode(new RectInt(node.bounds.x, node.bounds.y + splitY, node.bounds.width, node.bounds.height - splitY));
-        }
-        else
-        {
-            int splitX = Random.Range(minRoomSize, node.bounds.width - minRoomSize);
-            node.left = new BSPNode(new RectInt(node.bounds.x, node.bounds.y, splitX, node.bounds.height));
-            node.right = new BSPNode(new RectInt(node.bounds.x + splitX, node.bounds.y, node.bounds.width - splitX, node.bounds.height));
+            poly = Poly2.FromRect(r);
+            bounds = poly.AABB();
         }
 
-        Split(node.left);
-        Split(node.right);
+        // Compute room bounds = polygon AABB shrunk by margin (clamped to ≥1 cell)
+        public RectInt GetRoomBounds(int margin)
+        {
+            var aabb = poly != null ? poly.AABB() : bounds;
+            int x = aabb.x + margin;
+            int y = aabb.y + margin;
+            int w = Mathf.Max(1, aabb.width - 2 * margin);
+            int h = Mathf.Max(1, aabb.height - 2 * margin);
+            return new RectInt(x, y, w, h);
+        }
     }
+    // Numerical tolerance for half-plane tests
+    //const float EPS = 1e-5f;
+
+    void OnDrawGizmosSelected()
+    {
+        // draw BSP leaves
+        void DrawLeaves(BSPNode n)
+        {
+            if (n == null) return;
+            if (n.IsLeaf)
+            {
+                var r = n.bounds;
+                var c = new Vector3((r.x + r.width * 0.5f) * tileScale, 0.05f, (r.y + r.height * 0.5f) * tileScale);
+                var s = new Vector3(r.width * tileScale, 0.01f, r.height * tileScale);
+                Gizmos.color = new UnityEngine.Color(0f, 1f, 0f, 0.10f); Gizmos.DrawCube(c, s);
+                Gizmos.color = UnityEngine.Color.green; Gizmos.DrawWireCube(c, s);
+            }
+            else { DrawLeaves(n.left); DrawLeaves(n.right); }
+        }
+
+        if (root != null) DrawLeaves(root);                             // leaves (pre-room)
+
+        if (LastLayout != null && LastLayout.rooms != null)            // final room rects
+        {
+            Gizmos.color = new UnityEngine.Color(0f, 0.8f, 1f, 0.12f);
+            foreach (var r in LastLayout.rooms)
+            {
+                var c = new Vector3((r.x + r.width * 0.5f) * tileScale, 0.06f, (r.y + r.height * 0.5f) * tileScale);
+                var s = new Vector3(r.width * tileScale, 0.01f, r.height * tileScale);
+                Gizmos.DrawCube(c, s);
+                Gizmos.color = new UnityEngine.Color(0f, 0.5f, 1f, 1f); Gizmos.DrawWireCube(c, s);
+                Gizmos.color = new UnityEngine.Color(0f, 0.8f, 1f, 0.12f);
+            }
+        }
+    }
+
+
+
 
     protected void CollectLeaves(BSPNode node, DungeonLayout layout)
     {
@@ -200,7 +329,7 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
             CollectLeaves(node.right, layout);
         }
     }
-        
+
     protected Vector2Int GetRoomCenterTile(RectInt room, DungeonLayout layout)
     {
         Vector2 center = new Vector2(room.center.x, room.center.y);
@@ -232,7 +361,7 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
         while (current.x != to.x) { current.x += current.x < to.x ? 1 : -1; layout.floorTiles.Add(current); }
         while (current.y != to.y) { current.y += current.y < to.y ? 1 : -1; layout.floorTiles.Add(current); }
     }
-        
+
     protected Vector2Int NearestRoomTile(Vector2Int target, BSPNode subtree, DungeonLayout layout)
     {
         RectInt room = subtree.GetRoomBounds(0);
@@ -289,7 +418,7 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
     // TODO: optimise 
     protected RoomKind PickKind(RoomWeights w)
     {
-        var pool = new List<(RoomKind, float)> 
+        var pool = new List<(RoomKind, float)>
         {
             (RoomKind.Rectangle, w.rectangle),
             (RoomKind.L,         w.l),
@@ -297,13 +426,13 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
             (RoomKind.U,         w.u),
         };
 
-        float total = 0f; 
+        float total = 0f;
         foreach (var kv in pool) total += kv.Item2;
 
         float r = Random.value * total;
-        foreach (var kv in pool) 
-        { 
-            if ((r -= kv.Item2) <= 0f) 
+        foreach (var kv in pool)
+        {
+            if ((r -= kv.Item2) <= 0f)
                 return kv.Item1;
         }
 
@@ -388,12 +517,12 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
     {
         // early return
         if (b.width < 6 || b.height < 6) { FillRect(b, L); return; }
-              
+
         int t = Mathf.Clamp(Mathf.RoundToInt(Mathf.Min(b.width, b.height) * uThicknessRatio),
                             minUThickness, maxUThickness);
 
         int side = Random.Range(0, 4); // 0 up, 1 down, 2 left, 3 right
-                
+
         RectInt legA, legB, baseBar;
 
         if (side == 0) // open UP => vertical legs + bottom base
@@ -413,7 +542,7 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
             legA = new RectInt(b.xMax - t, b.yMin, t, b.height);
             legB = legA;
             baseBar = new RectInt(b.xMin, b.yMin, b.width, t); // bottom
-                                                               
+
             FillRect(new RectInt(b.xMin, b.yMax - t, b.width, t), L);
         }
         else // open RIGHT => horizontal bars + left leg
@@ -421,7 +550,7 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
             legA = new RectInt(b.xMin, b.yMin, t, b.height);
             legB = legA; // placeholder
             baseBar = new RectInt(b.xMin, b.yMin, b.width, t); // bottom
-                                                               
+
             FillRect(new RectInt(b.xMin, b.yMax - t, b.width, t), L);
         }
 
@@ -433,7 +562,7 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
         {
             int extra = (b.height - minLegLenV) / 2;
             var legCrop = new RectInt(0, b.yMin + Mathf.Max(0, extra), 0, minLegLenV);
-            
+
             RectInt A = new RectInt(legA.x, legCrop.y, legA.width, legCrop.height);
             RectInt B = new RectInt(legB.x, legCrop.y, legB.width, legCrop.height);
             FillRect(A, L);
@@ -465,7 +594,7 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
         }
     }
 
-    // ---- Gyzmo -- 
+    // ---- Gyzmo ---- //
     void OnDrawGizmos()
     {
         if (LastLayout == null || LastLayout.layoutRooms == null) return;
@@ -476,11 +605,11 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
             UnityEngine.Color color;
             switch (room.label)
             {
-                case RoomLabel.Start: color =   UnityEngine.Color.cyan; break;
-                case RoomLabel.Boss: color =    UnityEngine.Color.magenta; break;
-                case RoomLabel.A: color = new   UnityEngine.Color(0.2f, 0.6f, 1f); break;
-                case RoomLabel.B: color = new   UnityEngine.Color(0.2f, 1f, 0.6f); break;
-                case RoomLabel.C: color = new   UnityEngine.Color(1f, 0.8f, 0.2f); break;
+                case RoomLabel.Start: color = UnityEngine.Color.cyan; break;
+                case RoomLabel.Boss: color = UnityEngine.Color.magenta; break;
+                case RoomLabel.A: color = new UnityEngine.Color(0.2f, 0.6f, 1f); break;
+                case RoomLabel.B: color = new UnityEngine.Color(0.2f, 1f, 0.6f); break;
+                case RoomLabel.C: color = new UnityEngine.Color(1f, 0.8f, 0.2f); break;
                 default: color = UnityEngine.Color.yellow; break;
             }
 
@@ -494,6 +623,58 @@ public abstract class BSPLayoutGenerator : MonoBehaviour
             Handles.color = color;
             Handles.Label(pos + Vector3.up * 0.55f, $"{room.label} ({room.id})");
 #endif
+        }
+    }
+
+
+    protected struct Line2
+    {
+        public Vector2 n;   // unit normal
+        public float d;     // offset so that n·p + d = 0
+
+        public Line2(Vector2 normal, float offset)
+        {
+            n = normal.normalized;
+            d = offset;
+        }
+
+        public static Line2 Vertical(float x) => new Line2(new Vector2(1f, 0f), -x); // x = constant
+        public static Line2 Horizontal(float y) => new Line2(new Vector2(0f, 1f), -y); // y = constant
+
+        public float SignedDistance(in Vector2 p) => Vector2.Dot(n, p) + d;
+    }
+
+    protected sealed class Poly2
+    {
+        public readonly List<Vector2> v = new List<Vector2>(8);
+
+        public static Poly2 FromRect(RectInt r)
+        {
+            var p = new Poly2();
+            // CCW rectangle (closed implicitly)
+            p.v.Add(new Vector2(r.xMin, r.yMin));
+            p.v.Add(new Vector2(r.xMax, r.yMin));
+            p.v.Add(new Vector2(r.xMax, r.yMax));
+            p.v.Add(new Vector2(r.xMin, r.yMax));
+            return p;
+        }
+
+        public RectInt AABB()
+        {
+            float minx = float.PositiveInfinity, miny = float.PositiveInfinity;
+            float maxx = float.NegativeInfinity, maxy = float.NegativeInfinity;
+            foreach (var p in v)
+            {
+                if (p.x < minx) minx = p.x; if (p.x > maxx) maxx = p.x;
+                if (p.y < miny) miny = p.y; if (p.y > maxy) maxy = p.y;
+            }
+            // RectInt is [xMin, xMax) style; clamp to grid
+            int xi = Mathf.FloorToInt(minx + 0.0001f);
+            int yi = Mathf.FloorToInt(miny + 0.0001f);
+            int wi = Mathf.CeilToInt(maxx - 0.0001f) - xi;
+            int hi = Mathf.CeilToInt(maxy - 0.0001f) - yi;
+            wi = Mathf.Max(1, wi); hi = Mathf.Max(1, hi);
+            return new RectInt(xi, yi, wi, hi);
         }
     }
 }

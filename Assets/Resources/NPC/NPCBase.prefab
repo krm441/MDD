@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7670127460877119113}
   - component: {fileID: 1748315743096795624}
+  - component: {fileID: 3077635944159652267}
   m_Layer: 12
   m_Name: NPCBase
   m_TagString: Untagged
@@ -42,10 +43,24 @@ BoxCollider:
   m_GameObject: {fileID: 7799529398049566010}
   m_Material: {fileID: 0}
   m_IsTrigger: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Size: {x: 1, y: 1.36, z: 1}
   m_Center: {x: 0, y: 0.74, z: -0.16}
+--- !u!136 &3077635944159652267
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7799529398049566010}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  m_Radius: 1
+  m_Height: 2.55
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.68, z: 0}
 --- !u!1001 &3981549329036518236
 PrefabInstance:
   m_ObjectHideFlags: 0

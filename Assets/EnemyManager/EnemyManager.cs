@@ -31,7 +31,7 @@ public class EnemyManager : MonoBehaviour
     private bool isInitiated = false;
 
     [SerializeField] private PartyManager partyManager;
-    [SerializeField] public AiManager aiManager;
+    [SerializeField] public AiMdd.AiManager aiManager;
 
     /// <summary>
     /// Gloval game-wide signal. Static for simplicity
@@ -81,7 +81,7 @@ public class EnemyManager : MonoBehaviour
         }
     }
 
-    public void RegisterParty(EnemyParty party)
+    public void RegisterParty(NPCParty party)
     {
         if (!allParties.Contains(party))
         {
@@ -90,11 +90,12 @@ public class EnemyManager : MonoBehaviour
         }
     }
 
-    public static List<CharacterUnit> GetEnemies()
+    public List<CharacterUnit> GetEnemies()
     {
         List<CharacterUnit> ret = new List<CharacterUnit>();
         foreach (var party in allParties)
-            ret.AddRange(party.enemiesInPack);
+            if(party.isInCombat == true)
+                ret.AddRange(party.npcsInPack);
         return ret;
     }
 
@@ -105,15 +106,16 @@ public class EnemyManager : MonoBehaviour
     }
 
     // parties that are triggered - and entered the combat state
-    private static List<EnemyParty> allParties = new List<EnemyParty>();
+    private List<NPCParty> allParties = new List<NPCParty>();
 
     ///////////////////////////////////////////////////////////////////////// 
     ///spawner///
 
     
 
-    public void SpawnDebugPack(Vector3 center, float areaRadius, string enemyType = "NpcSimple", string partyName = "DebugParty")
+    public void SpawnDebugPack(Vector3 center, int enemyCount, float areaRadius, string enemyType = "NpcSimple", string partyName = "DebugParty")
     {
+        return;
         if (!EnemyDatabase.NPCs.TryGetValue(enemyType, out var npcDef))
         {
             Console.Error($"Enemy type '{enemyType}' not found in EnemyDatabase.");
@@ -143,7 +145,7 @@ public class EnemyManager : MonoBehaviour
         // Determine how many enemies based on area size
         float spacing = 2.5f;
         int maxEnemies = Mathf.FloorToInt(Mathf.PI * areaRadius * areaRadius / (spacing * spacing));
-        int count = Mathf.Clamp(maxEnemies, 1, 12);
+        int count = Mathf.Clamp(maxEnemies, 1, enemyCount);
 
         List<Vector3> spawnPoints = GenerateCirclePositions(center, areaRadius, count);
         List<CharacterUnit> activeEnemies = new List<CharacterUnit>();
@@ -181,7 +183,7 @@ public class EnemyManager : MonoBehaviour
             aiManager.SetupAI_BT(unit);
 
             // spell
-            unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic piercing arrow
+            //unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic piercing arrow
 
             // portrait
             Sprite portrait = Resources.Load<Sprite>(npcDef.portraitPath);
@@ -199,7 +201,8 @@ public class EnemyManager : MonoBehaviour
 
         // register in EnemyManager
         //RegisterParty(new EnemyParty(activeEnemies, this, partyManager));
-        EnemyParty enemyParty = partyHolder.AddComponent<EnemyParty>();
+        NPCParty enemyParty = partyHolder.AddComponent<NPCParty>();
+        enemyParty.type = NpcPartyType.Hostile;
         enemyParty.gameManager = FindObjectOfType<GameManagerMDD>();
         enemyParty.Init(activeEnemies, this, partyManager);
 

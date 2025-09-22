@@ -2,13 +2,13 @@
 using UnityEditor;
 using UnityEngine;
 
-public class VoronoiGrammarController : MonoBehaviour
+public class VoronoiGrammarController : MonoBehaviour, IDungeon
 {
     [Header("Refs")]
     public VoronoiLayoutGenerator generator;
     public VoronoiMeshing mesher;
 
-    // ---------------- Grammar (structure + radii) ----------------
+    // ---------------- Grammar (structure + radii) ---------------- //
     [Header("Grammar")]
     [Tooltip("Random seed used for both grammar structure and island placement (deterministic).")]
     public int seed = 12345;
@@ -31,8 +31,11 @@ public class VoronoiGrammarController : MonoBehaviour
     [Tooltip("Target radius for Boss island (world units).")]
     public float radiusBoss = 7f;
 
-    // ---------------- Placement (non-overlap circles) ----------------
-    [Header("Placement (Non-overlap)")]
+    [Header("Final Scale")]
+    public float finalScale = 4.0f;
+
+    // ---------------- Placement ---------------- //
+    [Header("Placement")]
     [Tooltip("Extra spacing added between island circles (world units).")]
     public float placementGap = 2f;
 
@@ -50,7 +53,7 @@ public class VoronoiGrammarController : MonoBehaviour
 
     [Header("Voronoi")]
     [Tooltip("Padding added around all islands when computing world bounds for Voronoi.")]
-    public float boundsPadding = 5f;
+    public float boundsPadding = 15f;
 
     // ---------------- Corridors ----------------
     [Header("Corridors (A* raster)")]
@@ -60,9 +63,13 @@ public class VoronoiGrammarController : MonoBehaviour
     [Tooltip("How thick to paint the corridor in cell space (>=1).")]
     public int corridorThickness = 2;
 
-    // ---------------- Rooms --------------------
+    // ---------------- Rooms -------------------- //
     [Header("Rooms")]
     public System.Collections.Generic.List<Room> rooms = new System.Collections.Generic.List<Room>();
+    private Room startRoom, bossRoom;
+
+    public Room GetPlayerStart() => startRoom;
+    public Room GetBossLocation() => bossRoom;
 
     static bool IsIslandType(NodeLabel L) =>
         L == NodeLabel.Start || L == NodeLabel.Boss ||
@@ -91,8 +98,18 @@ public class VoronoiGrammarController : MonoBehaviour
             {
                 id = n.id,
                 label = ToRoomLabel(n.label),
-                worldPos = new Vector3(n.pos.x, 0f, n.pos.y)
+                worldPos = new Vector3(n.pos.x, 0f, n.pos.y) * finalScale
             });
+
+            // inject start - boss rooms
+            if(n.label == NodeLabel.Start)
+            {
+                startRoom = rooms[rooms.Count - 1];
+            }
+            else if (n.label == NodeLabel.Boss)
+            {
+                bossRoom = rooms[rooms.Count - 1];
+            }
         }
     }
 
@@ -100,7 +117,7 @@ public class VoronoiGrammarController : MonoBehaviour
     GraphVoronoiMapper mapper = new GraphVoronoiMapper();
 
     [ContextMenu("Generate")]
-    public void GenerateAndColor()
+    public void Generate()
     {
         if (!generator || !mesher)
         {
@@ -138,7 +155,7 @@ public class VoronoiGrammarController : MonoBehaviour
         // 4) Build runtime graph with positions
         var g = GG.Graph.FromSpec(spec, positions);
 
-        // 5) Label islands by radius, then add corridors (note, paints the None labeled cells, doesnt touch the occupied)
+        // 5) Label islands by radius, then add corridors
         var labels = mapper.LabelIslandsByRadius(generator, g);
         mapper.AddCorridorsWithAStar(generator, g, ref labels, rasterTileSize, corridorThickness);
 
@@ -147,6 +164,7 @@ public class VoronoiGrammarController : MonoBehaviour
         // 6) Meshing
         mesher.activeGraph = g;
         mesher.cellLabels = labels;
+        mesher.hexScale = finalScale;
         mesher.Rebuild();
 
         // Debug display
@@ -165,6 +183,18 @@ public class VoronoiGrammarController : MonoBehaviour
             }
         }
         Console.Log($"Islands: A={a} B={b} C={c} Start={start} Boss={boss} | Corridor={corr} | None={none} | Bounds={bounds}");
+    }
+
+    [ContextMenu("Clear")]
+    public void Clean()
+    {
+        if (!generator || !mesher)
+        {
+            return;
+        }
+
+        generator.Clear();
+        mesher.Clear();
     }
 
     [SerializeField] float roomGizmoRadius = 0.45f;

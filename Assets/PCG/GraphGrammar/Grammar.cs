@@ -156,7 +156,7 @@ namespace GG
             foreach (var nb in neighbors) g.AddEdge(oldId, nb);
         }
 
-        // ========= Default rule set  =========
+        // ========= Default rule set  ========= //
         public void AddDefaultRules()
         {
             // S -> Start - A - Boss

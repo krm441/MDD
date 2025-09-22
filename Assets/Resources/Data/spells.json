@@ -4,7 +4,7 @@
             "id": 0,
             "name": "BasicAttackMagic",
             "description": "Basic ranged magic attack",
-            "iconPath": "SpellIcons\\SpellFire",
+            "iconPath": "SpellFireball",
             "shotcutKey": "F",
             "prefabMeshEffect": "",
             "physicsType": 2,
@@ -33,7 +33,9 @@
             "vfxType": "fireball",
             "sfxOnStart": "",
             "sfxOnFly": "",
-            "sfxOnImpact": "FireballBlast1"
+            "sfxOnImpact": "FireballBlast1",
+            "hidden": false,
+            "friendlyFire": true
         },
         {
             "id": 1,
@@ -68,16 +70,18 @@
             "vfxType": "sword",
             "sfxOnStart": "",
             "sfxOnFly": "",
-            "sfxOnImpact": ""
+            "sfxOnImpact": "",
+            "hidden": true,
+            "friendlyFire": false
         },
         {
             "id": 2,
             "name": "BasicHeal",
             "description": "Spawn healing streamlet",
-            "iconPath": "SpellIcons\\HealingSpell",
+            "iconPath": "SpellHeal",
             "shotcutKey": "H",
             "prefabMeshEffect": "",
-            "physicsType": 2,
+            "physicsType": 0,
             "dPSType": 1,
             "baseDamage": {
                 "Slashing": 0,
@@ -96,14 +100,16 @@
                 "MentalFortification": 0,
                 "MagicFortification": 0
             },
-            "apCost": 0,
+            "apCost": 2,
             "manaCost": 10,
             "range": 12,
             "radius": 1,
             "vfxType": "basicHeal",
             "sfxOnStart": "HealingType1",
             "sfxOnFly": "",
-            "sfxOnImpact": ""
+            "sfxOnImpact": "",
+            "hidden": false,
+            "friendlyFire": true
         },
         {
             "id": 3,
@@ -138,7 +144,83 @@
             "vfxType": "basicArrow",
             "sfxOnStart": "",
             "sfxOnFly": "",
-            "sfxOnImpact": ""
+            "sfxOnImpact": "",
+            "hidden": false,
+            "friendlyFire": false
+        },
+        {
+            "id": 4,
+            "name": "arrow",
+            "description": "",
+            "iconPath": "",
+            "shotcutKey": "",
+            "prefabMeshEffect": "",
+            "physicsType": 1,
+            "dPSType": 1,
+            "baseDamage": {
+                "Slashing": 0,
+                "Piercing": 20,
+                "Crushing": 0,
+                "Fire": 0,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 0,
+                "MentalFortification": 0,
+                "MagicFortification": 0
+            },
+            "apCost": 0,
+            "manaCost": 0,
+            "range": 8,
+            "radius": 0,
+            "vfxType": "arrow",
+            "sfxOnStart": "",
+            "sfxOnFly": "",
+            "sfxOnImpact": "",
+            "hidden": true,
+            "friendlyFire": false
+        },
+        {
+            "id": 5,
+            "name": "Whirl",
+            "description": "Attach all targets around the caster",
+            "iconPath": "SpellWhirl",
+            "shotcutKey": "",
+            "prefabMeshEffect": "",
+            "physicsType": 0,
+            "dPSType": 0,
+            "baseDamage": {
+                "Slashing": 50,
+                "Piercing": 0,
+                "Crushing": 0,
+                "Fire": 0,
+                "Water": 0,
+                "Wind": 0,
+                "Earth": 0,
+                "Light": 0,
+                "Shadow": 0,
+                "Necrotic": 0,
+                "Poison": 0,
+                "Demonic": 0,
+                "Healing": 0,
+                "MentalFortification": 0,
+                "MagicFortification": 0
+            },
+            "apCost": 3,
+            "manaCost": 0,
+            "range": 0,
+            "radius": 3,
+            "vfxType": "meleeaoe",
+            "sfxOnStart": "",
+            "sfxOnFly": "",
+            "sfxOnImpact": "",
+            "hidden": false,
+            "friendlyFire": false
         }
     ]
 }

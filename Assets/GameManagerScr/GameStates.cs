@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using PartyManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using System.Linq; // for sorting
 using UnityEngine.UI;
 using UnityEngine.AI;
 using static UnityEngine.UI.CanvasScaler;
+using UnityEngine.Assertions;
 
 // game states
 // interface:
@@ -29,7 +29,8 @@ public interface IGameState
 public abstract class GameStateBase : IGameState
 {
     protected GameManagerMDD gameManager;
-    protected PartyManager partyManager;
+    //protected PartyManager partyManager;
+    protected PartyPlayer partyManager;
 
     public GameStateBase(GameManagerMDD manager)
     {
@@ -153,7 +154,7 @@ public class TurnBasedState : GameStateBase
 
     public override void Enter()
     {
-        Debug.Log("Entering Combat");
+        Debug.Log("TurnBasedState: Entering Combat");
 
         // ui debug
         GameObject statusTextObject = GameObject.Find("StatusText");
@@ -176,19 +177,20 @@ public class TurnBasedState : GameStateBase
         partyManager.ResetAllActionPoints(); // zero them
 
         // Concat the multiparty in one array
-        var combatants = partyManager.GetParty()
-            .Concat(EnemyManager.GetEnemies())
-            .OrderByDescending(p => p.attributeSet.stats.Initiative);
-
-        // making all agents into obstacles, for pathfinder to carve path around them
-        foreach (var combatant in combatants) 
-        {
-            combatant.Carve();
-            //var agent = combatant.agent;
-            //agent.isStopped = true;
-            //agent.GetComponent<NavMeshAgent>().enabled = false;
-            //agent.GetComponent<NavMeshObstacle>().enabled = true;
-        } 
+        Assert.IsNotNull(gameManager.combatManagement);
+        var combatants = gameManager.combatManagement.GetEngagedUnits();//       partyManager.partyMembers;//       GetParty()
+       //    .Concat(EnemyManager.GetEnemies())
+       //    .OrderByDescending(p => p.attributeSet.stats.Initiative);
+       //
+       //// making all agents into obstacles, for pathfinder to carve path around them
+       //foreach (var combatant in combatants) 
+       //{
+       //    combatant.Carve();
+       //    //var agent = combatant.agent;
+       //    //agent.isStopped = true;
+       //    //agent.GetComponent<NavMeshAgent>().enabled = false;
+       //    //agent.GetComponent<NavMeshObstacle>().enabled = true;
+       //} 
 
         gameManager.combatQueue.unitQueue = new Queue<CharacterUnit>(combatants);
 
@@ -196,7 +198,7 @@ public class TurnBasedState : GameStateBase
         //CombatManager.turnQueue = turnQueue;
 
         // portrait queue building
-        PartyPortraitManagerUI.BuildTurnQueuePortraits(gameManager.combatQueue.unitQueue);
+        gameManager.partyPortraitManagerUI.BuildTurnQueuePortraits(gameManager.combatQueue.unitQueue);
 
         
 
@@ -220,6 +222,9 @@ public class TurnBasedState : GameStateBase
         
         
         var turnQueue = gameManager.combatQueue.unitQueue;
+        if (gameManager.combatQueue.current != null)
+            gameManager.combatQueue.current.Carve();
+
 
         // next unit
         //CharacterUnit unit = turnQueue.Dequeue();
@@ -284,11 +289,13 @@ public class TurnBasedState : GameStateBase
             Console.Error($"New Turn AI: {unit.unitName}", "\nturn Q volume:", turnQueue.Count);
         }
 
+        unit.Uncarve();
+
         // lerp camera to unit
         gameManager.isometricCamera.LerpToCharacter(unit.transform);
 
         // sfx end of turn effect
-        SoundPlayer.PlayClipAtPoint("EndTurnType1", unit.transform.position);
+        gameManager.soundPlayer.PlayClipAtPoint("EndTurnType1", unit.transform.position);
     }
 
     public override void SetCastingSubState()
@@ -338,6 +345,13 @@ public class TurnBasedState : GameStateBase
     }
 }
 
+
+public class GameOverState : GameStateBase
+{
+    public GameOverState(GameManagerMDD manager) : base(manager) { }
+
+    public override void Enter() { }
+}
 
 public class ScriptedSequencesState : GameStateBase
 {

@@ -5,11 +5,12 @@ using UnityEngine;
 public class AiTesterCor : MonoBehaviour
 {
     [SerializeField] private CharacterSpawner spawner;
+    [SerializeField] private SpellMap spellMap;
 
     // Start is called before the first frame update
     void Start()
     {
-        SpellMap.InitializeSpells();
+        spellMap.InitializeSpells();
         spawner.SpawnPartyTypeOne();
     }
 }

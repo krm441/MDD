@@ -33,8 +33,9 @@ public class CharacterSpawner : MonoBehaviour
 
     private void Start()
     {
-        SpellMap.InitializeSpells();
-        SpawnPartyTypeOne();
+        //SpellMap.InitializeSpells();
+        //SpawnPartyTypeOne();
+        //SpawnPartyFromData();
     }
 
     private void RebuildPartyFromData()
@@ -59,6 +60,73 @@ public class CharacterSpawner : MonoBehaviour
         }
     }
 
+    public void SpawnPartyFromData()
+    {
+        if (GameSession.playerParty == null)
+            GameSession.playerParty = new PlayerPartyData();
+
+        
+
+        // DEBUG:
+        if (GameSession.playerParty.party == null || GameSession.playerParty.party.Count == 0)
+        {
+            var mock_data = CharacterMetaDataLoader.Load("Magus");
+            mock_data.isMainCharacter = true;
+            PlayerPartyData party = new PlayerPartyData();
+            party.party = new System.Collections.Generic.List<CharacterMetaData>();
+            party.party.Add(mock_data);
+            GameSession.playerParty = party;
+
+        }
+
+        var data = GameSession.playerParty;
+
+        foreach (var unitData in data.party)
+        {
+            SpawnCharFromData(unitData);
+        }
+
+        
+
+        BuildUI();
+    }
+
+    private void SpawnCharFromData(CharacterMetaData data)
+    {
+        // instantiate player party go
+        GameObject GO = new GameObject("PlayerPartyRoot");
+        PartyPlayer partyPlayer = GO.AddComponent<PartyPlayer>();
+
+        GameObject obj = Instantiate(charPrefab, spawnPoints[0].position, Quaternion.identity);
+        obj.transform.SetParent(GO.transform);
+        var unit = obj.GetComponent<CharacterUnit>();
+
+        unit.unitName = data.unitName;
+        obj.name = data.unitName;
+
+        unit.isMainCharacter = data.isMainCharacter;
+
+        unit.portraitSprite = Resources.Load<Sprite>("Sprites/" + data.portraitPrefabName);
+
+        unit.attributeSet = data.attributeSet;
+
+        foreach(var spellName in data.spells)
+        {
+            unit.spellBook.AddSpell(spellMap.GetSpellByName(spellName));
+        }
+
+        // weapons
+        unit.weapon = new Weapon { type = WeaponType.Melee_Slice, power = 10 };
+
+        var visual = Resources.Load<GameObject>("Meshes/" + data.rigMeshName);
+        Instantiate(visual, obj.transform);
+        visual.transform.localRotation = Quaternion.identity;
+
+        //partyManager.AddMember(unit);
+        partyPlayer.partyMembers.Add(unit);
+        Console.Log("Spawned and added:", unit.unitName);
+    }
+
     // debug party spawn: war, cleric, magus - for debugging
     public void SpawnPartyTypeOne()
     {
@@ -66,6 +134,11 @@ public class CharacterSpawner : MonoBehaviour
         SpawnWarriorDebug();
         SpawnClericDebug();
 
+        BuildUI();
+    }
+
+    private void BuildUI()
+    {
         // build ui
         portraitManager.BuildPortraitBar();
         partyManager.SelectMember(partyManager.GetParty()[0]);
@@ -85,7 +158,7 @@ public class CharacterSpawner : MonoBehaviour
         // this is main character for now
         unit.isMainCharacter = true;
 
-        unit.portraitSprite = magusPortrait; 
+        unit.portraitSprite = magusPortrait;
 
         /* AS a REMINDER:
         public class StatBlock
@@ -98,6 +171,8 @@ public class CharacterSpawner : MonoBehaviour
             public int MaxHP;
         }*/
 
+        unit.attributeSet = new AttributeSet();
+
         unit.attributeSet.stats = new StatBlock
         {
             Intelligence = 17,
@@ -109,10 +184,10 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 100
         };
 
-        unit.attributeSet.resistances = new DamageResistenceContainer
-        {
-
-        };
+        unit.attributeSet.resistances = new DamageResistenceContainer();
+        //{
+        //
+        //};
 
         unit.attributeSet.armorStat = new ArmorStat
         {
@@ -123,8 +198,8 @@ public class CharacterSpawner : MonoBehaviour
             moraleLevel = 100,
         };
 
-        unit.spellBook.AddSpell(SpellMap.idSpellPairs[0]); // basic magic cast
-        unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic arrow cast
+        unit.spellBook.AddSpell(spellMap.idSpellPairs[0]); // basic magic cast
+        unit.spellBook.AddSpell(spellMap.idSpellPairs[3]); // basic arrow cast
 
         if (capsuleBlue != null)
         {
@@ -147,6 +222,8 @@ public class CharacterSpawner : MonoBehaviour
 
         unit.portraitSprite = warriorPortrait;
 
+        unit.attributeSet = new AttributeSet();
+
         unit.attributeSet.stats = new StatBlock
         {
             Willpower = 17,
@@ -167,8 +244,10 @@ public class CharacterSpawner : MonoBehaviour
             moraleLevel = 100,
         };
 
-        unit.spellBook.AddSpell(SpellMap.idSpellPairs[1]); // basic melee cast
-        unit.spellBook.AddSpell(SpellMap.idSpellPairs[3]); // basic arrow cast
+        unit.attributeSet.resistances = new DamageResistenceContainer();
+
+        unit.spellBook.AddSpell(spellMap.idSpellPairs[1]); // basic melee cast
+        unit.spellBook.AddSpell(spellMap.idSpellPairs[3]); // basic arrow cast
 
         // init body
         if (capsuleRed != null)
@@ -193,6 +272,8 @@ public class CharacterSpawner : MonoBehaviour
 
         unit.portraitSprite = clericPortrait;
 
+        unit.attributeSet = new AttributeSet();
+
         unit.attributeSet.stats = new StatBlock
         {
             Devotion = 17,
@@ -204,7 +285,7 @@ public class CharacterSpawner : MonoBehaviour
             MaxHP = 150
         };
 
-        unit.attributeSet.armorStat = new ArmorStat
+        unit.attributeSet.armorStat = new ArmorStat 
         {
             maxMagicArmor = 100,
             magicArmor = 100,
@@ -213,7 +294,9 @@ public class CharacterSpawner : MonoBehaviour
             moraleLevel = 100,
         };
 
-        unit.spellBook.AddSpell(SpellMap.idSpellPairs[2]); // basic heal streamlet
+        unit.attributeSet.resistances = new DamageResistenceContainer();
+
+        unit.spellBook.AddSpell(spellMap.idSpellPairs[2]); // basic heal streamlet
 
         if (capsuleYellow != null)
         {
