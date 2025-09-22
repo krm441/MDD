@@ -12,6 +12,12 @@ public class BspController : MonoBehaviour, IDungeon
     public BSPMeshing mesher;    
     public RoomDecorator roomDecorator;
 
+    public void Generate(int seed)
+    {
+        this.seed = seed;
+        Generate();
+    }
+
     [ContextMenu("Generate + Build")]
     public void Generate()
     {

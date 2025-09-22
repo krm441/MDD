@@ -45,6 +45,17 @@ public class PartyPlayer : IParty
         LoadParty();
     }
 
+    public override void AddMember(CharacterUnit unit)
+    {
+        base.AddMember(unit);
+
+        LoadByName(unit);
+
+        BuildUI();
+
+        PushCharToReg(unit);
+    }
+
     public void LoadParty()
     {
         // party type
@@ -70,7 +81,7 @@ public class PartyPlayer : IParty
         // DEBUG:
         if (GameSession.playerParty.party == null || GameSession.playerParty.party.Count == 0)
         {
-            var mock_data = CharacterMetaDataLoader.Load("Magus");
+            var mock_data = CharacterMetaDataLoader.Load("Ranger");
             mock_data.isMainCharacter = true;
             PlayerPartyData party = new PlayerPartyData();
             party.party = new System.Collections.Generic.List<CharacterMetaData>();
@@ -86,6 +97,27 @@ public class PartyPlayer : IParty
 
         // capture first check point
         CheckPointLoader.SaveCheckPoint(data, transform);
+    }
+
+    void LoadByName(CharacterUnit unit)
+    {
+        var data = CharacterMetaDataLoader.Load(unit.unitName);
+
+        unit.unitName = data.unitName;
+
+        unit.isMainCharacter = data.isMainCharacter;
+
+        //unit.portraitSprite = Resources.Load<Sprite>("Sprites/" + data.portraitPrefabName);
+        //unit.portraitSprite.name = data.portraitPrefabName;
+
+        unit.attributeSet = data.attributeSet;
+
+        foreach (var spellName in data.spells)
+        {
+            unit.spellBook.AddSpell(spellMap.GetSpellByName(spellName));
+        }
+
+        GameSession.playerParty.party.Add(data);
     }
 
     public void LoadFromData(PlayerPartyData data)
@@ -136,8 +168,8 @@ public class PartyPlayer : IParty
 
         unit.isMainCharacter = data.isMainCharacter;
 
-        unit.portraitSprite = Resources.Load<Sprite>("Sprites/" + data.portraitPrefabName);
-        unit.portraitSprite.name = data.portraitPrefabName;
+        //unit.portraitSprite = Resources.Load<Sprite>("Sprites/" + data.portraitPrefabName);
+        //unit.portraitSprite.name = data.portraitPrefabName;
 
         unit.attributeSet = data.attributeSet;
 
@@ -343,9 +375,9 @@ public class PartyPlayer : IParty
             if (followerIndex >= formationTargets.Count) break;
 
             Vector3 targetPos = formationTargets[followerIndex++];
-            follower.agent.isStopped = false;
-            follower.agent.SetDestination(targetPos);
-            
+            //follower.agent.isStopped = false;
+            //follower.agent.SetDestination(targetPos);
+            follower.WalkTo(targetPos);
         }
     }
     private List<Vector3> GetFormationTargets(Vector3 leaderTarget, Vector3 leaderForward)

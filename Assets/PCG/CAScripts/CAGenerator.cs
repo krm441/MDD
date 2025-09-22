@@ -29,10 +29,10 @@ public class CAGenerator : MonoBehaviour, IDungeon
 
     [SerializeField] private CAMeshing caMeshing;
 
-    // Start is called before the first frame update
-    void Start()
+    public void Generate(int seed)
     {
-        //GenerateDungeon();
+        this.seed = seed;
+        Generate();
     }
 
     [ContextMenu("Generate Dungeon")]

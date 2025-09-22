@@ -13,6 +13,8 @@ public enum DungeonType
 
 public class DungeonManager : MonoBehaviour
 {
+    [SerializeField] int seed;
+
     private DungeonType current = DungeonType.None;
 
     private IDungeon dungeon;
@@ -37,21 +39,21 @@ public class DungeonManager : MonoBehaviour
             case DungeonType.BSP:
                 {
                     var BSP = GetComponentInChildren<BspController>();
-                    BSP.Generate();
+                    BSP.Generate(seed);
                     dungeon = BSP;
                 }
                 break;
             case DungeonType.CA:
                 {
                     var CA = GetComponentInChildren<CAGenerator>();
-                    CA.Generate();
+                    CA.Generate(seed);
                     dungeon = CA;
                 }
                 break;
             case DungeonType.GG:
                 {
                     var GG = GetComponentInChildren<VoronoiGrammarController>();
-                    GG.Generate();
+                    GG.Generate(seed);
                     dungeon = GG;
                 }
                 break;

@@ -26,6 +26,12 @@ public abstract class IParty : MonoBehaviour
     }
 
     [SerializeField] private CharacterUnitReg registry;
+
+    public virtual void AddMember(CharacterUnit unit)
+    {
+        partyMembers.Add(unit);
+    }
+
     public float GetDistace(Vector3 from)
     {
         return Vector3.Distance(from, this.transform.position);

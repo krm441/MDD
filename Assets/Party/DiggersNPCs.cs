@@ -22,7 +22,7 @@ public class DiggersNPCs : PartyNPC
         gameManager = FindObjectOfType<GameManagerMDD>();
         Assert.IsNotNull(gameManager);
 
-        Init(this.transform.position, 5f, 1);
+        Init(this.transform.position, 5f, 3);
         foreach (var unit in partyMembers)
         {
             InitAI(unit);

@@ -250,7 +250,7 @@ public class MovementSubstate : SubStateBase
                 }
 
                 var cu = go.GetComponentInParent<CharacterUnit>();
-                if (cu && (go.layer == LayerMask.NameToLayer("FriendlyNPCs") || go.layer == LayerMask.NameToLayer("PartyLayer")))
+                if (cu && (go.layer == LayerMask.NameToLayer("FriendlyNPCs")))// || go.layer == LayerMask.NameToLayer("PartyLayer")))
                 {
                     if (cu == partyManager.CurrentSelected) break; // block talking to self
 
