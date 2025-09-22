@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using PartyManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class SceneManagerMDD : MonoBehaviour
 {
@@ -11,9 +12,13 @@ public class SceneManagerMDD : MonoBehaviour
 
     [SerializeField] private GameObject dungeonManagerPrefab;
 
+    [SerializeField] private GameObject globalLight;
+
+    [SerializeField] private IsometricCameraController controller;
+
     private void Start()
     {
-        LoadAll();
+        
     }
 
     public void LoadAll()
@@ -23,6 +28,11 @@ public class SceneManagerMDD : MonoBehaviour
 
         // 1) Load dungeon
         DungeonManager.StartDungeon(GameSession.SelectedDungeon);
+
+        if (GameSession.SelectedDungeon == DungeonType.BSP)
+            globalLight.gameObject.SetActive(false);
+        else
+            globalLight.gameObject.SetActive(true);
 
         // 2) NavMeshManager
         NavMeshManager.BuildNavMesh();
@@ -34,5 +44,25 @@ public class SceneManagerMDD : MonoBehaviour
         Console.Error("poz", pos);
         PartyManager.LoadParty();
         PartyManager.TeleportParty(pos);
+
+        
+    }
+
+    bool snaped = false;
+    private void LateUpdate()
+    {
+        if (snaped) return;
+
+        LoadAll();
+
+        var pos = DungeonManager.GetPlayerStart().worldPos;
+        controller.LerpToCharacter(pos);
+
+        snaped = true;
+    }
+
+    public void GoHome()
+    {
+        SceneManager.LoadScene("RespawnArea");
     }
 }

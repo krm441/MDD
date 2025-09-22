@@ -19,6 +19,8 @@ public class SoundPlayer : MonoBehaviour
 
     bool initialized = false; // lazy init
 
+    public bool muteMusic = false;
+
     private void Init()
     {
         if (initialized) return;    // lazy init
@@ -67,6 +69,8 @@ public class SoundPlayer : MonoBehaviour
 
     public void PlayMusic(string clipName, float volume = 1f)
     {
+        if (muteMusic) return;
+
         Init();
         if (!soundMap.TryGetValue(clipName, out var clip))
         {

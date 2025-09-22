@@ -78,6 +78,22 @@ public class IsometricCameraController : MonoBehaviour
         mCamera.LookAt(target.position);
     }
 
+    public void SnapToCharacter(Vector3 charTransform)
+    {
+        if (charTransform == null) return;
+
+        // Ensure the target pivot follows as well
+        target.position = charTransform;
+
+        // Recalculate camera position based on current zoom
+        Vector3 zoomDir = (mCamera.position - target.position).normalized;
+        mCamera.position = target.position + zoomDir * currentZoom;
+
+        // Reapply look direction
+        mCamera.LookAt(target.position);
+    }
+
+
     private Coroutine moveCoroutine;        
 
     public void LerpToCharacter(Transform charTransform, float duration = 0.5f, Action onComplete = null)
@@ -88,6 +104,16 @@ public class IsometricCameraController : MonoBehaviour
             StopCoroutine(moveCoroutine);
 
         moveCoroutine = StartCoroutine(LerpToTargetPosition(charTransform.position, duration, onComplete));
+    }
+
+    public void LerpToCharacter(Vector3 charTransform, float duration = 0.5f, Action onComplete = null)
+    {
+        if (charTransform == null) return;
+
+        if (moveCoroutine != null)
+            StopCoroutine(moveCoroutine);
+
+        moveCoroutine = StartCoroutine(LerpToTargetPosition(charTransform, duration, onComplete));
     }
 
     private IEnumerator LerpToTargetPosition(Vector3 targetPosition, float duration, Action onComplete)

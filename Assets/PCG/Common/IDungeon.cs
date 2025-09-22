@@ -11,5 +11,6 @@ public interface IDungeon
     //List<Room> GetRoomsA();
 
     void Generate();
+    void Generate(int seed);
     void Clean();
 }

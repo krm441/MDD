@@ -116,6 +116,12 @@ public class VoronoiGrammarController : MonoBehaviour, IDungeon
     // Implementation helpers
     GraphVoronoiMapper mapper = new GraphVoronoiMapper();
 
+    public void Generate(int seed)
+    {
+        this.seed = seed;
+        Generate();
+    }
+
     [ContextMenu("Generate")]
     public void Generate()
     {

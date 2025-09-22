@@ -32,7 +32,7 @@ public class TutorialController : MonoBehaviour
         Assert.IsNotNull(title);
         Assert.IsNotNull(body);
         Assert.IsNotNull(image);
-        
+
         title.text = page.title ?? "";
         body.text = page.body ?? "";
 
@@ -55,7 +55,7 @@ public class TutorialController : MonoBehaviour
 
     public void ShowTutorialIntro() => ShowTutorial(tutorialBookIntro);
     public void ShowTutorialCombat() => ShowTutorial(tutorialBookCombat);
-    public void ShowTutorialFinished() => ShowTutorial(tutorialBookTutorialFinished);
+    public void ShowTutorialFinished() {}// ShowTutorial(tutorialBookTutorialFinished);
 
     private void ShowTutorial(TutorialBook tutorialBook)
     {

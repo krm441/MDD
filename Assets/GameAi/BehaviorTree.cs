@@ -160,7 +160,7 @@ namespace AiMdd
             );
 
             if (count == 0)
-                return BTState.Success; // early return
+                return BTState.Failure; // early return
 
             // 2) Check LOS
             Vector3 eye = context.Caster.GetChestPos();
